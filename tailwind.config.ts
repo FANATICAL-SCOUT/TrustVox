@@ -17,54 +17,55 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // shadcn semantic tokens (now fully wired to the Ledger palette)
+        // shadcn semantic tokens (fully wired to the Ledger palette).
+        // <alpha-value> lets opacity modifiers work (e.g. bg-primary/90, bg-surface/60).
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
+        ring: "hsl(var(--ring) / <alpha-value>)",
+        background: "hsl(var(--background) / <alpha-value>)",
+        foreground: "hsl(var(--foreground) / <alpha-value>)",
         primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
+          DEFAULT: "hsl(var(--primary) / <alpha-value>)",
+          foreground: "hsl(var(--primary-foreground) / <alpha-value>)",
         },
         secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
+          DEFAULT: "hsl(var(--secondary) / <alpha-value>)",
+          foreground: "hsl(var(--secondary-foreground) / <alpha-value>)",
         },
         muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
+          DEFAULT: "hsl(var(--muted) / <alpha-value>)",
+          foreground: "hsl(var(--muted-foreground) / <alpha-value>)",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
+          DEFAULT: "hsl(var(--accent) / <alpha-value>)",
+          foreground: "hsl(var(--accent-foreground) / <alpha-value>)",
         },
         destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
+          DEFAULT: "hsl(var(--destructive) / <alpha-value>)",
+          foreground: "hsl(var(--destructive-foreground) / <alpha-value>)",
         },
         card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
+          DEFAULT: "hsl(var(--card) / <alpha-value>)",
+          foreground: "hsl(var(--card-foreground) / <alpha-value>)",
         },
         popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
+          DEFAULT: "hsl(var(--popover) / <alpha-value>)",
+          foreground: "hsl(var(--popover-foreground) / <alpha-value>)",
         },
-        // Ledger named palette — use these directly in redesigned screens
+        // Ledger named palette — use directly in redesigned screens
         gold: {
-          DEFAULT: "hsl(var(--tvx-gold))",
-          deep: "hsl(var(--tvx-gold-deep))",
+          DEFAULT: "hsl(var(--tvx-gold) / <alpha-value>)",
+          deep: "hsl(var(--tvx-gold-deep) / <alpha-value>)",
         },
-        mint: "hsl(var(--tvx-mint))",
+        mint: "hsl(var(--tvx-mint) / <alpha-value>)",
         surface: {
-          DEFAULT: "hsl(var(--card))",
-          raised: "hsl(var(--tvx-surface-2))",
+          DEFAULT: "hsl(var(--card) / <alpha-value>)",
+          raised: "hsl(var(--tvx-surface-2) / <alpha-value>)",
         },
         ink: {
-          DEFAULT: "hsl(var(--foreground))",
-          dim: "hsl(var(--tvx-ink-dim))",
-          muted: "hsl(var(--muted-foreground))",
+          DEFAULT: "hsl(var(--foreground) / <alpha-value>)",
+          dim: "hsl(var(--tvx-ink-dim) / <alpha-value>)",
+          muted: "hsl(var(--muted-foreground) / <alpha-value>)",
         },
       },
       borderRadius: {
