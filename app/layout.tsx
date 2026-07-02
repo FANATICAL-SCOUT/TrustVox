@@ -1,6 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Bricolage_Grotesque, DM_Sans } from "next/font/google"
+import { Bricolage_Grotesque, DM_Sans, JetBrains_Mono } from "next/font/google"
 import { Providers } from "./providers"
 import GlobalScrollEffects from "@/components/global-scroll-effects"
 import RootLayoutWrapper from "./root-layout-wrapper"
@@ -20,10 +20,16 @@ const dmSans = DM_Sans({
   display: "swap",
 })
 
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+})
+
 export const metadata: Metadata = {
-  title: "Trustvox - Decentralized Feedback Platform",
-  description: "Earn rewards for authentic feedback on products and services",
-  generator: "v0.dev",
+  title: "TrustVox — Feedback that pays you back",
+  description: "Share feedback on the products you use, earn TVX tokens, and redeem them for rewards.",
 }
 
 export default function RootLayout({
@@ -33,7 +39,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${bricolage.variable} ${dmSans.variable}`}>
+      <body className={`${bricolage.variable} ${dmSans.variable} ${jetbrainsMono.variable}`}>
         <Providers>
           <RootLayoutWrapper>{children}</RootLayoutWrapper>
           <GlobalScrollEffects />
