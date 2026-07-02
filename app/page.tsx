@@ -69,7 +69,7 @@ const FEATURES = [
   {
     icon: <ShieldIcon />,
     name: "Privacy First",
-    desc: "SOC 2 Type II certified. Respondent data is anonymised by default. GDPR and CCPA ready out of the box.",
+    desc: "Privacy by design. Respondent data is anonymised by default, and every action runs through role-based access controls.",
   },
   {
     icon: <CreditIcon />,
@@ -161,19 +161,19 @@ export default function HomePage() {
             <div className={`${styles.proofAvatar} ${styles.av4}`}>+</div>
           </div>
           <div className={styles.proofText}>
-            <strong>2,400+ companies</strong>
+            <strong>Feedback that earns</strong>
             <br />
-            trust TrustVox for insights
+            rewards for every voice
           </div>
           <div className={styles.proofDivider} />
           <div className={styles.proofStat}>
-            <div className="num">98%</div>
-            <div className="lbl">satisfaction</div>
+            <div className="num">TVX</div>
+            <div className="lbl">rewards</div>
           </div>
           <div className={styles.proofDivider} />
           <div className={styles.proofStat}>
-            <div className="num">4.9*</div>
-            <div className="lbl">avg rating</div>
+            <div className="num">3 steps</div>
+            <div className="lbl">to launch</div>
           </div>
         </div>
 

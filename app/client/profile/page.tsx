@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Camera, Save, UserCircle2 } from "lucide-react"
-import ClientNavbar from "@/components/client-navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -97,8 +96,6 @@ export default function ClientProfilePage() {
 
   return (
     <div className="min-h-screen app-page bg-[#090b14]">
-      <ClientNavbar activeSection="profile" />
-
       <main className="max-w-3xl mx-auto px-4 py-8">
         <Card className="bg-[#121526] border-[#2b3150] text-[#f5f7ff]">
           <CardHeader>
