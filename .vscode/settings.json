@@ -1,0 +1,11 @@
+{
+  "python.terminal.activateEnvironment": false,
+  "python.createEnvironment.trigger": "off",
+  "css.validate": false,
+  "less.validate": false,
+  "scss.validate": false,
+  "files.associations": {
+    "*.ts": "typescript",
+    "*.tsx": "typescriptreact"
+  }
+}

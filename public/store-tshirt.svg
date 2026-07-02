@@ -1,0 +1,14 @@
+<svg width="640" height="360" viewBox="0 0 640 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="360" rx="24" fill="url(#paint0_linear_3_2)"/>
+  <rect x="24" y="24" width="592" height="312" rx="18" fill="rgba(10,12,24,0.46)" stroke="rgba(255,255,255,0.2)"/>
+  <text x="64" y="170" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="44" font-weight="700">TrustVox</text>
+  <text x="64" y="220" fill="#A7F3D0" font-family="Arial, sans-serif" font-size="30" font-weight="600">T-Shirt</text>
+  <circle cx="520" cy="180" r="78" fill="#10B981" fill-opacity="0.16"/>
+  <path d="M500 210V148L520 132L540 148V210H500Z" fill="#D1FAE5" fill-opacity="0.8"/>
+  <defs>
+    <linearGradient id="paint0_linear_3_2" x1="0" y1="0" x2="640" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1E1B4B"/>
+      <stop offset="1" stop-color="#065F46"/>
+    </linearGradient>
+  </defs>
+</svg>

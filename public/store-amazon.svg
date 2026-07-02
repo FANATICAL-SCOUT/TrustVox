@@ -1,0 +1,14 @@
+<svg width="640" height="360" viewBox="0 0 640 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="360" rx="24" fill="url(#paint0_linear_1_2)"/>
+  <rect x="24" y="24" width="592" height="312" rx="18" fill="rgba(10,12,24,0.5)" stroke="rgba(255,255,255,0.22)"/>
+  <text x="64" y="170" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="48" font-weight="700">Amazon</text>
+  <text x="64" y="220" fill="#C4B5FD" font-family="Arial, sans-serif" font-size="30" font-weight="600">Gift Card</text>
+  <circle cx="520" cy="180" r="78" fill="#A78BFA" fill-opacity="0.22"/>
+  <text x="488" y="190" fill="#E2E8F0" font-family="Arial, sans-serif" font-size="36">$</text>
+  <defs>
+    <linearGradient id="paint0_linear_1_2" x1="0" y1="0" x2="640" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#312E81"/>
+      <stop offset="1" stop-color="#581C87"/>
+    </linearGradient>
+  </defs>
+</svg>
