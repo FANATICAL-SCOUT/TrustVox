@@ -23,9 +23,9 @@ const STORAGE_KEY = "trustvox:tvx-wallet"
 const UPDATE_EVENT = "trustvox:tvx-wallet-updated"
 
 const defaultWalletState: TVXWalletState = {
-  balance: 240,
-  totalEarned: 360,
-  totalSpent: 120,
+  balance: 1240,
+  totalEarned: 1680,
+  totalSpent: 440,
   transactions: [
     {
       id: "tx-1",
