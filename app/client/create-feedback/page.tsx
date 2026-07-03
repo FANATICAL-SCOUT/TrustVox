@@ -217,8 +217,8 @@ function StarPreview({ value, onChange }) {
             size={24}
             className={
               s <= (hover || value)
-                ? "fill-[#FBBF24] text-[#FBBF24]"
-                : "text-[#6c7396]"
+                ? "fill-gold text-gold"
+                : "text-ink-muted"
             }
           />
         </button>
@@ -234,9 +234,9 @@ function PreviewQuestion({ question, answers, onAnswer }) {
   if (question.type === "star-rating") {
     return (
       <div>
-        <p className="text-sm text-[#a5accb] mb-2">
+        <p className="text-sm text-ink-dim mb-2">
           {question.title}
-          {question.required && <span className="text-[#F87171] ml-1">*</span>}
+          {question.required && <span className="text-destructive ml-1">*</span>}
         </p>
         <StarPreview value={ans || 0} onChange={(v) => onAnswer(question.id, v)} />
       </div>
@@ -245,15 +245,15 @@ function PreviewQuestion({ question, answers, onAnswer }) {
   if (question.type === "text-short") {
     return (
       <div>
-        <p className="text-sm text-[#a5accb] mb-2">
+        <p className="text-sm text-ink-dim mb-2">
           {question.title}
-          {question.required && <span className="text-[#F87171] ml-1">*</span>}
+          {question.required && <span className="text-destructive ml-1">*</span>}
         </p>
         <Input
           value={ans || ""}
           onChange={(e) => onAnswer(question.id, e.target.value)}
           placeholder="Short answer…"
-          className="bg-[#1a1f33] border-[#2b3150] text-[#f5f7ff]"
+          className="bg-white/[0.03] border-white/10 text-ink"
         />
       </div>
     )
@@ -261,15 +261,15 @@ function PreviewQuestion({ question, answers, onAnswer }) {
   if (question.type === "text-long") {
     return (
       <div>
-        <p className="text-sm text-[#a5accb] mb-2">
+        <p className="text-sm text-ink-dim mb-2">
           {question.title}
-          {question.required && <span className="text-[#F87171] ml-1">*</span>}
+          {question.required && <span className="text-destructive ml-1">*</span>}
         </p>
         <Textarea
           value={ans || ""}
           onChange={(e) => onAnswer(question.id, e.target.value)}
           placeholder="Long answer…"
-          className="bg-[#1a1f33] border-[#2b3150] text-[#f5f7ff] min-h-[90px]"
+          className="bg-white/[0.03] border-white/10 text-ink min-h-[90px]"
         />
       </div>
     )
@@ -277,9 +277,9 @@ function PreviewQuestion({ question, answers, onAnswer }) {
   if (question.type === "multiple-choice") {
     return (
       <div>
-        <p className="text-sm text-[#a5accb] mb-2">
+        <p className="text-sm text-ink-dim mb-2">
           {question.title}
-          {question.required && <span className="text-[#F87171] ml-1">*</span>}
+          {question.required && <span className="text-destructive ml-1">*</span>}
         </p>
         <div className="flex flex-col gap-2">
           {question.options.map((opt) => (
@@ -288,13 +288,13 @@ function PreviewQuestion({ question, answers, onAnswer }) {
                 onClick={() => onAnswer(question.id, opt)}
                 className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer ${
                   ans === opt
-                    ? "border-[#8b5cf6] bg-[#8b5cf6]"
-                    : "border-[#6c7396] group-hover:border-[#8b5cf6]"
+                    ? "border-gold bg-gold"
+                    : "border-white/20 group-hover:border-gold/60"
                 }`}
               >
-                {ans === opt && <div className="w-1.5 h-1.5 bg-[#090b14] rounded-full" />}
+                {ans === opt && <div className="w-1.5 h-1.5 bg-background rounded-full" />}
               </div>
-              <span className="text-sm text-[#d7ddf5]">{opt}</span>
+              <span className="text-sm text-ink-dim">{opt}</span>
             </label>
           ))}
         </div>
@@ -305,9 +305,9 @@ function PreviewQuestion({ question, answers, onAnswer }) {
     const selected = ans || []
     return (
       <div>
-        <p className="text-sm text-[#a5accb] mb-2">
+        <p className="text-sm text-ink-dim mb-2">
           {question.title}
-          {question.required && <span className="text-[#F87171] ml-1">*</span>}
+          {question.required && <span className="text-destructive ml-1">*</span>}
         </p>
         <div className="flex flex-col gap-2">
           {question.options.map((opt) => {
@@ -323,13 +323,13 @@ function PreviewQuestion({ question, answers, onAnswer }) {
                   }
                   className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors cursor-pointer ${
                     checked
-                      ? "border-[#8b5cf6] bg-[#8b5cf6]"
-                      : "border-[#6c7396] group-hover:border-[#8b5cf6]"
+                      ? "border-gold bg-gold"
+                      : "border-white/20 group-hover:border-gold/60"
                   }`}
                 >
-                  {checked && <Check size={10} className="text-[#090b14]" />}
+                  {checked && <Check size={10} className="text-background" />}
                 </div>
-                <span className="text-sm text-[#d7ddf5]">{opt}</span>
+                <span className="text-sm text-ink-dim">{opt}</span>
               </label>
             )
           })}
@@ -340,14 +340,14 @@ function PreviewQuestion({ question, answers, onAnswer }) {
   if (question.type === "voice-feedback") {
     return (
       <div>
-        <p className="text-sm text-[#a5accb] mb-2">
+        <p className="text-sm text-ink-dim mb-2">
           {question.title}
-          {question.required && <span className="text-[#F87171] ml-1">*</span>}
+          {question.required && <span className="text-destructive ml-1">*</span>}
         </p>
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-[#1a1f33] border border-[#2b3150]">
-          <Mic size={18} className="text-[#8b5cf6]" />
-          <span className="text-sm text-[#a5accb]">Voice input enabled</span>
-          <Badge variant="outline" className="ml-auto border-[#8b5cf6]/40 text-[#8b5cf6] text-xs">
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.03] border border-white/10">
+          <Mic size={18} className="text-gold" />
+          <span className="text-sm text-ink-dim">Voice input enabled</span>
+          <Badge variant="outline" className="ml-auto border-gold/40 text-gold text-xs">
             Mic
           </Badge>
         </div>
@@ -713,11 +713,11 @@ function CreateFeedbackInner() {
     ["multiple-choice", "multi-select"].includes(t)
 
   return (
-    <div className="min-h-screen app-page bg-[#090b14] relative">
+    <div className="min-h-screen app-page bg-background relative">
       {/* Ambient blobs */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#8b5cf6]/6 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-[#A78BFA]/6 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-gold/[0.06] rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-gold-deep/[0.05] rounded-full blur-3xl" />
       </div>
 
       {/* Toast */}
@@ -725,8 +725,8 @@ function CreateFeedbackInner() {
         <div
           className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium shadow-2xl transition-all ${
             toast.type === "error"
-              ? "bg-[#1a0808] border-[#F87171]/40 text-[#F87171]"
-              : "bg-[#140f24] border-[#8b5cf6]/40 text-[#8b5cf6]"
+              ? "bg-surface-raised border-destructive/30 text-destructive"
+              : "bg-surface-raised border-gold/30 text-gold"
           }`}
         >
           {toast.type === "error" ? (
@@ -739,32 +739,32 @@ function CreateFeedbackInner() {
       )}
 
       {/* Sticky Top Bar */}
-      <header className="sticky top-0 z-40 border-b border-[#2b3150] bg-[#090b14]/95 backdrop-blur supports-[backdrop-filter]:bg-[#090b14]/80">
+      <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
           {/* Left: Title + Mode */}
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex items-center gap-2">
-              <Sparkles size={16} className="text-[#A78BFA] shrink-0" />
-              <span className="text-sm font-semibold text-[#f5f7ff] hidden sm:inline">
+              <Sparkles size={16} className="text-gold shrink-0" />
+              <span className="text-sm font-semibold text-ink hidden sm:inline">
                 {editId ? "Editing Form" : "Create Feedback Form"}
               </span>
-              <span className="text-sm font-semibold text-[#f5f7ff] sm:hidden">
+              <span className="text-sm font-semibold text-ink sm:hidden">
                 {editId ? "Edit Form" : "New Form"}
               </span>
             </div>
-            <Badge variant="outline" className="border-[#2b3150] text-[#6c7396] text-xs px-2 py-1 hidden sm:inline-flex">
+            <Badge variant="outline" className="border-white/15 text-ink-muted text-xs px-2 py-1 hidden sm:inline-flex">
               {previewMode ? "Preview" : "Edit"}
             </Badge>
           </div>
 
           {/* Center: Mode Toggle */}
-          <div className="flex items-center gap-1 bg-[#121526]/60 rounded-lg p-0.5 border border-[#2b3150]">
+          <div className="flex items-center gap-1 bg-white/[0.04] rounded-lg p-0.5 border border-white/10">
             <button
               onClick={() => setPreviewMode(false)}
               className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                 !previewMode
-                  ? "bg-[#8b5cf6] text-[#090b14]"
-                  : "text-[#a5accb] hover:text-[#f5f7ff]"
+                  ? "bg-gold/10 text-gold"
+                  : "text-ink-muted hover:text-ink-dim"
               }`}
             >
               <span className="hidden sm:inline">Edit Mode</span>
@@ -774,8 +774,8 @@ function CreateFeedbackInner() {
               onClick={() => setPreviewMode(true)}
               className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                 previewMode
-                  ? "bg-[#8b5cf6] text-[#090b14]"
-                  : "text-[#a5accb] hover:text-[#f5f7ff]"
+                  ? "bg-gold/10 text-gold"
+                  : "text-ink-muted hover:text-ink-dim"
               }`}
             >
               <span className="hidden sm:inline">Preview Form</span>
@@ -789,7 +789,7 @@ function CreateFeedbackInner() {
               <Button
                 size="sm"
                 variant="ghost"
-                className="text-[#a5accb] hover:text-[#8b5cf6] text-xs gap-1 hidden sm:flex"
+                className="text-ink-dim hover:text-gold text-xs gap-1 hidden sm:flex"
                 onClick={() => { setPreviewAnswers({}); setPreviewMode(true) }}
               >
                 <Eye size={14} />
@@ -798,7 +798,7 @@ function CreateFeedbackInner() {
               <Button
                 size="sm"
                 variant="outline"
-                className="border-[#2b3150] text-[#a5accb] hover:text-[#8b5cf6] hover:border-[#8b5cf6]/50 text-xs gap-1"
+                className="border-white/10 text-ink-dim hover:text-gold hover:border-gold/40 text-xs gap-1"
                 onClick={handleSaveDraft}
                 disabled={savingState === "saving"}
               >
@@ -808,7 +808,7 @@ function CreateFeedbackInner() {
               </Button>
               <Button
                 size="sm"
-                className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-[#090b14] font-semibold text-xs gap-1"
+                className="bg-gradient-to-b from-[#f2c877] to-gold-deep text-[#241a06] font-semibold hover:brightness-105 text-xs gap-1"
                 onClick={handleSubmitToAdmin}
                 disabled={submitState !== "idle"}
               >
@@ -823,7 +823,7 @@ function CreateFeedbackInner() {
               <Button
                 size="sm"
                 variant="outline"
-                className="border-[#2b3150] text-[#a5accb] hover:text-[#8b5cf6] text-xs gap-1"
+                className="border-white/10 text-ink-dim hover:text-gold text-xs gap-1"
                 onClick={() => setPreviewMode(false)}
               >
                 <span className="hidden sm:inline">Back to Edit</span>
@@ -840,33 +840,33 @@ function CreateFeedbackInner() {
           {/* ── Left column: Form Builder ── */}
           <div className="space-y-7">
             {/* Basic details */}
-            <section className="rounded-2xl border border-[#2b3150] bg-[#121526] p-7">
-              <h2 className="text-base font-semibold text-[#f5f7ff] mb-6 flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md bg-[#8b5cf6]/20 flex items-center justify-center text-[#8b5cf6] text-xs font-bold">1</div>
+            <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-7">
+              <h2 className="text-base font-semibold text-ink mb-6 flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-gold/15 flex items-center justify-center text-gold text-xs font-bold">1</div>
                 Form Details
               </h2>
               <div className="space-y-5">
                 <div>
-                  <Label className="text-xs text-[#a5accb] mb-1.5 block">Form Title <span className="text-[#F87171]">*</span></Label>
+                  <Label className="text-xs text-ink-dim mb-1.5 block">Form Title <span className="text-destructive">*</span></Label>
                   <Input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. Product Experience Survey"
-                    className="bg-[#1a1f33] border-[#2b3150] text-[#f5f7ff] placeholder:text-[#6c7396]"
+                    className="bg-white/[0.03] border-white/10 text-ink placeholder:text-ink-muted"
                   />
                 </div>
                 <div>
-                  <Label className="text-xs text-[#a5accb] mb-1.5 block">Description</Label>
+                  <Label className="text-xs text-ink-dim mb-1.5 block">Description</Label>
                   <Textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Brief description of what this form collects…"
-                    className="bg-[#1a1f33] border-[#2b3150] text-[#f5f7ff] placeholder:text-[#6c7396] min-h-[72px] resize-none"
+                    className="bg-white/[0.03] border-white/10 text-ink placeholder:text-ink-muted min-h-[72px] resize-none"
                   />
                 </div>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-xs text-[#a5accb] mb-1.5 block">Company Name <span className="text-[#F87171]">*</span></Label>
+                    <Label className="text-xs text-ink-dim mb-1.5 block">Company Name <span className="text-destructive">*</span></Label>
                     <Popover
                       open={companyPickerOpen}
                       onOpenChange={(open) => {
@@ -880,18 +880,18 @@ function CreateFeedbackInner() {
                           variant="outline"
                           role="combobox"
                           aria-expanded={companyPickerOpen}
-                          className="w-full justify-between bg-[#1a1f33] border-[#2b3150] text-[#f5f7ff] hover:bg-[#222946] hover:text-[#f5f7ff]"
+                          className="w-full justify-between bg-white/[0.03] border-white/10 text-ink hover:bg-white/[0.06] hover:text-ink"
                         >
                           <span className="truncate text-left">
                             {selectedCompany ? `${selectedCompany.name} • ${selectedCompany.category}` : "Select approved company"}
                           </span>
-                          <ChevronDown size={16} className="text-[#8e97be]" />
+                          <ChevronDown size={16} className="text-ink-muted" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-[#0f1426] border-[#3a4266] text-[#eef2ff]">
-                        <Command shouldFilter={false} className="bg-transparent text-[#eef2ff]">
-                          <div className="relative border-b border-[#2b3150]">
-                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8e97be]" />
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-surface-raised border-white/10 text-ink">
+                        <Command shouldFilter={false} className="bg-transparent text-ink">
+                          <div className="relative border-b border-white/10">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
                             <CommandInput
                               value={companyQuery}
                               onValueChange={setCompanyQuery}
@@ -902,11 +902,11 @@ function CreateFeedbackInner() {
                                 }
                               }}
                               placeholder="Search approved companies..."
-                              className="h-10 pl-9 pr-3 text-sm text-[#eef2ff] placeholder:text-[#8e97be]"
+                              className="h-10 pl-9 pr-3 text-sm text-ink placeholder:text-ink-muted"
                             />
                           </div>
                           <CommandList>
-                            <CommandEmpty className="text-[#8e97be]">No approved companies found.</CommandEmpty>
+                            <CommandEmpty className="text-ink-muted">No approved companies found.</CommandEmpty>
                             <CommandGroup className="p-2">
                               {filteredCompanies.map((company) => (
                                 <CommandItem
@@ -918,15 +918,15 @@ function CreateFeedbackInner() {
                                     handleSelectCompany(company.id)
                                   }}
                                   onClick={() => handleSelectCompany(company.id)}
-                                  className="rounded-md px-2.5 py-2.5 text-[#e8edff] aria-selected:bg-[#8b5cf6]/25 aria-selected:text-white data-[selected=true]:bg-[#8b5cf6]/20"
+                                  className="rounded-md px-2.5 py-2.5 text-ink aria-selected:bg-gold/20 aria-selected:text-ink data-[selected=true]:bg-gold/15"
                                 >
                                   <Check
                                     size={14}
-                                    className={`mr-2 ${companyId === company.id ? "opacity-100 text-[#a78bfa]" : "opacity-0"}`}
+                                    className={`mr-2 ${companyId === company.id ? "opacity-100 text-gold" : "opacity-0"}`}
                                   />
                                   <span className="truncate">{company.name}</span>
-                                  <span className="mx-1 text-[#8e97be]">•</span>
-                                  <span className="truncate text-xs text-[#8e97be]">{company.category}</span>
+                                  <span className="mx-1 text-ink-muted">•</span>
+                                  <span className="truncate text-xs text-ink-muted">{company.category}</span>
                                 </CommandItem>
                               ))}
                             </CommandGroup>
@@ -934,29 +934,29 @@ function CreateFeedbackInner() {
                         </Command>
                       </PopoverContent>
                     </Popover>
-                    <p className="text-[10px] text-[#6c7396] mt-1">Only active approved companies can create feedback forms.</p>
+                    <p className="text-[10px] text-ink-muted mt-1">Only active approved companies can create feedback forms.</p>
                   </div>
                   <div>
-                    <Label className="text-xs text-[#a5accb] mb-1.5 block">Product / Service <span className="text-[#F87171]">*</span></Label>
+                    <Label className="text-xs text-ink-dim mb-1.5 block">Product / Service <span className="text-destructive">*</span></Label>
                     <Input
                       value={product}
                       onChange={(e) => setProduct(e.target.value)}
                       placeholder="e.g. TrustVox Pro"
-                      className="bg-[#1a1f33] border-[#2b3150] text-[#f5f7ff] placeholder:text-[#6c7396]"
+                      className="bg-white/[0.03] border-white/10 text-ink placeholder:text-ink-muted"
                     />
                   </div>
                   <div>
-                    <Label className="text-xs text-[#a5accb] mb-1.5 block">Category <span className="text-[#F87171]">*</span></Label>
+                    <Label className="text-xs text-ink-dim mb-1.5 block">Category <span className="text-destructive">*</span></Label>
                     <Select value={category} onValueChange={setCategory}>
-                      <SelectTrigger className="bg-[#1a1f33] border-[#2b3150] text-[#f5f7ff] data-[placeholder]:text-[#8e97be]">
+                      <SelectTrigger className="bg-white/[0.03] border-white/10 text-ink data-[placeholder]:text-ink-muted">
                         <SelectValue>{category || "Select category"}</SelectValue>
                       </SelectTrigger>
-                      <SelectContent className="bg-[#0f1426] border-[#3a4266] text-[#eef2ff] shadow-2xl">
+                      <SelectContent className="bg-surface-raised border-white/10 text-ink shadow-2xl">
                         {CATEGORIES.map((c) => (
                           <SelectItem
                             key={c}
                             value={c}
-                            className="text-[#e8edff] focus:bg-[#8b5cf6]/25 focus:text-white data-[state=checked]:bg-[#8b5cf6]/20 data-[state=checked]:text-white"
+                            className="text-ink focus:bg-gold/20 focus:text-ink data-[state=checked]:bg-gold/15"
                           >
                             {c}
                           </SelectItem>
@@ -965,7 +965,7 @@ function CreateFeedbackInner() {
                     </Select>
                   </div>
                   <div>
-                    <Label className="text-xs text-[#a5accb] mb-1.5 block">Reward Per Completed Feedback (TVX) <span className="text-[#F87171]">*</span></Label>
+                    <Label className="text-xs text-ink-dim mb-1.5 block">Reward Per Completed Feedback (TVX) <span className="text-destructive">*</span></Label>
                     <Input
                       type="number"
                       min={1}
@@ -973,20 +973,20 @@ function CreateFeedbackInner() {
                       value={rewardTokens}
                       onChange={(e) => setRewardTokens(e.target.value)}
                       placeholder="e.g. 40"
-                      className="bg-[#1a1f33] border-[#2b3150] text-[#f5f7ff] placeholder:text-[#6c7396]"
+                      className="bg-white/[0.03] border-white/10 text-ink placeholder:text-ink-muted"
                     />
-                    <p className="text-[10px] text-[#6c7396] mt-1">Users will receive exactly this TVX amount when they submit this campaign feedback.</p>
+                    <p className="text-[10px] text-ink-muted mt-1">Users will receive exactly this TVX amount when they submit this campaign feedback.</p>
                   </div>
                 </div>
 
                 {(category === "Other" || category === "Others") && (
                   <div>
-                    <Label className="text-xs text-[#a5accb] mb-1.5 block">Describe Product / Service (for AI templates) <span className="text-[#F87171]">*</span></Label>
+                    <Label className="text-xs text-ink-dim mb-1.5 block">Describe Product / Service (for AI templates) <span className="text-destructive">*</span></Label>
                     <Textarea
                       value={otherCategoryDetails}
                       onChange={(e) => setOtherCategoryDetails(e.target.value)}
                       placeholder="Tell us briefly what your product/service does, target audience, and key goals…"
-                      className="bg-[#1a1f33] border-[#2b3150] text-[#f5f7ff] placeholder:text-[#6c7396] min-h-[72px] resize-none"
+                      className="bg-white/[0.03] border-white/10 text-ink placeholder:text-ink-muted min-h-[72px] resize-none"
                     />
                   </div>
                 )}
@@ -994,8 +994,8 @@ function CreateFeedbackInner() {
                 {/* Quick Templates Section */}
                 <div className="pt-4 space-y-3">
                   <div>
-                    <p className="text-xs text-[#a5accb] font-medium flex items-center gap-1.5 mb-3">
-                      <Star size={12} className="text-[#F4A261]" />
+                    <p className="text-xs text-ink-dim font-medium flex items-center gap-1.5 mb-3">
+                      <Star size={12} className="text-gold" />
                       Quick Start Templates
                     </p>
                     <div className="grid grid-cols-2 gap-2">
@@ -1029,24 +1029,24 @@ function CreateFeedbackInner() {
                             setExpandedQuestion(null)
                             showToast(`"${template.name}" template loaded`)
                           }}
-                          className="p-3 rounded-lg border border-[#2b3150] bg-[#0f1426]/50 hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/5 transition-all text-left"
+                          className="p-3 rounded-lg border border-white/10 bg-white/[0.02] hover:border-gold/40 hover:bg-gold/5 transition-all text-left"
                         >
-                          <p className="text-xs font-medium text-[#f5f7ff] truncate">{template.name}</p>
-                          <p className="text-[10px] text-[#6c7396] mt-1 truncate">{template.desc}</p>
+                          <p className="text-xs font-medium text-ink truncate">{template.name}</p>
+                          <p className="text-[10px] text-ink-muted mt-1 truncate">{template.desc}</p>
                         </button>
                       ))}
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-[#2b3150] space-y-3">
+                <div className="pt-3 border-t border-white/10 space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs text-[#a5accb] font-medium flex items-center gap-1.5">
-                        <Wand2 size={12} className="text-[#A78BFA]" />
+                      <p className="text-xs text-ink-dim font-medium flex items-center gap-1.5">
+                        <Wand2 size={12} className="text-gold" />
                         AI Suggested Templates
                       </p>
-                      <p className="text-[11px] text-[#6c7396] mt-0.5">
+                      <p className="text-[11px] text-ink-muted mt-0.5">
                         Generate domain-based form templates from your product and category.
                       </p>
                     </div>
@@ -1056,7 +1056,7 @@ function CreateFeedbackInner() {
                       variant="outline"
                       onClick={handleGenerateTemplates}
                       disabled={isGeneratingTemplates}
-                      className="border-[#A78BFA]/40 text-[#A78BFA] hover:bg-[#A78BFA]/10 hover:text-[#C4B5FD] text-xs gap-1.5"
+                      className="border-gold/40 text-gold hover:bg-gold/10 hover:text-gold-deep text-xs gap-1.5"
                     >
                       <Wand2 size={12} />
                       {isGeneratingTemplates ? "Generating…" : "Generate Templates"}
@@ -1066,16 +1066,16 @@ function CreateFeedbackInner() {
                   {templateSuggestions.length > 0 && (
                     <div className="grid gap-2">
                       {templateSuggestions.map((template) => (
-                        <div key={template.id} className="rounded-xl border border-[#2b3150] bg-[#14182a] p-3">
+                        <div key={template.id} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-[#f5f7ff] truncate">{template.name}</p>
-                              <p className="text-xs text-[#a5accb] mt-0.5">{template.description}</p>
+                              <p className="text-sm font-semibold text-ink truncate">{template.name}</p>
+                              <p className="text-xs text-ink-dim mt-0.5">{template.description}</p>
                               <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                <Badge variant="outline" className="text-[10px] border-[#8b5cf6]/30 text-[#8b5cf6]">
+                                <Badge variant="outline" className="text-[10px] border-gold/30 text-gold">
                                   {template.questions.length} questions
                                 </Badge>
-                                <Badge variant="outline" className="text-[10px] border-[#A78BFA]/30 text-[#A78BFA] capitalize">
+                                <Badge variant="outline" className="text-[10px] border-white/15 text-ink-dim capitalize">
                                   {template.domain}
                                 </Badge>
                               </div>
@@ -1084,7 +1084,7 @@ function CreateFeedbackInner() {
                               type="button"
                               size="sm"
                               onClick={() => applyTemplateSuggestion(template)}
-                              className="bg-[#8b5cf6]/15 hover:bg-[#8b5cf6]/25 text-[#8b5cf6] border border-[#8b5cf6]/30 text-xs px-3"
+                              className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 text-xs px-3"
                               variant="ghost"
                             >
                               Use
@@ -1099,23 +1099,23 @@ function CreateFeedbackInner() {
             </section>
 
             {/* Questions Builder Section */}
-            <section className="rounded-2xl border border-[#2b3150] bg-[#121526] p-7">
+            <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-7">
               {/* Section Header */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-7">
                 <div>
-                  <h2 className="text-base font-semibold text-[#f5f7ff] flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-md bg-[#A78BFA]/20 flex items-center justify-center text-[#A78BFA] text-xs font-bold">2</div>
+                  <h2 className="text-base font-semibold text-ink flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-md bg-gold/15 flex items-center justify-center text-gold text-xs font-bold">2</div>
                     Questions
-                    <Badge variant="outline" className="border-[#2b3150] text-[#a5accb] text-xs ml-1">
+                    <Badge variant="outline" className="border-white/15 text-ink-dim text-xs ml-1">
                       {questions.length}
                     </Badge>
                   </h2>
-                  <p className="text-xs text-[#6c7396] mt-1">Drag cards to reorder • Click to edit • Mark required questions</p>
+                  <p className="text-xs text-ink-muted mt-1">Drag cards to reorder • Click to edit • Mark required questions</p>
                 </div>
                 <Button
                   size="sm"
                   onClick={addQuestion}
-                  className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-[#090b14] font-semibold text-xs gap-1.5 self-start sm:self-auto"
+                  className="bg-gradient-to-b from-[#f2c877] to-gold-deep text-[#241a06] font-semibold hover:brightness-105 text-xs gap-1.5 self-start sm:self-auto"
                 >
                   <Plus size={14} />
                   Add Question
@@ -1124,45 +1124,45 @@ function CreateFeedbackInner() {
 
               {/* Empty State */}
               {questions.length === 0 ? (
-                <div className="rounded-2xl border-2 border-dashed border-[#8b5cf6]/30 bg-gradient-to-br from-[#8b5cf6]/10 via-[#0f1426]/50 to-[#0f1426]/50 p-10 md:p-12 text-center">
+                <div className="rounded-2xl border-2 border-dashed border-gold/30 bg-gradient-to-br from-gold/10 via-white/[0.02] to-white/[0.02] p-10 md:p-12 text-center">
                   {/* Icon */}
                   <div className="flex justify-center mb-5">
-                    <div className="w-16 h-16 rounded-full bg-[#8b5cf6]/15 flex items-center justify-center">
-                      <List size={32} className="text-[#8b5cf6]" />
+                    <div className="w-16 h-16 rounded-full bg-gold/10 flex items-center justify-center">
+                      <List size={32} className="text-gold" />
                     </div>
                   </div>
-                  
+
                   {/* Content */}
-                  <h3 className="text-base font-semibold text-[#f5f7ff] mb-2">Start Building Your Form</h3>
-                  <p className="text-xs text-[#a5accb] mb-2">Add questions, set types, and collect meaningful feedback</p>
-                  <p className="text-[10px] text-[#6c7396] mb-6">3 smart ways to get started:</p>
-                  
+                  <h3 className="text-base font-semibold text-ink mb-2">Start Building Your Form</h3>
+                  <p className="text-xs text-ink-dim mb-2">Add questions, set types, and collect meaningful feedback</p>
+                  <p className="text-[10px] text-ink-muted mb-6">3 smart ways to get started:</p>
+
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
                     {/* Primary: Add Question */}
                     <Button
                       size="sm"
                       onClick={addQuestion}
-                      className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-[#090b14] font-semibold text-xs gap-1.5 flex-1 sm:flex-none"
+                      className="bg-gradient-to-b from-[#f2c877] to-gold-deep text-[#241a06] font-semibold hover:brightness-105 text-xs gap-1.5 flex-1 sm:flex-none"
                     >
                       <Plus size={14} />
                       Add Question
                     </Button>
-                    
+
                     {/* Secondary: Use Template */}
                     {product && category && (
                       <Button
                         size="sm"
                         onClick={handleGenerateTemplates}
                         disabled={isGeneratingTemplates}
-                        className="border-[#A78BFA]/40 text-[#A78BFA] hover:bg-[#A78BFA]/10 hover:text-[#C4B5FD] text-xs gap-1.5 flex-1 sm:flex-none"
+                        className="border-gold/40 text-gold hover:bg-gold/10 hover:text-gold-deep text-xs gap-1.5 flex-1 sm:flex-none"
                         variant="outline"
                       >
                         <Wand2 size={14} />
                         {isGeneratingTemplates ? "Generating…" : "AI Template"}
                       </Button>
                     )}
-                    
+
                     {/* Tertiary: Quick Start */}
                     <button
                       onClick={() => {
@@ -1184,7 +1184,7 @@ function CreateFeedbackInner() {
                         setExpandedQuestion(q1.id)
                         showToast("Quick form template loaded")
                       }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-[#6c7396] hover:text-[#a5accb] hover:bg-[#2b3150]/40 transition-colors border border-[#2b3150] flex items-center justify-center gap-1.5 flex-1 sm:flex-none"
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-ink-muted hover:text-ink-dim hover:bg-white/[0.06] transition-colors border border-white/10 flex items-center justify-center gap-1.5 flex-1 sm:flex-none"
                     >
                       <Star size={14} />
                       Quick Start
@@ -1217,15 +1217,15 @@ function CreateFeedbackInner() {
                         }}
                         className={`rounded-lg border transition-all ${
                           isExpanded
-                            ? "border-[#8b5cf6]/50 bg-[#14182a] ring-1 ring-[#8b5cf6]/20"
-                            : "border-[#2b3150] bg-[#1a1f33] hover:border-[#6c7396]/50 hover:bg-[#1e2438]"
+                            ? "border-gold/40 bg-white/[0.03] ring-1 ring-gold/15"
+                            : "border-white/[0.07] bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
                         } ${
                           draggingQuestionId === q.id
-                            ? "opacity-50 ring-1 ring-[#8b5cf6]/50"
+                            ? "opacity-50 ring-1 ring-gold/40"
                             : ""
                         } ${
                           dragOverQuestionId === q.id && draggingQuestionId !== q.id
-                            ? "border-[#A78BFA] bg-[#A78BFA]/5"
+                            ? "border-gold bg-gold/5"
                             : ""
                         }`}
                       >
@@ -1234,19 +1234,19 @@ function CreateFeedbackInner() {
                           className="flex items-center gap-3 p-4 cursor-pointer select-none group"
                           onClick={() => setExpandedQuestion(isExpanded ? null : q.id)}
                         >
-                          <GripVertical size={16} className="text-[#6c7396] group-hover:text-[#a5accb] shrink-0 cursor-grab active:cursor-grabbing" />
-                          
+                          <GripVertical size={16} className="text-ink-muted group-hover:text-ink-dim shrink-0 cursor-grab active:cursor-grabbing" />
+
                           {/* Question Info */}
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                            <div className="w-7 h-7 rounded-md bg-[#8b5cf6]/15 flex items-center justify-center text-[#8b5cf6] shrink-0">
+                            <div className="w-7 h-7 rounded-md bg-gold/10 flex items-center justify-center text-gold shrink-0">
                               <QuestionTypeIcon type={q.type} size={13} />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-[#d7ddf5] truncate">
+                              <p className="text-sm font-medium text-ink truncate">
                                 {q.title ? `${idx + 1}. ${q.title}` : `${idx + 1}. Untitled question`}
                               </p>
                               {q.options.length > 0 && (
-                                <p className="text-xs text-[#6c7396] mt-0.5">{q.options.length} options</p>
+                                <p className="text-xs text-ink-muted mt-0.5">{q.options.length} options</p>
                               )}
                             </div>
                           </div>
@@ -1254,20 +1254,20 @@ function CreateFeedbackInner() {
                           {/* Question Meta & Actions */}
                           <div className="flex items-center gap-2 shrink-0 ml-auto">
                             {q.required && (
-                              <Badge variant="outline" className="border-[#F87171]/30 text-[#F87171] text-[9px] px-1.5 py-0.5 whitespace-nowrap">
+                              <Badge variant="outline" className="border-destructive/30 text-destructive text-[9px] px-1.5 py-0.5 whitespace-nowrap">
                                 Required
                               </Badge>
                             )}
-                            <Badge variant="outline" className="border-[#2b3150] text-[#6c7396] text-[9px] px-1.5 py-0.5 hidden sm:inline-flex whitespace-nowrap">
+                            <Badge variant="outline" className="border-white/15 text-ink-muted text-[9px] px-1.5 py-0.5 hidden sm:inline-flex whitespace-nowrap">
                               {qtMeta?.label}
                             </Badge>
-                            
+
                             {/* Quick Actions */}
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
                                 onClick={(e) => { e.stopPropagation(); moveQuestion(q.id, -1) }}
                                 disabled={idx === 0}
-                                className="p-1.5 text-[#6c7396] hover:text-[#a5accb] hover:bg-[#2b3150]/40 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                className="p-1.5 text-ink-muted hover:text-ink-dim hover:bg-white/[0.06] rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                 title="Move up"
                               >
                                 <ChevronUp size={14} />
@@ -1275,22 +1275,22 @@ function CreateFeedbackInner() {
                               <button
                                 onClick={(e) => { e.stopPropagation(); moveQuestion(q.id, 1) }}
                                 disabled={idx === questions.length - 1}
-                                className="p-1.5 text-[#6c7396] hover:text-[#a5accb] hover:bg-[#2b3150]/40 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                className="p-1.5 text-ink-muted hover:text-ink-dim hover:bg-white/[0.06] rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                 title="Move down"
                               >
                                 <ChevronDown size={14} />
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); removeQuestion(q.id) }}
-                                className="p-1.5 text-[#6c7396] hover:text-[#F87171] hover:bg-[#F87171]/10 rounded transition-colors"
+                                className="p-1.5 text-ink-muted hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
                                 title="Delete question"
                               >
                                 <Trash2 size={14} />
                               </button>
                             </div>
-                            
+
                             {/* Expand Indicator */}
-                            <div className="text-[#6c7396] group-hover:text-[#a5accb]">
+                            <div className="text-ink-muted group-hover:text-ink-dim">
                               {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                             </div>
                           </div>
@@ -1298,20 +1298,20 @@ function CreateFeedbackInner() {
 
                         {/* Question Editor - Expanded */}
                         {isExpanded && (
-                          <div className="px-4 pb-4 pt-2 space-y-4 border-t border-[#2b3150]">
+                          <div className="px-4 pb-4 pt-2 space-y-4 border-t border-white/10">
                             {/* Title & Type Row */}
                             <div className="grid sm:grid-cols-2 gap-4">
                               <div>
-                                <Label className="text-xs font-medium text-[#a5accb] mb-2 block">Question Title *</Label>
+                                <Label className="text-xs font-medium text-ink-dim mb-2 block">Question Title *</Label>
                                 <Input
                                   value={q.title}
                                   onChange={(e) => updateQuestion(q.id, { title: e.target.value })}
                                   placeholder="e.g. How satisfied are you with our service?"
-                                  className="bg-[#121526] border-[#2b3150] text-[#f5f7ff] placeholder:text-[#6c7396] text-sm"
+                                  className="bg-white/[0.03] border-white/10 text-ink placeholder:text-ink-muted text-sm"
                                 />
                               </div>
                               <div>
-                                <Label className="text-xs font-medium text-[#a5accb] mb-2 block">Question Type *</Label>
+                                <Label className="text-xs font-medium text-ink-dim mb-2 block">Question Type *</Label>
                                 <Select
                                   value={q.type}
                                   onValueChange={(v) =>
@@ -1323,15 +1323,15 @@ function CreateFeedbackInner() {
                                     })
                                   }
                                 >
-                                  <SelectTrigger className="bg-[#121526] border-[#2b3150] text-[#f5f7ff] text-sm data-[placeholder]:text-[#8e97be]">
+                                  <SelectTrigger className="bg-white/[0.03] border-white/10 text-ink text-sm data-[placeholder]:text-ink-muted">
                                     <SelectValue>{QUESTION_TYPES.find(t => t.value === q.type)?.label || q.type}</SelectValue>
                                   </SelectTrigger>
-                                  <SelectContent className="bg-[#0f1426] border-[#3a4266] text-[#eef2ff] shadow-2xl">
+                                  <SelectContent className="bg-surface-raised border-white/10 text-ink shadow-2xl">
                                     {QUESTION_TYPES.map((t) => (
                                       <SelectItem
                                         key={t.value}
                                         value={t.value}
-                                        className="text-[#e8edff] text-sm focus:bg-[#8b5cf6]/25 focus:text-white data-[state=checked]:bg-[#8b5cf6]/20 data-[state=checked]:text-white"
+                                        className="text-ink text-sm focus:bg-gold/20 focus:text-ink data-[state=checked]:bg-gold/15"
                                       >
                                         {t.label}
                                       </SelectItem>
@@ -1343,23 +1343,23 @@ function CreateFeedbackInner() {
 
                             {/* Options Editor */}
                             {hasOptionsType(q.type) && (
-                              <div className="rounded-lg bg-[#0f1426]/50 border border-[#2b3150] p-3">
-                                <Label className="text-xs font-medium text-[#a5accb] mb-3 block">Answer Options</Label>
+                              <div className="rounded-lg bg-white/[0.02] border border-white/10 p-3">
+                                <Label className="text-xs font-medium text-ink-dim mb-3 block">Answer Options</Label>
                                 <div className="space-y-2.5">
                                   {q.options.map((opt, oi) => (
                                     <div key={oi} className="flex items-center gap-2.5">
-                                      <div className="w-6 h-6 rounded-md border border-[#2b3150] bg-[#121526] flex items-center justify-center text-xs font-medium text-[#6c7396] shrink-0">
+                                      <div className="w-6 h-6 rounded-md border border-white/10 bg-white/[0.03] flex items-center justify-center text-xs font-medium text-ink-muted shrink-0">
                                         {oi + 1}
                                       </div>
                                       <Input
                                         value={opt}
                                         onChange={(e) => updateOption(q.id, oi, e.target.value)}
-                                        className="bg-[#121526] border-[#2b3150] text-[#f5f7ff] placeholder:text-[#6c7396] text-sm h-9 flex-1"
+                                        className="bg-white/[0.03] border-white/10 text-ink placeholder:text-ink-muted text-sm h-9 flex-1"
                                         placeholder={`Option ${oi + 1}`}
                                       />
                                       <button
                                         onClick={() => removeOption(q.id, oi)}
-                                        className="p-1.5 text-[#6c7396] hover:text-[#F87171] hover:bg-[#F87171]/10 rounded transition-colors shrink-0"
+                                        className="p-1.5 text-ink-muted hover:text-destructive hover:bg-destructive/10 rounded transition-colors shrink-0"
                                         title="Remove option"
                                       >
                                         <X size={14} />
@@ -1368,7 +1368,7 @@ function CreateFeedbackInner() {
                                   ))}
                                   <button
                                     onClick={() => addOption(q.id)}
-                                    className="flex items-center gap-1.5 text-xs text-[#8b5cf6] hover:text-[#7c3aed] transition-colors mt-2"
+                                    className="flex items-center gap-1.5 text-xs text-gold hover:text-gold-deep transition-colors mt-2"
                                   >
                                     <Plus size={12} />
                                     Add Option
@@ -1378,15 +1378,15 @@ function CreateFeedbackInner() {
                             )}
 
                             {/* Required & Settings */}
-                            <div className="flex items-center justify-between pt-2 border-t border-[#2b3150]">
+                            <div className="flex items-center justify-between pt-2 border-t border-white/10">
                               <div>
-                                <Label className="text-xs font-medium text-[#a5accb]">Mark as Required</Label>
-                                <p className="text-[11px] text-[#6c7396] mt-0.5">Respondents must answer this question</p>
+                                <Label className="text-xs font-medium text-ink-dim">Mark as Required</Label>
+                                <p className="text-[11px] text-ink-muted mt-0.5">Respondents must answer this question</p>
                               </div>
                               <Switch
                                 checked={q.required}
                                 onCheckedChange={(v) => updateQuestion(q.id, { required: v })}
-                                className="data-[state=checked]:bg-[#8b5cf6]"
+                                className="data-[state=checked]:bg-gold"
                               />
                             </div>
                           </div>
@@ -1402,20 +1402,20 @@ function CreateFeedbackInner() {
           {/* ── Right sidebar ── */}
           <aside className="space-y-5">
             {/* Form Settings Card */}
-            <div className="rounded-2xl border border-[#2b3150] bg-[#121526] p-6">
-              <h3 className="text-sm font-semibold text-[#f5f7ff] mb-5 flex items-center gap-2">
-                <Settings size={14} className="text-[#8b5cf6]" />
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
+              <h3 className="text-sm font-semibold text-ink mb-5 flex items-center gap-2">
+                <Settings size={14} className="text-gold" />
                 Form Settings
               </h3>
               <div className="space-y-5">
                 {/* Visibility */}
                 <div>
-                  <Label className="text-xs font-medium text-[#a5accb] mb-2 block">Visibility</Label>
+                  <Label className="text-xs font-medium text-ink-dim mb-2 block">Visibility</Label>
                   <Select value={formVisibility} onValueChange={setFormVisibility}>
-                    <SelectTrigger className="bg-[#0f1426] border-[#2b3150] text-[#f5f7ff] text-sm h-8">
+                    <SelectTrigger className="bg-white/[0.03] border-white/10 text-ink text-sm h-8">
                       <SelectValue>{formVisibility.charAt(0).toUpperCase() + formVisibility.slice(1)}</SelectValue>
                     </SelectTrigger>
-                    <SelectContent className="bg-[#0f1426] border-[#3a4266] text-[#eef2ff]">
+                    <SelectContent className="bg-surface-raised border-white/10 text-ink">
                       <SelectItem value="private" className="text-sm">
                         Private
                       </SelectItem>
@@ -1427,94 +1427,94 @@ function CreateFeedbackInner() {
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-[10px] text-[#6c7396] mt-1">Who can access this form</p>
+                  <p className="text-[10px] text-ink-muted mt-1">Who can access this form</p>
                 </div>
 
                 {/* Response Limit */}
                 <div>
-                  <Label className="text-xs font-medium text-[#a5accb] mb-2 block">Response Limit (Optional)</Label>
+                  <Label className="text-xs font-medium text-ink-dim mb-2 block">Response Limit (Optional)</Label>
                   <Input
                     type="number"
                     value={responseLimit}
                     onChange={(e) => setResponseLimit(e.target.value)}
                     placeholder="e.g., 100"
-                    className="bg-[#0f1426] border-[#2b3150] text-[#f5f7ff] placeholder:text-[#6c7396] text-sm h-8"
+                    className="bg-white/[0.03] border-white/10 text-ink placeholder:text-ink-muted text-sm h-8"
                   />
-                  <p className="text-[10px] text-[#6c7396] mt-1">Close form after X responses</p>
+                  <p className="text-[10px] text-ink-muted mt-1">Close form after X responses</p>
                 </div>
 
                 {/* Anonymous Toggle */}
                 <div className="flex items-center justify-between pt-1">
                   <div>
-                    <p className="text-xs font-medium text-[#a5accb]">Anonymous Responses</p>
-                    <p className="text-[10px] text-[#6c7396] mt-0.5">Don't collect respondent info</p>
+                    <p className="text-xs font-medium text-ink-dim">Anonymous Responses</p>
+                    <p className="text-[10px] text-ink-muted mt-0.5">Don't collect respondent info</p>
                   </div>
                   <Switch
                     checked={allowAnonymous}
                     onCheckedChange={setAllowAnonymous}
-                    className="data-[state=checked]:bg-[#8b5cf6]"
+                    className="data-[state=checked]:bg-gold"
                   />
                 </div>
 
                 {/* Ratings Summary Toggle */}
-                <div className="flex items-center justify-between pt-1 border-t border-[#2b3150]">
+                <div className="flex items-center justify-between pt-1 border-t border-white/10">
                   <div>
-                    <p className="text-xs font-medium text-[#a5accb]">Show Rating Stats</p>
-                    <p className="text-[10px] text-[#6c7396] mt-0.5">Display average ratings</p>
+                    <p className="text-xs font-medium text-ink-dim">Show Rating Stats</p>
+                    <p className="text-[10px] text-ink-muted mt-0.5">Display average ratings</p>
                   </div>
                   <Switch
                     checked={enableRatings}
                     onCheckedChange={setEnableRatings}
-                    className="data-[state=checked]:bg-[#8b5cf6]"
+                    className="data-[state=checked]:bg-gold"
                   />
                 </div>
 
                 {/* Auto Close Date */}
                 <div>
-                  <Label className="text-xs font-medium text-[#a5accb] mb-2 block">Auto Close Date (Optional)</Label>
+                  <Label className="text-xs font-medium text-ink-dim mb-2 block">Auto Close Date (Optional)</Label>
                   <Input
                     type="date"
                     value={autoCloseDate}
                     onChange={(e) => setAutoCloseDate(e.target.value)}
-                    className="bg-[#0f1426] border-[#2b3150] text-[#f5f7ff] text-sm h-8"
+                    className="bg-white/[0.03] border-white/10 text-ink text-sm h-8"
                   />
-                  <p className="text-[10px] text-[#6c7396] mt-1">Form closes automatically</p>
+                  <p className="text-[10px] text-ink-muted mt-1">Form closes automatically</p>
                 </div>
               </div>
             </div>
 
             {/* Tips card */}
-            <div className="rounded-2xl border border-[#2b3150] bg-[#121526] p-6">
-              <h3 className="text-sm font-semibold text-[#f5f7ff] mb-4 flex items-center gap-2">
-                <Sparkles size={14} className="text-[#A78BFA]" />
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
+              <h3 className="text-sm font-semibold text-ink mb-4 flex items-center gap-2">
+                <Sparkles size={14} className="text-gold" />
                 Tips
               </h3>
-              <ul className="space-y-3 text-xs text-[#a5accb]">
+              <ul className="space-y-3 text-xs text-ink-dim">
                 <li className="flex gap-2">
-                  <span className="text-[#8b5cf6] shrink-0">•</span>
+                  <span className="text-gold shrink-0">•</span>
                   Keep forms concise — 5–8 questions is ideal
                 </li>
                 <li className="flex gap-2">
-                  <span className="text-[#8b5cf6] shrink-0">•</span>
+                  <span className="text-gold shrink-0">•</span>
                   Use Star Rating for quick satisfaction scores
                 </li>
                 <li className="flex gap-2">
-                  <span className="text-[#8b5cf6] shrink-0">•</span>
+                  <span className="text-gold shrink-0">•</span>
                   Use Multi-Select for quick attribute checks
                 </li>
                 <li className="flex gap-2">
-                  <span className="text-[#8b5cf6] shrink-0">•</span>
+                  <span className="text-gold shrink-0">•</span>
                   Add a Long Text for open-ended insights
                 </li>
               </ul>
             </div>
 
             {/* Actions card - Now at bottom, no sticky */}
-            <div className="rounded-2xl border border-[#2b3150] bg-[#121526] p-6">
-              <h3 className="text-sm font-semibold text-[#f5f7ff] mb-5">Actions</h3>
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
+              <h3 className="text-sm font-semibold text-ink mb-5">Actions</h3>
               <div className="space-y-3">
                 <Button
-                  className="w-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-[#090b14] font-semibold gap-2"
+                  className="w-full bg-gradient-to-b from-[#f2c877] to-gold-deep text-[#241a06] font-semibold hover:brightness-105 gap-2"
                   onClick={handleSubmitToAdmin}
                   disabled={submitState !== "idle"}
                 >
@@ -1523,7 +1523,7 @@ function CreateFeedbackInner() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full border-[#2b3150] text-[#a5accb] hover:text-[#8b5cf6] hover:border-[#8b5cf6]/50 gap-2"
+                  className="w-full border-white/10 text-ink-dim hover:text-gold hover:border-gold/40 gap-2"
                   onClick={handleSaveDraft}
                   disabled={savingState === "saving"}
                 >
@@ -1532,7 +1532,7 @@ function CreateFeedbackInner() {
                 </Button>
                 <Button
                   variant="ghost"
-                  className="w-full text-[#a5accb] hover:text-[#8b5cf6] gap-2"
+                  className="w-full text-ink-dim hover:text-gold gap-2"
                   onClick={() => { setPreviewAnswers({}); setPreviewOpen(true) }}
                 >
                   <Eye size={16} />
@@ -1541,20 +1541,20 @@ function CreateFeedbackInner() {
               </div>
 
               {/* Quick stats */}
-              <div className="mt-5 pt-4 border-t border-[#2b3150] space-y-2">
+              <div className="mt-5 pt-4 border-t border-white/10 space-y-2">
                 <div className="flex justify-between text-xs">
-                  <span className="text-[#6c7396]">Questions</span>
-                  <span className="text-[#a5accb]">{questions.length}</span>
+                  <span className="text-ink-muted">Questions</span>
+                  <span className="text-ink-dim">{questions.length}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-[#6c7396]">Required</span>
-                  <span className="text-[#a5accb]">{questions.filter((q) => q.required).length}</span>
+                  <span className="text-ink-muted">Required</span>
+                  <span className="text-ink-dim">{questions.filter((q) => q.required).length}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-[#6c7396]">Status</span>
+                  <span className="text-ink-muted">Status</span>
                   <Badge
                     variant="outline"
-                    className="text-[10px] px-1.5 py-0 border-[#6c7396]/40 text-[#a5accb]"
+                    className="text-[10px] px-1.5 py-0 border-white/15 text-ink-dim"
                   >
                     Draft
                   </Badge>
@@ -1566,33 +1566,33 @@ function CreateFeedbackInner() {
         ) : (
         // PREVIEW MODE
         <div className="max-w-2xl mx-auto">
-          <div className="rounded-2xl border border-[#2b3150] bg-[#121526] p-8 space-y-6">
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-8 space-y-6">
             {/* Form Header */}
-            <div className="pb-6 border-b border-[#2b3150]">
-              <h1 className="text-2xl font-semibold text-[#f5f7ff] mb-2">
-                {title || <span className="text-[#6c7396] italic">Untitled Form</span>}
+            <div className="pb-6 border-b border-white/10">
+              <h1 className="text-2xl font-semibold text-ink mb-2">
+                {title || <span className="text-ink-muted italic">Untitled Form</span>}
               </h1>
               {description && (
-                <p className="text-sm text-[#a5accb] mt-2">{description}</p>
+                <p className="text-sm text-ink-dim mt-2">{description}</p>
               )}
               <div className="flex items-center gap-2 mt-4 flex-wrap">
                 {product && (
-                  <Badge className="bg-[#8b5cf6]/15 text-[#8b5cf6] border border-[#8b5cf6]/30 text-xs">
+                  <Badge className="bg-gold/10 text-gold border border-gold/30 text-xs">
                     {product}
                   </Badge>
                 )}
                 {category && (
-                  <Badge variant="outline" className="border-[#2b3150] text-[#a5accb] text-xs">
+                  <Badge variant="outline" className="border-white/15 text-ink-dim text-xs">
                     {category}
                   </Badge>
                 )}
                 {responseLimit && (
-                  <Badge variant="outline" className="border-[#2b3150] text-[#a5accb] text-xs">
+                  <Badge variant="outline" className="border-white/15 text-ink-dim text-xs">
                     Limit: {responseLimit}
                   </Badge>
                 )}
                 {autoCloseDate && (
-                  <Badge variant="outline" className="border-[#2b3150] text-[#a5accb] text-xs">
+                  <Badge variant="outline" className="border-white/15 text-ink-dim text-xs">
                     Closes: {autoCloseDate}
                   </Badge>
                 )}
@@ -1602,20 +1602,20 @@ function CreateFeedbackInner() {
             {/* Questions Preview */}
             {questions.length === 0 ? (
               <div className="text-center py-12">
-                <List size={32} className="mx-auto mb-3 opacity-30 text-[#6c7396]" />
-                <p className="text-sm text-[#a5accb]">No questions added yet</p>
+                <List size={32} className="mx-auto mb-3 opacity-30 text-ink-muted" />
+                <p className="text-sm text-ink-dim">No questions added yet</p>
               </div>
             ) : (
               <div className="space-y-6">
                 {questions.map((q, idx) => (
-                  <div key={q.id} className="space-y-3 pb-6 border-b border-[#2b3150] last:border-0 last:pb-0">
+                  <div key={q.id} className="space-y-3 pb-6 border-b border-white/10 last:border-0 last:pb-0">
                     <div className="flex items-start gap-3">
-                      <span className="text-xs font-semibold text-[#8b5cf6] mt-1 shrink-0 w-5">{idx + 1}.</span>
+                      <span className="text-xs font-semibold text-gold mt-1 shrink-0 w-5">{idx + 1}.</span>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-[#f5f7ff]">
+                        <p className="text-sm font-medium text-ink">
                           {q.title}
                           {q.required && (
-                            <span className="text-[#F87171] ml-1">*</span>
+                            <span className="text-destructive ml-1">*</span>
                           )}
                         </p>
                         {q.type === "star-rating" && (
@@ -1623,7 +1623,7 @@ function CreateFeedbackInner() {
                             {[1, 2, 3, 4, 5].map((star) => (
                               <button
                                 key={star}
-                                className="p-1 text-[#6c7396] hover:text-[#F4A261] transition-colors"
+                                className="p-1 text-ink-muted hover:text-gold transition-colors"
                               >
                                 <Star size={18} />
                               </button>
@@ -1635,14 +1635,14 @@ function CreateFeedbackInner() {
                             type="text"
                             placeholder="Your answer…"
                             disabled
-                            className="w-full mt-3 bg-[#0f1426] border border-[#2b3150] rounded-lg px-3 py-2 text-sm text-[#6c7396]"
+                            className="w-full mt-3 bg-white/[0.02] border border-white/10 rounded-lg px-3 py-2 text-sm text-ink-muted"
                           />
                         )}
                         {q.type === "text-long" && (
                           <textarea
                             placeholder="Your answer…"
                             disabled
-                            className="w-full mt-3 bg-[#0f1426] border border-[#2b3150] rounded-lg px-3 py-2 text-sm text-[#6c7396] min-h-20"
+                            className="w-full mt-3 bg-white/[0.02] border border-white/10 rounded-lg px-3 py-2 text-sm text-ink-muted min-h-20"
                           />
                         )}
                         {(q.type === "multiple-choice" || q.type === "multi-select") && (
@@ -1654,13 +1654,13 @@ function CreateFeedbackInner() {
                                   disabled
                                   className="w-4 h-4 rounded"
                                 />
-                                <span className="text-sm text-[#a5accb]">{opt}</span>
+                                <span className="text-sm text-ink-dim">{opt}</span>
                               </label>
                             ))}
                           </div>
                         )}
                         {q.type === "voice-feedback" && (
-                          <button disabled className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0f1426] border border-[#2b3150] text-sm text-[#a5accb]">
+                          <button disabled className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/10 text-sm text-ink-dim">
                             <Mic size={14} />
                             Record Voice Feedback
                           </button>
@@ -1675,7 +1675,7 @@ function CreateFeedbackInner() {
             {/* Submit Button */}
             {questions.length > 0 && (
               <div className="pt-6">
-                <Button className="w-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-[#090b14] font-semibold gap-2" disabled>
+                <Button className="w-full bg-gradient-to-b from-[#f2c877] to-gold-deep text-[#241a06] font-semibold hover:brightness-105 gap-2" disabled>
                   Submit Feedback
                 </Button>
               </div>
@@ -1687,40 +1687,40 @@ function CreateFeedbackInner() {
 
       {/* ── Preview Dialog ── */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="bg-[#121526] border-[#2b3150] max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="border-white/[0.08] bg-surface text-ink max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-[#f5f7ff] flex items-center gap-2">
-              <Eye size={18} className="text-[#8b5cf6]" />
+            <DialogTitle className="text-ink flex items-center gap-2">
+              <Eye size={18} className="text-gold" />
               Form Preview
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-6 mt-2">
             {/* Form header */}
-            <div className="rounded-xl bg-[#14182a] p-4 border border-[#2b3150]">
-              <h3 className="text-base font-semibold text-[#f5f7ff]">
-                {title || <span className="text-[#6c7396] italic">Untitled Form</span>}
+            <div className="rounded-xl bg-white/[0.03] p-4 border border-white/[0.06]">
+              <h3 className="text-base font-semibold text-ink">
+                {title || <span className="text-ink-muted italic">Untitled Form</span>}
               </h3>
               {description && (
-                <p className="text-sm text-[#a5accb] mt-1">{description}</p>
+                <p className="text-sm text-ink-dim mt-1">{description}</p>
               )}
               <div className="flex items-center gap-3 mt-3">
                 {product && (
-                  <Badge variant="outline" className="border-[#8b5cf6]/30 text-[#8b5cf6] text-xs">
+                  <Badge variant="outline" className="border-gold/30 text-gold text-xs">
                     {product}
                   </Badge>
                 )}
                 {category && (
-                  <Badge variant="outline" className="border-[#2b3150] text-[#a5accb] text-xs">
+                  <Badge variant="outline" className="border-white/15 text-ink-dim text-xs">
                     {category}
                   </Badge>
                 )}
                 {responseLimit && (
-                  <Badge variant="outline" className="border-[#2b3150] text-[#a5accb] text-xs">
+                  <Badge variant="outline" className="border-white/15 text-ink-dim text-xs">
                     Limit: {responseLimit}
                   </Badge>
                 )}
                 {autoCloseDate && (
-                  <Badge variant="outline" className="border-[#2b3150] text-[#a5accb] text-xs">
+                  <Badge variant="outline" className="border-white/15 text-ink-dim text-xs">
                     Closes: {autoCloseDate}
                   </Badge>
                 )}
@@ -1728,12 +1728,12 @@ function CreateFeedbackInner() {
             </div>
 
             {questions.length === 0 ? (
-              <p className="text-center text-sm text-[#6c7396] py-6">
+              <p className="text-center text-sm text-ink-muted py-6">
                 No questions added yet.
               </p>
             ) : (
               questions.map((q) => (
-                <div key={q.id} className="rounded-xl bg-[#14182a] p-4 border border-[#2b3150]">
+                <div key={q.id} className="rounded-xl bg-white/[0.03] p-4 border border-white/[0.06]">
                   <PreviewQuestion
                     question={q}
                     answers={previewAnswers}
@@ -1746,7 +1746,7 @@ function CreateFeedbackInner() {
             )}
 
             {questions.length > 0 && (
-              <Button className="w-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-[#090b14] font-semibold">
+              <Button className="w-full bg-gradient-to-b from-[#f2c877] to-gold-deep text-[#241a06] font-semibold hover:brightness-105">
                 Submit Feedback
               </Button>
             )}
@@ -1760,12 +1760,11 @@ function CreateFeedbackInner() {
 export default function CreateFeedbackPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen app-page bg-[#090b14] flex items-center justify-center">
-        <div className="w-10 h-10 rounded-full border-2 border-[#8b5cf6]/30 border-t-[#8b5cf6] animate-spin" />
+      <div className="min-h-screen app-page bg-background flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full border-2 border-gold/30 border-t-gold animate-spin" />
       </div>
     }>
       <CreateFeedbackInner />
     </Suspense>
   )
 }
-
