@@ -14,12 +14,24 @@ import {
   subscribeToApprovedCompanies,
   toggleApprovedCompanyStatus,
   updateApprovedCompany,
+  type ApprovedCompany,
+  type CompanyStatus,
 } from "@/lib/approved-company-store"
-import { getForms } from "@/lib/feedback-store"
+import { getForms, type FeedbackForm } from "@/lib/feedback-store"
 
 const categories = ["all", "Software", "Service", "Mobile App", "Hardware", "E-Commerce", "Food & Beverage", "Healthcare", "Education", "Finance"]
 
-function StatusBadge({ status }) {
+type CampaignStats = {
+  activeCampaigns: number
+  totalCampaigns: number
+  draft: number
+  pending: number
+  approved: number
+  live: number
+  history: FeedbackForm[]
+}
+
+function StatusBadge({ status }: { status: CompanyStatus }) {
   const active = status === "active"
   return (
     <Badge variant="outline" className={active ? "border-mint/40 text-mint" : "border-destructive/40 text-destructive"}>
@@ -29,8 +41,8 @@ function StatusBadge({ status }) {
 }
 
 export default function ApprovedCompaniesPage() {
-  const [companies, setCompanies] = useState([])
-  const [forms, setForms] = useState([])
+  const [companies, setCompanies] = useState<ApprovedCompany[]>([])
+  const [forms, setForms] = useState<FeedbackForm[]>([])
   const [query, setQuery] = useState("")
   const [category, setCategory] = useState("all")
   const [campaignFilter, setCampaignFilter] = useState("all")
@@ -40,7 +52,7 @@ export default function ApprovedCompaniesPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
 
-  const [selectedCompany, setSelectedCompany] = useState(null)
+  const [selectedCompany, setSelectedCompany] = useState<ApprovedCompany | null>(null)
   const [newCompanyName, setNewCompanyName] = useState("")
   const [newCompanyCategory, setNewCompanyCategory] = useState("Software")
   const [editCompanyName, setEditCompanyName] = useState("")
@@ -60,7 +72,7 @@ export default function ApprovedCompaniesPage() {
   }, [])
 
   const campaignStatsByCompanyId = useMemo(() => {
-    const map = {}
+    const map: Record<string, CampaignStats> = {}
     for (const company of companies) {
       const related = forms.filter((f) => f.companyId === company.id || (f.clientName || "").toLowerCase() === company.name.toLowerCase())
       const draft = related.filter((f) => f.status === "draft").length
@@ -120,7 +132,7 @@ export default function ApprovedCompaniesPage() {
     loadData()
   }
 
-  function handleEditOpen(company) {
+  function handleEditOpen(company: ApprovedCompany) {
     setSelectedCompany(company)
     setEditCompanyName(company.name)
     setEditCompanyCategory(company.category)
@@ -138,12 +150,12 @@ export default function ApprovedCompaniesPage() {
     loadData()
   }
 
-  function handleToggle(company) {
+  function handleToggle(company: ApprovedCompany) {
     toggleApprovedCompanyStatus(company.id)
     loadData()
   }
 
-  function handleHistory(company) {
+  function handleHistory(company: ApprovedCompany) {
     setSelectedCompany(company)
     setHistoryOpen(true)
   }
@@ -302,10 +314,10 @@ export default function ApprovedCompaniesPage() {
             <DialogTitle className="text-ink">Campaign History · {selectedCompany?.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 max-h-[420px] overflow-y-auto">
-            {(campaignStatsByCompanyId[selectedCompany?.id]?.history || []).length === 0 ? (
+            {(campaignStatsByCompanyId[selectedCompany?.id ?? ""]?.history || []).length === 0 ? (
               <div className="p-4 rounded border border-white/[0.07] text-ink-dim text-sm">No campaign history for this company yet.</div>
             ) : (
-              (campaignStatsByCompanyId[selectedCompany?.id]?.history || []).map((form) => (
+              (campaignStatsByCompanyId[selectedCompany?.id ?? ""]?.history || []).map((form: FeedbackForm) => (
                 <div key={form.id} className="p-3 rounded border border-white/[0.07] bg-white/[0.02] flex items-center justify-between">
                   <div>
                     <p className="text-sm text-ink">{form.title}</p>
