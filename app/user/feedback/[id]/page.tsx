@@ -18,6 +18,7 @@ import {
   type FeedbackForm,
   type Question,
 } from "@/lib/feedback-store"
+import { logFlow } from "@/lib/debug-log"
 import { subscribeToApprovedCompanies } from "@/lib/approved-company-store"
 import { consumeFeedbackQuota, getFeedbackQuota } from "@/lib/feedback-quota"
 import { recordFeedbackSubmittedNotification } from "@/lib/user-notifications"
@@ -344,7 +345,7 @@ export default function FeedbackSubmitPage() {
       const found = getFormById(id)
       const isApproved = Boolean(found && String(found.status).toLowerCase() === "approved")
 
-      console.debug("[TrustVoxFlow] user-open-form", {
+      logFlow("user-open-form", {
         reason,
         formId: id,
         found: Boolean(found),
@@ -526,7 +527,7 @@ export default function FeedbackSubmitPage() {
             <Button
               variant="ghost"
               className="text-ink-dim hover:text-ink"
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push("/user/dashboard")}
             >
               Back to Dashboard
             </Button>
@@ -576,7 +577,7 @@ export default function FeedbackSubmitPage() {
             <Button
               variant="ghost"
               className="text-ink-dim hover:text-ink"
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push("/user/dashboard")}
             >
               Back to Dashboard
             </Button>

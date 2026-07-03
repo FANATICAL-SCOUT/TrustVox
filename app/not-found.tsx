@@ -1,25 +1,32 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { AlertTriangle, ArrowLeft, Home } from "lucide-react"
+import { Compass, ArrowLeft, Home } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function NotFound() {
   const router = useRouter()
 
   return (
-    <div className="min-h-screen app-page bg-[#0D1117] text-[#F0F6FC] flex items-center justify-center p-6">
-      <div className="max-w-lg w-full rounded-2xl border border-[#30363D] bg-[#161B22] p-8 text-center space-y-4">
-        <div className="mx-auto w-14 h-14 rounded-xl bg-[#F87171]/10 border border-[#F87171]/30 flex items-center justify-center">
-          <AlertTriangle className="text-[#F87171]" size={28} />
+    <div className="flex min-h-screen items-center justify-center bg-background p-6 text-ink">
+      <div className="w-full max-w-lg space-y-4 rounded-2xl border border-white/[0.08] bg-surface p-8 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl border border-gold/25 bg-gold/10">
+          <Compass className="text-gold" size={28} />
         </div>
-        <h1 className="text-2xl font-bold">Page Not Found</h1>
-        <p className="text-sm text-[#8B949E]">The route you are trying to open does not exist. Please use dashboard navigation.</p>
-        <div className="flex items-center justify-center gap-2">
-          <Button variant="outline" className="border-[#30363D] text-[#C9D1D9]" onClick={() => router.back()}>
-            <ArrowLeft className="mr-2" size={14} /> Go Back
+        <h1 className="font-display text-2xl font-bold">Page not found</h1>
+        <p className="text-sm text-ink-dim">The route you&apos;re looking for doesn&apos;t exist. Try heading back or returning home.</p>
+        <div className="flex items-center justify-center gap-2 pt-2">
+          <Button
+            variant="outline"
+            className="border-white/15 text-ink-dim hover:border-white/25 hover:text-ink"
+            onClick={() => router.back()}
+          >
+            <ArrowLeft className="mr-2" size={14} /> Go back
           </Button>
-          <Button className="bg-[#60A5FA] hover:bg-[#3B82F6] text-white" onClick={() => router.push("/")}>
+          <Button
+            className="bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105"
+            onClick={() => router.push("/")}
+          >
             <Home className="mr-2" size={14} /> Home
           </Button>
         </div>

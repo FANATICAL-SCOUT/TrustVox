@@ -26,6 +26,7 @@ import {
   getFormById, newQuestionId,
   type Question, type QuestionType, type FormVisibility,
 } from "@/lib/feedback-store"
+import { logFlow } from "@/lib/debug-log"
 import { getActiveApprovedCompanies, subscribeToApprovedCompanies, type ApprovedCompany } from "@/lib/approved-company-store"
 
 type TemplateQuestionSeed = { type: QuestionType; title: string; required: boolean; options: string[] }
@@ -609,7 +610,7 @@ function CreateFeedbackInner() {
     setQuestions(mappedQuestions)
     setExpandedQuestion(mappedQuestions[0]?.id || null)
 
-    console.debug("[TrustVoxFlow] ai-template-applied", {
+    logFlow("ai-template-applied", {
       templateId: template.id,
       domain: template.domain,
       questionCount: mappedQuestions.length,
@@ -722,7 +723,7 @@ function CreateFeedbackInner() {
       showToast("Submission blocked: selected company is not active/approved.", "error")
       return
     }
-    console.debug("[TrustVoxFlow] client-submit-to-admin", {
+    logFlow("client-submit-to-admin", {
       formId: id,
       statusAfter: submitted?.status,
       questionCount: questions.length,

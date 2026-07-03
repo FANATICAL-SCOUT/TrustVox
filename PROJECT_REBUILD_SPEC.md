@@ -1,3 +1,5 @@
+> **Archived — historical planning document.** This was the original pre-rebuild specification, written before Phases 1–6 of the Ledger redesign. It's kept for historical reference only and is **not maintained** — several routes and files it describes (`package-lock.json`, `reference-ui/`, `hooks/`, `/payment`, `/create-campaign`, `/previous-campaigns`, `/client-companies`, and others) have since been removed or restructured. For current, accurate project status, always use [`docs/TRACKER.md`](docs/TRACKER.md) and the rest of the `docs/` folder — see [`README.md`](README.md) for the up-to-date overview.
+
 # TrustVox Platform v5 - Full Reconstruction Specification
 
 ## 1. Product Overview and Purpose

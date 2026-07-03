@@ -175,7 +175,7 @@ export function recordStoreRedemptionNotification(itemTitle: string, cost: numbe
     title: "Reward Redeemed",
     message: `You redeemed ${itemTitle} for ${cost} TVX. Remaining balance: ${remainingBalance} TVX.`,
     action: {
-      route: "/store",
+      route: "/user/store",
     },
   })
 

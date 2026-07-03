@@ -201,6 +201,12 @@ export default function UserManagementPage() {
               ))}
             </tbody>
           </table>
+
+          {filteredUsers.length === 0 && (
+            <div className="px-4 py-10 text-center text-sm text-ink-muted">
+              {query.trim() ? <>No users match &quot;{query}&quot;.</> : "No users yet."}
+            </div>
+          )}
         </div>
       </main>
 

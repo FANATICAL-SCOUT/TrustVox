@@ -14,6 +14,7 @@ import {
   subscribeToFormsUpdates,
   type FeedbackForm,
 } from "@/lib/feedback-store"
+import { logFlow } from "@/lib/debug-log"
 import { subscribeToApprovedCompanies } from "@/lib/approved-company-store"
 
 function resolveCurrentUserId() {
@@ -138,7 +139,7 @@ export default function UserFeedbacksPage() {
     const approvedForms = getApprovedForms()
     const userId = resolveCurrentUserId()
     const submittedIds = new Set(getSubmittedFormIdsByUser(userId))
-    console.debug("[TrustVoxFlow] user-page-load-approved", {
+    logFlow("user-page-load-approved", {
       reason,
       count: approvedForms.length,
       userId,
@@ -246,7 +247,7 @@ export default function UserFeedbacksPage() {
   })
 
   useEffect(() => {
-    console.debug("[TrustVoxFlow] user-page-render", {
+    logFlow("user-page-render", {
       totalApproved: forms.length,
       filteredCount: filtered.length,
       search: normalizedSearch,
@@ -261,7 +262,7 @@ export default function UserFeedbacksPage() {
       <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <button
-            onClick={() => router.push("/dashboard")}
+            onClick={() => router.push("/user/dashboard")}
             className="flex items-center gap-2 text-sm text-ink-dim transition-colors hover:text-gold"
           >
             <ArrowLeft size={16} />

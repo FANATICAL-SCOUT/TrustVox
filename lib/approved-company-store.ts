@@ -1,3 +1,5 @@
+import { logStore } from "@/lib/debug-log";
+
 export type CompanyStatus = "active" | "inactive";
 
 export interface ApprovedCompany {
@@ -55,12 +57,6 @@ const SEED_USERS: ManagedUser[] = [
   { id: "u-4", name: "Sophia Williams", email: "sophia@adobe.com", role: "Client", status: "Blocked", feedbackSubmittedCount: 6, lastActiveAt: new Date().toISOString() },
   { id: "u-5", name: "Miguel Ortiz", email: "miguel.ortiz@yahoo.com", role: "User", status: "Active", feedbackSubmittedCount: 41, lastActiveAt: new Date().toISOString() },
 ];
-
-function logStore(step: string, payload?: Record<string, unknown>) {
-  if (typeof window === "undefined") return;
-  if (payload) console.debug(`[TrustVoxAdmin] ${step}`, payload);
-  else console.debug(`[TrustVoxAdmin] ${step}`);
-}
 
 function readCompanies(): ApprovedCompany[] {
   if (typeof window === "undefined") return [];

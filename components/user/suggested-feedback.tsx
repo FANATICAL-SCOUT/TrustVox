@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Lightbulb, Save, MessageSquare, Star, Clock3, Users } from "lucide-react"
-import SearchWithAutocomplete from "@/components/search-with-autocomplete"
+import SearchWithAutocomplete from "@/components/user/search-with-autocomplete"
 import { getApprovedForms, subscribeToFormsUpdates, type FeedbackForm, type FeedbackHandoff } from "@/lib/feedback-store"
 import { getTVXWalletState, subscribeToTVXWalletUpdates } from "@/lib/tvx-wallet"
 

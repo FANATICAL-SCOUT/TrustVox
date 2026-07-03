@@ -38,7 +38,7 @@ export default function UserSignupPage() {
 
     localStorage.setItem("currentUser", JSON.stringify(user))
     upsertManagedUserFromRegistration({ name, email, role: "User" })
-    router.push("/dashboard")
+    router.push("/user/dashboard")
   }
 
   return (

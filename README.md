@@ -1,195 +1,88 @@
-# TrustVox Platform v5
+# TrustVox
 
-TrustVox is a Next.js-based feedback and campaign platform with separate admin and client experiences, campaign/form workflows, analytics reporting, and local persistence for fast iteration.
+TrustVox is a feedback platform where **users earn TVX tokens for accepted feedback and redeem them for coupons**. Three roles: user, client (company), admin. It's a portfolio / showcase rebuild — currently frontend-only, running on browser `localStorage` for persistence (no real backend or auth yet).
 
-## Table Of Contents
+> **TVX is in-app reward points, not crypto/web3.** The "wallet" is a localStorage points ledger (`lib/tvx-wallet.ts`) — no blockchain, no keys, no addresses.
 
-- [Overview](#overview)
-- [System Workflow](#system-workflow)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Routing Map](#routing-map)
-- [Analytics Workflow](#analytics-workflow)
-- [Getting Started](#getting-started)
-- [Scripts](#scripts)
+Live design system: **"Ledger"** — dark, quiet-fintech, one gold accent, mint for positive states only, no gimmicks.
 
-## Overview
+## Source of truth
 
-TrustVox supports three primary activity areas:
+This README gives a snapshot for getting the project running. For anything about current status, in-progress work, or design decisions, **the `docs/` folder is authoritative** — start with [`docs/TRACKER.md`](docs/TRACKER.md):
 
-- Public and authentication flows.
-- Client campaign and feedback management.
-- Admin approvals and oversight.
+| File | What it's for |
+| --- | --- |
+| [`docs/TRACKER.md`](docs/TRACKER.md) | Live status dashboard: phase %, current focus, design system, run/screenshot steps. |
+| [`docs/TODO.md`](docs/TODO.md) | Phase-by-phase task checklist. |
+| [`docs/LOG.md`](docs/LOG.md) | Dated, append-only changelog with the *why* behind each change. |
+| [`docs/CONSOLIDATION-MAP.md`](docs/CONSOLIDATION-MAP.md) | Keep/merge/delete decisions for routes and components. |
 
-The app uses the Next.js App Router and stores most operational data in browser local storage via internal store modules.
+[`PROJECT_REBUILD_SPEC.md`](PROJECT_REBUILD_SPEC.md) is an **archived** pre-rebuild planning document — historical only, not maintained.
 
-## System Workflow
+## Tech stack
 
-1. User signs in through client or admin authentication routes.
-2. Client creates forms/campaigns and submits for approval.
-3. Admin reviews, approves, rejects, or requests changes.
-4. End-user responses are submitted and attached to forms.
-5. Client dashboards and analytics consume forms plus responses to calculate KPIs and trends.
-6. Reports can be generated and exported as PDF.
+- **Framework:** Next.js 15 (App Router) · React 19 · TypeScript (strict, 0 errors)
+- **UI:** Tailwind CSS · shadcn/ui · Radix UI primitives · lucide-react icons
+- **Forms/utilities:** react-hook-form · zod · date-fns
+- **Analytics/reporting:** Recharts · html2canvas · jsPDF (PDF export)
+- **Notifications:** sonner
+- **Package manager:** pnpm
 
-## Tech Stack
-
-### Core Framework
-
-- Next.js 15.2.4
-- React 19
-- TypeScript 5
-
-### UI And Styling
-
-- Tailwind CSS
-- shadcn/ui
-- Radix UI primitives
-- lucide-react icons
-- next-themes
-
-### Forms, Validation, And Utilities
-
-- react-hook-form
-- @hookform/resolvers
-- zod
-- date-fns
-- clsx
-- class-variance-authority
-- tailwind-merge
-
-### Analytics And Reporting
-
-- recharts for charting
-- html2canvas for DOM capture
-- jspdf for PDF export
-
-### Notifications And UX
-
-- sonner
-- cmdk
-- embla-carousel-react
-- vaul
-
-## Project Structure
+## Project structure
 
 ```text
 .
-├─ app/                         # App Router pages, layouts, route-level UI
-├─ components/                  # Reusable UI and feature components
-│  ├─ ui/                       # shadcn-based primitives
-│  ├─ client/                   # Client-specific components
-│  └─ modals/                   # Modal components
-├─ hooks/                       # Reusable custom hooks
-├─ lib/                         # Data stores and domain modules
-├─ utils/                       # Additional utility modules
-├─ docs/                        # Internal project and day-end docs
-├─ public/                      # Static assets
-└─ reference-ui/                # Reference design assets
+├─ app/                   # Next.js App Router routes
+│  ├─ user/               # User-portal routes (dashboard, wallet, store, feedback flow)
+│  ├─ client/              # Client (company) portal routes
+│  ├─ admin/               # Admin portal routes
+│  └─ (auth pages)         # /login, /signup, /client-login, /admin-login, etc. (top-level by convention)
+├─ components/
+│  ├─ user/                # User-only components (navbar, dashboard sections, profile)
+│  ├─ auth/                # Shared auth-page shell (used by all 6 login/signup pages)
+│  ├─ modals/              # Cross-role modal components
+│  ├─ ui/                  # shadcn primitives
+│  ├─ client-navbar.tsx, admin-navbar.tsx  # Client/admin navbars (loose at root, same as user's used to be)
+│  └─ brand-logo.tsx, theme-provider.tsx, global-scroll-effects.tsx  # Shared app-wide components
+├─ lib/                   # Domain store modules (feedback, wallet, notifications, companies, campaigns)
+├─ utils/                 # Small utility helpers
+├─ docs/                  # Living project record — start here for status/context
+└─ public/                # Static assets
 ```
 
-### Important Domain Modules
+### Key domain modules (`lib/`)
 
-- `lib/feedback-store.ts`: forms, responses, and update subscriptions.
-- `lib/approved-company-store.ts`: approved company data source.
-- `lib/feedback-quota.ts`: quota constraints.
-- `lib/tvx-wallet.ts`: wallet/accounting helpers.
-- `lib/user-notifications.ts`: notification data helpers.
-- `lib/client-campaigns.ts`: campaign-oriented client utilities.
+- `feedback-store.ts` — forms, responses, subscriptions
+- `tvx-wallet.ts` — TVX balance/transaction ledger
+- `feedback-quota.ts` — daily submission limits
+- `user-notifications.ts` — notification feed
+- `approved-company-store.ts` — approved company directory
+- `client-campaigns.ts` — client-side campaign aggregation
 
-## Routing Map
+## Routes
 
-Below is the current route inventory from the App Router page files.
+### Auth (shared shell across all 3 roles)
+`/signin` (role picker) · `/login` · `/signup` · `/client-login` · `/client-signup` · `/admin-login` · `/admin-signup`
 
-### Public And Auth
+### User
+`/user/dashboard` · `/user/wallet` · `/user/store` · `/user/feedbacks` · `/user/feedback/[id]`
+(`/dashboard`, `/wallet`, `/store`, `/suggested`, `/history`, `/profile` are legacy redirects to the routes above.)
 
-- `/`
-- `/contact`
-- `/login`
-- `/signin`
-- `/signup`
-- `/client-login`
-- `/client-signup`
-- `/admin-login`
-- `/admin-signup`
+### Client
+`/client/dashboard` (canonical) · `/client/forms` · `/client/create-feedback` · `/client/campaigns` (+ `[campaignId]`) · `/client/analytics` · `/client/history` · `/client/profile`
 
-### Shared User Flows
+### Admin
+`/admin` (canonical) · `/admin/approvals` · `/admin/approved-companies` · `/admin/user-management`
 
-- `/history`
-- `/profile`
-- `/wallet`
-- `/payment`
-- `/store`
-- `/dashboard`
-- `/create-campaign`
-- `/previous-campaigns`
-- `/suggested`
-- `/client-home`
-- `/client-dashboard`
-- `/client-companies`
+### Public
+`/` · `/contact`
 
-### Client Area
+## Getting started
 
-- `/client/home`
-- `/client/dashboard`
-- `/client/profile`
-- `/client/campaigns`
-- `/client/campaigns/[campaignId]`
-- `/client/create`
-- `/client/create-feedback`
-- `/client/forms`
-- `/client/forms/[id]/analytics`
-- `/client/analytics`
-- `/client/history`
-
-### Admin Area
-
-- `/admin`
-- `/admin/dashboard`
-- `/admin/users`
-- `/admin/companies`
-- `/admin/approved-companies`
-- `/admin/approvals`
-- `/admin/user-management`
-- `/admin-dashboard`
-
-### User Feedback Area
-
-- `/user/feedbacks`
-- `/user/feedback/[id]`
-
-## Analytics Workflow
-
-The analytics layer is computed client-side using internal logic and chart libraries.
-
-1. Load campaigns from the feedback store.
-2. Build campaign response timelines from response data.
-3. Compute KPIs such as engagement, sentiment, trend direction, consistency, peak contribution, and drop-off.
-4. Generate comparative summaries and ranking in compare mode.
-5. Render trend and sentiment charts with Recharts.
-6. Generate export-ready report views.
-7. Convert report views to PDF with html2canvas and jsPDF.
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- pnpm 8+
-
-### Install
-
-```powershell
+```bash
 pnpm install
+pnpm dev       # http://localhost:3000
 ```
-
-### Run Locally
-
-```powershell
-pnpm dev
-```
-
-Open `http://localhost:3000`.
 
 ## Scripts
 
@@ -202,6 +95,6 @@ Open `http://localhost:3000`.
 
 ## Notes
 
-- Some feature behavior is local-storage driven for rapid development.
-- Route aliases such as top-level client pages and nested client pages both exist in this codebase.
-- Keep this README updated when adding or removing App Router `page.tsx` entries.
+- No real backend/auth yet — most pages fall back to an "anonymous" user with seeded demo state. A light backend (leaning Supabase) is planned post-frontend.
+- TypeScript and ESLint run in strict mode with zero tolerance for new errors (`next.config.mjs` has both checks enabled, not suppressed).
+- Keep `docs/LOG.md` / `docs/TODO.md` / `docs/TRACKER.md` / `docs/CONSOLIDATION-MAP.md` in sync with any route, component, or feature change — see [`docs/README.md`](docs/README.md) for the maintenance contract.

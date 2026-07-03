@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { MessageSquare, Star, Save, Coins, Trophy, Flame, Clock3, ArrowRight } from "lucide-react"
+import { MessageSquare, Star, Save, Coins, Trophy, Flame, Clock3, ArrowRight, ShieldCheck } from "lucide-react"
 import SearchWithAutocomplete from "./search-with-autocomplete"
 import { getApprovedForms, subscribeToFormsUpdates, type FeedbackForm, type FeedbackHandoff } from "@/lib/feedback-store"
 
@@ -196,6 +196,25 @@ export default function LandingSection({
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Trust Score teaser — roadmap nod, deliberately not a real/computed metric */}
+        <div
+          data-reveal-card
+          className="mb-14 flex flex-col items-start gap-3 rounded-xl border border-dashed border-white/[0.12] bg-white/[0.015] p-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-ink-muted">
+              <ShieldCheck className="h-4.5 w-4.5" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-ink">Trust Score</p>
+              <p className="text-xs text-ink-muted">AI-assisted feedback quality validation — in research, not live yet.</p>
+            </div>
+          </div>
+          <span className="inline-flex items-center rounded-full border border-white/[0.1] bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-ink-muted">
+            Coming soon
+          </span>
         </div>
 
         {/* Recommended */}

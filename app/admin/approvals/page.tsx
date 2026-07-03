@@ -22,6 +22,7 @@ import {
   type Question,
   type QuestionType,
 } from "@/lib/feedback-store"
+import { logFlow } from "@/lib/debug-log"
 
 type ApprovalFilterKey = "all" | "pending" | "approved" | "rejected"
 
@@ -346,7 +347,7 @@ export default function AdminApprovalsPage() {
 
   const loadForms = () => {
     const allForms = getForms()
-    console.debug("[TrustVoxFlow] admin-page-load-forms", {
+    logFlow("admin-page-load-forms", {
       total: allForms.length,
       pending: allForms.filter((f) => f.status === "pending").length,
       approved: allForms.filter((f) => f.status === "approved").length,
@@ -376,7 +377,7 @@ export default function AdminApprovalsPage() {
 
   function handleApprove(id: string) {
     const updated = approveForm(id)
-    console.debug("[TrustVoxFlow] admin-approve-click", {
+    logFlow("admin-approve-click", {
       formId: id,
       statusAfter: updated?.status,
     })

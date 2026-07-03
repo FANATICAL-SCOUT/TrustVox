@@ -30,7 +30,7 @@ export default function UserLoginPage() {
     }
 
     localStorage.setItem("currentUser", JSON.stringify(user))
-    router.push("/dashboard")
+    router.push("/user/dashboard")
   }
 
   return (

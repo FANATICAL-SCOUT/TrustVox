@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { History, Coins, Star, MessageSquare, Eye, Save } from "lucide-react"
-import CompanyDetailsModal from "./modals/company-details-modal"
+import CompanyDetailsModal from "@/components/modals/company-details-modal"
 import { getForms, getResponsesByFormId, subscribeToFormsUpdates, type FeedbackHandoff } from "@/lib/feedback-store"
 
 interface FeedbackHistoryProps {

@@ -103,6 +103,7 @@ export default function SearchWithAutocomplete({
         <Input
           type="text"
           placeholder={placeholder}
+          aria-label={placeholder}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onFocus={() => searchTerm.length > 1 && setShowSuggestions(true)}
@@ -113,6 +114,7 @@ export default function SearchWithAutocomplete({
             variant="ghost"
             size="icon"
             onClick={clearSearch}
+            aria-label="Clear search"
             className="absolute right-2 h-8 w-8 rounded-full text-ink-muted hover:bg-white/5 hover:text-ink"
           >
             <X className="h-4 w-4" />

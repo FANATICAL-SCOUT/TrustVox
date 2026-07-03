@@ -2,6 +2,7 @@
 // Shared localStorage-based store for the feedback builder / distribution system.
 // All functions are client-safe (guard against SSR window access).
 import { getActiveApprovedCompanies } from "@/lib/approved-company-store";
+import { logFlow } from "@/lib/debug-log";
 
 export type QuestionType =
   | "star-rating"
@@ -415,15 +416,6 @@ function normalizeForm(form: Partial<FeedbackForm>): FeedbackForm {
     rewardTokens: normalizeRewardTokens(form.rewardTokens),
     responseCount: Number.isFinite(Number(form.responseCount)) ? Math.max(0, Number(form.responseCount)) : 0,
   };
-}
-
-function logFlow(step: string, payload?: Record<string, unknown>) {
-  if (typeof window === "undefined") return;
-  if (payload) {
-    console.debug(`[TrustVoxFlow] ${step}`, payload);
-  } else {
-    console.debug(`[TrustVoxFlow] ${step}`);
-  }
 }
 
 function normalizeText(value?: string | null) {

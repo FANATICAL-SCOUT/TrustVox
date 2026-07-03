@@ -29,20 +29,20 @@ const defaultWalletState: TVXWalletState = {
   transactions: [
     {
       id: "tx-1",
-      amount: 20,
-      reason: "Submitted Insight",
+      amount: 40,
+      reason: 'Feedback submitted for "Product Experience Survey"',
       createdAt: "2026-03-23T09:15:00.000Z",
     },
     {
       id: "tx-2",
-      amount: -50,
-      reason: "Redeemed Amazon Voucher",
+      amount: -200,
+      reason: "Redeemed Amazon Gift Card",
       createdAt: "2026-03-22T12:08:00.000Z",
     },
     {
       id: "tx-3",
-      amount: 10,
-      reason: "Daily Bonus",
+      amount: 28,
+      reason: 'Feedback submitted for "Customer Support Feedback"',
       createdAt: "2026-03-22T08:00:00.000Z",
     },
   ],

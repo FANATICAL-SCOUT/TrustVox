@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Rocket, LogOut, FileText, Plus, User, ChevronDown, BarChart3, History } from "lucide-react"
+import { LayoutDashboard, Rocket, LogOut, FileText, Plus, User, ChevronDown, BarChart3, History, Menu } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { clearUserSession, getStoredClientData } from "@/lib/auth-utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 
 const navItems = [
   { name: "Dashboard", href: "/client/dashboard", icon: LayoutDashboard, match: ["/client/dashboard"] },
@@ -51,7 +52,67 @@ export default function ClientNavbar() {
   return (
     <header className="fixed top-0 z-50 w-full border-b border-white/[0.06] bg-background/70 backdrop-blur-xl">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2 md:gap-6">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-ink-dim hover:bg-gold/10 hover:text-gold md:hidden"
+                aria-label="Open navigation menu"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[88%] border-white/10 bg-surface p-0 sm:max-w-xs">
+              <SheetHeader className="border-b border-white/10 px-4 py-4 text-left">
+                <SheetTitle className="text-ink">Menu</SheetTitle>
+              </SheetHeader>
+              <div className="space-y-1 p-3">
+                {navItems.map((item) => {
+                  const active = item.match.some((route) => pathname?.startsWith(route))
+                  return (
+                    <SheetClose asChild key={item.name}>
+                      <Link
+                        href={item.href}
+                        className={`flex items-center rounded-md border px-3 py-2.5 text-sm font-medium transition-all ${
+                          active
+                            ? "border-gold/40 bg-gold/10 text-gold"
+                            : "border-transparent text-ink-dim hover:border-gold/20 hover:bg-gold/5 hover:text-ink"
+                        }`}
+                      >
+                        <item.icon className="mr-2 h-4 w-4" />
+                        {item.name}
+                      </Link>
+                    </SheetClose>
+                  )
+                })}
+
+                <div className="my-2 border-t border-white/10" />
+
+                <SheetClose asChild>
+                  <Link
+                    href="/client/profile"
+                    className="flex items-center rounded-md border border-transparent px-3 py-2.5 text-sm font-medium text-ink-dim transition-all hover:border-gold/20 hover:bg-gold/5 hover:text-ink"
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </Link>
+                </SheetClose>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="mt-1 w-full justify-start text-ink-dim hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
+
           <Link href="/client/dashboard" className="inline-flex items-center">
             <BrandLogo width={138} height={40} className="h-10 w-auto" />
           </Link>
