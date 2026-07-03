@@ -2,10 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Camera, Save, UserCircle2 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 const DEFAULT_PROFILE = {
@@ -94,95 +90,105 @@ export default function ClientProfilePage() {
     setEditing(false)
   }
 
+  const inputClass =
+    "w-full rounded-lg border border-white/15 bg-white/[0.03] px-3 py-2 text-sm text-ink outline-none transition focus:border-gold/40 focus:ring-2 focus:ring-gold/20 disabled:text-ink-muted disabled:opacity-70"
+
   return (
-    <div className="min-h-screen app-page bg-[#090b14]">
+    <div className="min-h-screen bg-background">
       <main className="max-w-3xl mx-auto px-4 py-8">
-        <Card className="bg-[#121526] border-[#2b3150] text-[#f5f7ff]">
-          <CardHeader>
-            <CardTitle className="text-2xl">Client Profile</CardTitle>
-            <p className="text-sm text-[#a5accb]">Manage your account and company details.</p>
-          </CardHeader>
-          <CardContent className="space-y-6">
+        <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6">
+          <h1 className="font-display text-2xl font-bold text-ink">Client Profile</h1>
+          <p className="mt-1 text-sm text-ink-dim">Manage your account and company details.</p>
+
+          <div className="mt-6 space-y-6">
             <div className="flex items-center gap-4">
-              <Avatar className="h-16 w-16 border border-[#2b3150]">
+              <Avatar className="h-16 w-16 border border-white/10">
                 {draft.avatarUrl ? <AvatarImage src={draft.avatarUrl} alt={draft.contactName} /> : null}
-                <AvatarFallback className="bg-[#1a1f33] text-[#f5f7ff]">{initials || "C"}</AvatarFallback>
+                <AvatarFallback className="bg-surface-raised text-ink">{initials || "C"}</AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-medium text-[#f5f7ff]">{draft.contactName || "Client User"}</p>
-                <p className="text-sm text-[#a5accb]">{draft.companyName}</p>
+                <p className="font-medium text-ink">{draft.contactName || "Client User"}</p>
+                <p className="text-sm text-ink-dim">{draft.companyName}</p>
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-[#a5accb]">Client Name</Label>
-                <Input
+                <label className="text-xs font-medium text-ink-muted">Client Name</label>
+                <input
                   value={draft.contactName}
                   onChange={(e) => onChange("contactName", e.target.value)}
                   disabled={!editing}
-                  className="bg-[#090b14] border-[#2b3150] text-[#f5f7ff]"
+                  className={inputClass}
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-[#a5accb]">Company Name</Label>
-                <Input
+                <label className="text-xs font-medium text-ink-muted">Company Name</label>
+                <input
                   value={draft.companyName}
                   onChange={(e) => onChange("companyName", e.target.value)}
                   disabled={!editing}
-                  className="bg-[#090b14] border-[#2b3150] text-[#f5f7ff]"
+                  className={inputClass}
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-[#a5accb]">Email ID</Label>
-                <Input
+                <label className="text-xs font-medium text-ink-muted">Email ID</label>
+                <input
                   type="email"
                   value={draft.contactEmail}
                   onChange={(e) => onChange("contactEmail", e.target.value)}
                   disabled={!editing}
-                  className="bg-[#090b14] border-[#2b3150] text-[#f5f7ff]"
+                  className={inputClass}
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-[#a5accb]">Role</Label>
-                <Input value="Client" disabled className="bg-[#090b14] border-[#2b3150] text-[#a5accb]" />
+                <label className="text-xs font-medium text-ink-muted">Role</label>
+                <input value="Client" disabled className={inputClass} />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label className="text-[#a5accb] flex items-center gap-2">
+                <label className="flex items-center gap-2 text-xs font-medium text-ink-muted">
                   <Camera size={14} /> Profile Picture URL
-                </Label>
-                <Input
+                </label>
+                <input
                   value={draft.avatarUrl || ""}
                   onChange={(e) => onChange("avatarUrl", e.target.value)}
                   disabled={!editing}
                   placeholder="https://..."
-                  className="bg-[#090b14] border-[#2b3150] text-[#f5f7ff]"
+                  className={inputClass}
                 />
               </div>
             </div>
 
-            {savedMessage ? <p className="text-sm text-[#a78bfa]">{savedMessage}</p> : null}
+            {savedMessage ? <p className="text-sm text-mint">{savedMessage}</p> : null}
 
             <div className="flex items-center gap-2">
               {!editing ? (
-                <Button onClick={() => setEditing(true)} className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-[#090b14]">
+                <button
+                  onClick={() => setEditing(true)}
+                  className="inline-flex items-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105"
+                >
                   <UserCircle2 className="w-4 h-4 mr-2" /> Edit Profile
-                </Button>
+                </button>
               ) : (
                 <>
-                  <Button onClick={handleSave} className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-[#090b14]">
+                  <button
+                    onClick={handleSave}
+                    className="inline-flex items-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105"
+                  >
                     <Save className="w-4 h-4 mr-2" /> Save/Update
-                  </Button>
-                  <Button variant="ghost" onClick={handleCancel} className="text-[#a5accb] hover:text-[#f5f7ff]">
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium text-ink-dim transition hover:bg-white/[0.06] hover:text-ink"
+                  >
                     Cancel
-                  </Button>
+                  </button>
                 </>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </main>
     </div>
   )
 }
-

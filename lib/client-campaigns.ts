@@ -1,4 +1,4 @@
-import { getClientForms, type FeedbackForm } from "@/lib/feedback-store"
+import { getClientForms, getResponsesByFormId, type FeedbackForm } from "@/lib/feedback-store"
 
 export type CampaignStatus = "active" | "draft" | "completed"
 
@@ -37,10 +37,6 @@ const CAMPAIGNS: ClientCampaign[] = [
   },
 ]
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value))
-}
-
 function inferCampaignId(form: FeedbackForm): string {
   const category = (form.category || "").toLowerCase()
   const product = (form.product || "").toLowerCase()
@@ -54,13 +50,24 @@ function inferCampaignId(form: FeedbackForm): string {
   return "product-launch-2026"
 }
 
+// Real average of numeric star-rating answers across the campaign's real
+// seeded responses. Returns 0 (rendered as "no ratings yet" by callers) when
+// there's no real data — no formula-derived placeholder score.
 function calculateAverageRating(forms: FeedbackForm[]): number {
-  const totalResponses = forms.reduce((sum, form) => sum + form.responseCount, 0)
-  const approvedCount = forms.filter((form) => form.status === "approved").length
-  const pendingCount = forms.filter((form) => form.status === "pending").length
+  let sum = 0
+  let count = 0
 
-  const score = 3.7 + totalResponses * 0.01 + approvedCount * 0.08 - pendingCount * 0.03
-  return Number(clamp(score, 3.5, 4.9).toFixed(1))
+  forms.forEach((form) => {
+    getResponsesByFormId(form.id).forEach((response) => {
+      const numeric = Object.values(response.answers || {}).find((value) => typeof value === "number")
+      if (typeof numeric === "number") {
+        sum += numeric
+        count += 1
+      }
+    })
+  })
+
+  return count > 0 ? Number((sum / count).toFixed(1)) : 0
 }
 
 function deriveStatus(forms: FeedbackForm[], fallback: CampaignStatus): CampaignStatus {
