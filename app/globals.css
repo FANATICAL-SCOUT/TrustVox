@@ -47,36 +47,6 @@ textarea::placeholder {
   color: hsl(228 12% 58%) !important;
 }
 
-/* Floating animation */
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.float-animation {
-  animation: float 6s ease-in-out infinite;
-}
-
-/* Pulse animation for background elements */
-@keyframes pulse-glow {
-  0%,
-  100% {
-    opacity: 0.3;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
-
-.pulse-glow {
-  animation: pulse-glow 4s ease-in-out infinite;
-}
-
 /* Prevent text selection issues */
 .no-select {
   -webkit-user-select: none;
@@ -105,25 +75,8 @@ textarea::placeholder {
   background: #3a4150;
 }
 
-/* Landing page reveal animation */
-.fade-up {
-  animation: fadeUp 0.8s ease-out both;
-}
-
 .admin-content-transition {
   animation: adminContentFade 180ms ease-out both;
-}
-
-@keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 @keyframes adminContentFade {
@@ -289,10 +242,7 @@ textarea::placeholder {
 @media (prefers-reduced-motion: reduce) {
   .global-reveal-text .word,
   .global-reveal-block,
-  .global-reveal-card,
-  .fade-up,
-  .float-animation,
-  .pulse-glow {
+  .global-reveal-card {
     transition: none !important;
     animation: none !important;
     transform: none !important;
