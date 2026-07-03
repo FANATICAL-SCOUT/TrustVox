@@ -75,21 +75,21 @@ function StarRating({ value, onChange }: { value: number; onChange: (value: numb
             onClick={() => onChange(s)}
             onMouseEnter={() => setHover(s)}
             onMouseLeave={() => setHover(0)}
-            className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
+            className="transition-transform hover:scale-110 active:scale-95 focus:outline-none"
           >
             <Star
               size={32}
               className={`transition-colors ${
                 s <= (hover || value)
-                  ? "fill-[#FBBF24] text-[#FBBF24]"
-                  : "text-[#30363D]"
+                  ? "fill-gold text-gold"
+                  : "text-white/15"
               }`}
             />
           </button>
         ))}
       </div>
       {(hover || value) > 0 && (
-        <span className="text-sm font-medium text-[#FBBF24]">
+        <span className="text-sm font-medium text-gold">
           {labels[hover || value]}
         </span>
       )}
@@ -141,12 +141,12 @@ function VoiceInput({ value, onChange }: { value: string; onChange: (value: stri
           type="button"
           onClick={recording ? stopRecording : startRecording}
           disabled={!supportsSpeech}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all ${
             recording
-              ? "bg-[#F87171]/20 border-[#F87171]/40 text-[#F87171] animate-pulse"
+              ? "animate-pulse border-destructive/40 bg-destructive/10 text-destructive"
               : supportsSpeech
-              ? "bg-[#2DD4BF]/10 border-[#2DD4BF]/30 text-[#2DD4BF] hover:bg-[#2DD4BF]/20"
-              : "bg-[#21262D] border-[#30363D] text-[#484F58] cursor-not-allowed"
+              ? "border-gold/30 bg-gold/10 text-gold hover:bg-gold/20"
+              : "cursor-not-allowed border-white/10 bg-white/[0.03] text-ink-muted"
           }`}
         >
           {recording ? <MicOff size={16} /> : <Mic size={16} />}
@@ -154,11 +154,11 @@ function VoiceInput({ value, onChange }: { value: string; onChange: (value: stri
         </button>
 
         {recording && (
-          <div className="flex items-end gap-1 h-8">
+          <div className="flex h-8 items-end gap-1">
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                className="w-1.5 rounded-full bg-[#F87171] animate-bounce"
+                className="w-1.5 animate-bounce rounded-full bg-destructive"
                 style={{ height: `${12 + i * 4}px`, animationDelay: `${i * 0.15}s` }}
               />
             ))}
@@ -166,12 +166,12 @@ function VoiceInput({ value, onChange }: { value: string; onChange: (value: stri
         )}
 
         {!supportsSpeech && (
-          <span className="text-xs text-[#484F58]">Not supported in this browser</span>
+          <span className="text-xs text-ink-muted">Not supported in this browser</span>
         )}
       </div>
 
       {value && (
-        <div className="p-3 rounded-lg bg-[#1C2333] border border-[#30363D] text-sm text-[#C9D1D9] whitespace-pre-wrap">
+        <div className="whitespace-pre-wrap rounded-lg border border-white/[0.07] bg-white/[0.02] p-3 text-sm text-ink-dim">
           {value}
         </div>
       )}
@@ -197,14 +197,14 @@ function QuestionField({
   const selectedValues = Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : []
 
   const fieldClass = error
-    ? "border-[#F87171]/60 bg-[#21262D] text-[#F0F6FC] placeholder:text-[#484F58]"
-    : "border-[#30363D] bg-[#21262D] text-[#F0F6FC] placeholder:text-[#484F58]"
+    ? "border-destructive/60 bg-white/[0.03] text-ink placeholder:text-ink-muted"
+    : "border-white/[0.08] bg-white/[0.03] text-ink placeholder:text-ink-muted focus-visible:border-gold/50 focus-visible:ring-gold/20"
 
   return (
     <div className="space-y-3">
-      <label className="block text-sm font-medium text-[#C9D1D9]">
+      <label className="block text-sm font-medium text-ink-dim">
         {title}
-        {required && <span className="text-[#F87171] ml-1">*</span>}
+        {required && <span className="ml-1 text-destructive">*</span>}
       </label>
 
       {type === "star-rating" && (
@@ -232,18 +232,18 @@ function QuestionField({
       {type === "multiple-choice" && (
         <div className="space-y-2">
           {options.map((opt: string) => (
-            <label key={opt} className="flex items-center gap-3 cursor-pointer group p-2.5 rounded-lg hover:bg-[#1C2333] transition-colors">
+            <label key={opt} className="group flex cursor-pointer items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-white/5">
               <div
                 onClick={() => onChange(opt)}
-                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-all ${
                   textValue === opt
-                    ? "border-[#2DD4BF] bg-[#2DD4BF]"
-                    : "border-[#484F58] group-hover:border-[#2DD4BF]/60"
+                    ? "border-gold bg-gold"
+                    : "border-white/20 group-hover:border-gold/60"
                 }`}
               >
-                {textValue === opt && <div className="w-2 h-2 bg-[#0D1117] rounded-full" />}
+                {textValue === opt && <div className="h-2 w-2 rounded-full bg-[#241a06]" />}
               </div>
-              <span className={`text-sm ${textValue === opt ? "text-[#F0F6FC]" : "text-[#8B949E]"}`}>{opt}</span>
+              <span className={`text-sm ${textValue === opt ? "text-ink" : "text-ink-muted"}`}>{opt}</span>
             </label>
           ))}
         </div>
@@ -254,7 +254,7 @@ function QuestionField({
           {options.map((opt: string) => {
             const selected = selectedValues.includes(opt)
             return (
-              <label key={opt} className="flex items-center gap-3 cursor-pointer group p-2.5 rounded-lg hover:bg-[#1C2333] transition-colors">
+              <label key={opt} className="group flex cursor-pointer items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-white/5">
                 <div
                   onClick={() =>
                     onChange(
@@ -263,15 +263,15 @@ function QuestionField({
                         : [...selectedValues, opt]
                     )
                   }
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                  className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border-2 transition-all ${
                     selected
-                      ? "border-[#2DD4BF] bg-[#2DD4BF]"
-                      : "border-[#484F58] group-hover:border-[#2DD4BF]/60"
+                      ? "border-gold bg-gold"
+                      : "border-white/20 group-hover:border-gold/60"
                   }`}
                 >
-                  {selected && <Check size={11} className="text-[#0D1117]" />}
+                  {selected && <Check size={11} className="text-[#241a06]" />}
                 </div>
-                <span className={`text-sm ${selected ? "text-[#F0F6FC]" : "text-[#8B949E]"}`}>{opt}</span>
+                <span className={`text-sm ${selected ? "text-ink" : "text-ink-muted"}`}>{opt}</span>
               </label>
             )
           })}
@@ -293,10 +293,10 @@ function QuestionField({
                       : [...selectedValues, opt]
                   )
                 }
-                className={`px-3 py-2 rounded-full text-sm font-medium transition-all border ${
+                className={`rounded-full border px-3 py-2 text-sm font-medium transition-all ${
                   active
-                    ? "bg-[#2DD4BF]/20 border-[#2DD4BF] text-[#2DD4BF]"
-                    : "bg-[#21262D] border-[#30363D] text-[#8B949E] hover:border-[#2DD4BF]/50 hover:text-[#C9D1D9]"
+                    ? "border-gold bg-gold/20 text-gold"
+                    : "border-white/[0.08] bg-white/[0.03] text-ink-muted hover:border-gold/50 hover:text-ink-dim"
                 }`}
               >
                 {opt}
@@ -311,7 +311,7 @@ function QuestionField({
       )}
 
       {error && (
-        <p className="text-xs text-[#F87171] flex items-center gap-1">
+        <p className="flex items-center gap-1 text-xs text-destructive">
           <AlertCircle size={11} />
           {error}
         </p>
@@ -488,16 +488,16 @@ export default function FeedbackSubmitPage() {
   // ── Not found ────────────────────────────────────────────────────────────────
   if (notFound) {
     return (
-      <div className="min-h-screen app-page bg-[#0D1117] flex items-center justify-center p-4">
+      <div className="flex min-h-screen items-center justify-center p-4">
         <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[#161B22] border border-[#30363D] flex items-center justify-center mx-auto mb-4">
-            <AlertCircle size={28} className="text-[#484F58]" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/[0.07] bg-white/[0.02]">
+            <AlertCircle size={28} className="text-ink-muted" />
           </div>
-          <h2 className="text-lg font-semibold text-[#8B949E] mb-2">Form not found</h2>
-          <p className="text-sm text-[#484F58] mb-6">This feedback form doesn't exist or is no longer active.</p>
+          <h2 className="mb-2 text-lg font-semibold text-ink-dim">Form not found</h2>
+          <p className="mb-6 text-sm text-ink-muted">This feedback form doesn&apos;t exist or is no longer active.</p>
           <Button
             onClick={() => router.push("/user/feedbacks")}
-            className="bg-[#2DD4BF] hover:bg-[#14B8A6] text-[#0D1117] font-semibold"
+            className="bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105"
           >
             Browse Forms
           </Button>
@@ -508,24 +508,24 @@ export default function FeedbackSubmitPage() {
 
   if (alreadySubmitted && form) {
     return (
-      <div className="min-h-screen app-page bg-[#0D1117] flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 rounded-2xl bg-[#1B1414] border border-[#F87171]/30 flex items-center justify-center mx-auto mb-4">
-            <AlertCircle size={28} className="text-[#FCA5A5]" />
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="max-w-md text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/10">
+            <AlertCircle size={28} className="text-destructive" />
           </div>
-          <h2 className="text-lg font-semibold text-[#FCA5A5] mb-2">Submission blocked</h2>
-          <p className="text-sm text-[#8B949E] mb-2">You already submitted this feedback form for your account.</p>
-          <p className="text-xs text-[#6B7280] mb-6">Rule: one feedback submission per form per account.</p>
+          <h2 className="mb-2 text-lg font-semibold text-destructive">Submission blocked</h2>
+          <p className="mb-2 text-sm text-ink-muted">You already submitted this feedback form for your account.</p>
+          <p className="mb-6 text-xs text-ink-muted">Rule: one feedback submission per form per account.</p>
           <div className="flex flex-col gap-3">
             <Button
               onClick={() => router.push("/user/feedbacks")}
-              className="bg-[#2DD4BF] hover:bg-[#14B8A6] text-[#0D1117] font-semibold"
+              className="bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105"
             >
               Browse Other Feedbacks
             </Button>
             <Button
               variant="ghost"
-              className="text-[#8B949E] hover:text-[#F0F6FC]"
+              className="text-ink-dim hover:text-ink"
               onClick={() => router.push("/dashboard")}
             >
               Back to Dashboard
@@ -538,8 +538,8 @@ export default function FeedbackSubmitPage() {
 
   if (!form) {
     return (
-      <div className="min-h-screen app-page bg-[#0D1117] flex items-center justify-center">
-        <div className="w-10 h-10 rounded-full border-2 border-[#2DD4BF]/30 border-t-[#2DD4BF] animate-spin" />
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-gold/30 border-t-gold" />
       </div>
     )
   }
@@ -552,30 +552,30 @@ export default function FeedbackSubmitPage() {
   // ── Success screen ────────────────────────────────────────────────────────────
   if (submitted) {
     return (
-      <div className="min-h-screen app-page bg-[#0D1117] flex items-center justify-center p-4">
+      <div className="relative flex min-h-screen items-center justify-center p-4">
         <div className="pointer-events-none fixed inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#2DD4BF]/8 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#A78BFA]/8 rounded-full blur-3xl" />
+          <div className="absolute left-1/4 top-1/4 h-96 w-96 rounded-full bg-mint/[0.06] blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 h-80 w-80 rounded-full bg-gold/[0.06] blur-3xl" />
         </div>
-        <div className="relative text-center max-w-sm">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#2DD4BF] to-[#A78BFA] flex items-center justify-center mx-auto mb-6 shadow-2xl">
-            <CheckCircle2 size={36} className="text-white" />
+        <div className="relative max-w-sm text-center">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-mint/25 bg-gradient-to-br from-mint/30 to-gold/20 shadow-2xl">
+            <CheckCircle2 size={36} className="text-mint" />
           </div>
-          <h2 className="text-2xl font-bold text-[#F0F6FC] mb-2">Thank you!</h2>
-          <p className="text-[#8B949E] mb-2">{form.title}</p>
-          <p className="text-sm text-[#484F58] mb-8">
+          <h2 className="mb-2 font-display text-2xl font-bold text-ink">Thank you!</h2>
+          <p className="mb-2 text-ink-dim">{form.title}</p>
+          <p className="mb-8 text-sm text-ink-muted">
             Your feedback has been submitted. It means a lot to us!
           </p>
           <div className="flex flex-col gap-3">
             <Button
-              className="bg-[#2DD4BF] hover:bg-[#14B8A6] text-[#0D1117] font-semibold"
+              className="bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105"
               onClick={() => router.push("/user/feedbacks")}
             >
               Give More Feedback
             </Button>
             <Button
               variant="ghost"
-              className="text-[#8B949E] hover:text-[#F0F6FC]"
+              className="text-ink-dim hover:text-ink"
               onClick={() => router.push("/dashboard")}
             >
               Back to Dashboard
@@ -587,61 +587,55 @@ export default function FeedbackSubmitPage() {
   }
 
   return (
-    <div className="min-h-screen app-page bg-[#0D1117] relative">
-      {/* Ambient */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute top-0 right-1/3 w-80 h-80 bg-[#2DD4BF]/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-[#A78BFA]/5 rounded-full blur-3xl" />
-      </div>
-
+    <div className="min-h-screen">
       {/* Top bar */}
-      <header className="sticky top-0 z-40 border-b border-[#30363D] bg-[#0D1117]/80 backdrop-blur-sm">
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+      <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-background/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
           <button
             onClick={() => router.push("/user/feedbacks")}
-            className="flex items-center gap-2 text-sm text-[#8B949E] hover:text-[#2DD4BF] transition-colors"
+            className="flex items-center gap-2 text-sm text-ink-dim transition-colors hover:text-gold"
           >
             <ArrowLeft size={16} />
             Back
           </button>
           <div className="flex items-center gap-2">
-            <MessageSquare size={14} className="text-[#2DD4BF]" />
-            <span className="text-sm text-[#8B949E]">
-              {step + 1} <span className="text-[#484F58]">/ {totalQ}</span>
+            <MessageSquare size={14} className="text-gold" />
+            <span className="text-sm text-ink-dim">
+              {step + 1} <span className="text-ink-muted">/ {totalQ}</span>
             </span>
           </div>
-          <Badge variant="outline" className="border-[#30363D] text-[#484F58] text-xs">
+          <Badge variant="outline" className="border-white/10 text-xs text-ink-muted">
             {form.category}
           </Badge>
         </div>
       </header>
 
       {/* Progress bar */}
-      <div className="h-1 bg-[#21262D]">
+      <div className="h-1 bg-white/[0.06]">
         <div
-          className="h-full bg-gradient-to-r from-[#2DD4BF] to-[#A78BFA] transition-all duration-500"
+          className="h-full bg-gradient-to-r from-gold-deep to-gold transition-all duration-500"
           style={{ width: `${progress}%` }}
         />
       </div>
 
-      <main className="max-w-2xl mx-auto px-4 py-8 relative z-10">
+      <main className="relative z-10 mx-auto max-w-2xl px-4 py-8">
         {/* Form header — only on first question */}
         {step === 0 && (
-          <div className="mb-8 p-5 rounded-2xl bg-[#161B22] border border-[#30363D]">
-            <div className="flex items-center gap-2 mb-3">
-              <Badge variant="outline" className="border-[#2DD4BF]/30 text-[#2DD4BF] text-xs">
+          <div className="mb-8 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <Badge variant="outline" className="border-gold/30 text-xs text-gold">
                 {form.product}
               </Badge>
-              <Badge variant="outline" className="border-[#30363D] text-[#8B949E] text-xs">
+              <Badge variant="outline" className="border-white/10 text-xs text-ink-muted">
                 {form.category}
               </Badge>
             </div>
-            <h1 className="text-xl font-bold text-[#F0F6FC]">{form.title}</h1>
+            <h1 className="font-display text-xl font-bold text-ink">{form.title}</h1>
             {form.description && (
-              <p className="text-sm text-[#8B949E] mt-2">{form.description}</p>
+              <p className="mt-2 text-sm text-ink-muted">{form.description}</p>
             )}
-            <p className="text-xs text-[#484F58] mt-3 flex items-center gap-1">
-              <Sparkles size={11} className="text-[#A78BFA]" />
+            <p className="mt-3 flex items-center gap-1 text-xs text-ink-muted">
+              <Sparkles size={11} className="text-gold" />
               {totalQ} question{totalQ !== 1 ? "s" : ""} · Takes ~{Math.ceil(totalQ * 0.5)} min
             </p>
           </div>
@@ -649,13 +643,13 @@ export default function FeedbackSubmitPage() {
 
         {/* Question card */}
         {currentQ && (
-          <div className="rounded-2xl border border-[#30363D] bg-[#161B22] p-6 mb-6">
-            <div className="flex items-center gap-2 mb-5">
-              <span className="w-6 h-6 rounded-full bg-[#2DD4BF]/20 flex items-center justify-center text-[#2DD4BF] text-xs font-bold shrink-0">
+          <div className="mb-6 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
+            <div className="mb-5 flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold/20 text-xs font-bold text-gold">
                 {step + 1}
               </span>
-              <div className="h-px flex-1 bg-[#30363D]" />
-              <span className="text-xs text-[#484F58]">of {totalQ}</span>
+              <div className="h-px flex-1 bg-white/[0.07]" />
+              <span className="text-xs text-ink-muted">of {totalQ}</span>
             </div>
             <QuestionField
               question={currentQ}
@@ -668,7 +662,7 @@ export default function FeedbackSubmitPage() {
 
         {/* Navigation */}
         {quotaError && (
-          <div className="mb-4 p-3 rounded-lg border border-[#F87171]/40 bg-[#F87171]/10 text-[#F87171] text-sm">
+          <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
             {quotaError}
           </div>
         )}
@@ -678,7 +672,7 @@ export default function FeedbackSubmitPage() {
             variant="ghost"
             onClick={handleBack}
             disabled={step === 0}
-            className="text-[#8B949E] hover:text-[#F0F6FC] disabled:opacity-30 gap-2"
+            className="gap-2 text-ink-dim hover:text-ink disabled:opacity-30"
           >
             <ArrowLeft size={16} />
             Previous
@@ -688,11 +682,11 @@ export default function FeedbackSubmitPage() {
             <Button
               onClick={handleSubmit}
               disabled={submitting}
-              className="bg-[#2DD4BF] hover:bg-[#14B8A6] text-[#0D1117] font-bold gap-2 px-6"
+              className="gap-2 bg-gradient-to-b from-[#f2c877] to-gold-deep px-6 font-bold text-[#241a06] hover:brightness-105"
             >
               {submitting ? (
                 <>
-                  <div className="w-4 h-4 rounded-full border-2 border-[#0D1117]/30 border-t-[#0D1117] animate-spin" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#241a06]/30 border-t-[#241a06]" />
                   Submitting…
                 </>
               ) : (
@@ -705,7 +699,7 @@ export default function FeedbackSubmitPage() {
           ) : (
             <Button
               onClick={handleNext}
-              className="bg-[#2DD4BF] hover:bg-[#14B8A6] text-[#0D1117] font-semibold gap-2"
+              className="gap-2 bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105"
             >
               Next
               <ArrowRight size={16} />
@@ -714,16 +708,16 @@ export default function FeedbackSubmitPage() {
         </div>
 
         {/* Dots progress */}
-        <div className="flex justify-center items-center gap-1.5 mt-8">
+        <div className="mt-8 flex items-center justify-center gap-1.5">
           {form.questions.map((_, i) => (
             <div
               key={i}
               className={`rounded-full transition-all duration-300 ${
                 i === step
-                  ? "w-6 h-2 bg-[#2DD4BF]"
+                  ? "h-2 w-6 bg-gold"
                   : i < step
-                  ? "w-2 h-2 bg-[#2DD4BF]/40"
-                  : "w-2 h-2 bg-[#30363D]"
+                  ? "h-2 w-2 bg-gold/40"
+                  : "h-2 w-2 bg-white/[0.08]"
               }`}
             />
           ))}
