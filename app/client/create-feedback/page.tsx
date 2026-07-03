@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Eye, Save, Send,
   Star, Type, AlignLeft, List, CheckSquare, Mic,
-  GripVertical, ArrowLeft, X, Check, AlertCircle, Sparkles, Wand2, Settings, Search
+  GripVertical, X, Check, AlertCircle, Sparkles, Wand2, Settings, Search
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,8 +24,23 @@ import {
 import {
   createForm, updateForm, submitFormForApproval,
   getFormById, newQuestionId,
+  type Question, type QuestionType, type FormVisibility,
 } from "@/lib/feedback-store"
-import { getActiveApprovedCompanies, subscribeToApprovedCompanies } from "@/lib/approved-company-store"
+import { getActiveApprovedCompanies, subscribeToApprovedCompanies, type ApprovedCompany } from "@/lib/approved-company-store"
+
+type TemplateQuestionSeed = { type: QuestionType; title: string; required: boolean; options: string[] }
+type TemplateDefinition = { name: string; description: string; questions: TemplateQuestionSeed[] }
+type TemplateDomain = "software" | "beverage" | "service"
+type TemplateSuggestion = {
+  id: string
+  domain: TemplateDomain
+  name: string
+  description: string
+  title: string
+  formDescription: string
+  questions: TemplateQuestionSeed[]
+}
+type ToastState = { msg: string; type: "success" | "error" }
 
 const QUESTION_TYPES = [
   { value: "star-rating",      label: "Star Rating",       icon: Star },
@@ -41,7 +56,7 @@ const CATEGORIES = [
   "Food & Beverage", "Healthcare", "Education", "Finance", "Other", "Others",
 ]
 
-const TEMPLATE_LIBRARY = {
+const TEMPLATE_LIBRARY: Record<TemplateDomain, TemplateDefinition[]> = {
   software: [
     {
       name: "Product Experience",
@@ -148,7 +163,7 @@ const TEMPLATE_LIBRARY = {
   ],
 }
 
-function detectDomain(categoryValue, productValue, contextValue) {
+function detectDomain(categoryValue: string, productValue: string, contextValue: string): TemplateDomain {
   const categoryText = (categoryValue || "").toLowerCase()
   const productText = (productValue || "").toLowerCase()
   const contextText = (contextValue || "").toLowerCase()
@@ -177,7 +192,7 @@ function detectDomain(categoryValue, productValue, contextValue) {
   return "service"
 }
 
-function generateTemplateSuggestions(productValue, categoryValue, contextValue) {
+function generateTemplateSuggestions(productValue: string, categoryValue: string, contextValue: string): TemplateSuggestion[] {
   const domain = detectDomain(categoryValue, productValue, contextValue)
   const candidates = TEMPLATE_LIBRARY[domain] || TEMPLATE_LIBRARY.service
   const contextSuffix = contextValue ? ` Context: ${contextValue}` : ""
@@ -193,14 +208,14 @@ function generateTemplateSuggestions(productValue, categoryValue, contextValue) 
   }))
 }
 
-function QuestionTypeIcon({ type, size = 16 }) {
+function QuestionTypeIcon({ type, size = 16 }: { type: QuestionType; size?: number }) {
   const qt = QUESTION_TYPES.find((q) => q.value === type)
   if (!qt) return null
   const Icon = qt.icon
   return <Icon size={size} />
 }
 
-function StarPreview({ value, onChange }) {
+function StarPreview({ value, onChange }: { value: number; onChange: (value: number) => void }) {
   const [hover, setHover] = useState(0)
   return (
     <div className="flex gap-1">
@@ -227,8 +242,19 @@ function StarPreview({ value, onChange }) {
   )
 }
 
+type PreviewAnswerValue = string | number | string[]
+type PreviewAnswers = Record<string, PreviewAnswerValue>
+
 // Render a single question in preview mode
-function PreviewQuestion({ question, answers, onAnswer }) {
+function PreviewQuestion({
+  question,
+  answers,
+  onAnswer,
+}: {
+  question: Question
+  answers: PreviewAnswers
+  onAnswer: (id: string, value: PreviewAnswerValue) => void
+}) {
   const ans = answers[question.id]
 
   if (question.type === "star-rating") {
@@ -238,7 +264,7 @@ function PreviewQuestion({ question, answers, onAnswer }) {
           {question.title}
           {question.required && <span className="text-destructive ml-1">*</span>}
         </p>
-        <StarPreview value={ans || 0} onChange={(v) => onAnswer(question.id, v)} />
+        <StarPreview value={typeof ans === "number" ? ans : 0} onChange={(v) => onAnswer(question.id, v)} />
       </div>
     )
   }
@@ -302,7 +328,7 @@ function PreviewQuestion({ question, answers, onAnswer }) {
     )
   }
   if (question.type === "multi-select") {
-    const selected = ans || []
+    const selected = Array.isArray(ans) ? ans : []
     return (
       <div>
         <p className="text-sm text-ink-dim mb-2">
@@ -371,29 +397,29 @@ function CreateFeedbackInner() {
   const [category, setCategory] = useState("")
   const [otherCategoryDetails, setOtherCategoryDetails] = useState("")
   const [rewardTokens, setRewardTokens] = useState("24")
-  const [questions, setQuestions] = useState([])
-  const [formId, setFormId] = useState(null)
-  const [approvedCompanies, setApprovedCompanies] = useState([])
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [formId, setFormId] = useState<string | null>(null)
+  const [approvedCompanies, setApprovedCompanies] = useState<ApprovedCompany[]>([])
   const [companyPickerOpen, setCompanyPickerOpen] = useState(false)
   const [companyQuery, setCompanyQuery] = useState("")
 
   // UI state
   const [previewMode, setPreviewMode] = useState(false)
-  const [formVisibility, setFormVisibility] = useState("private")
+  const [formVisibility, setFormVisibility] = useState<FormVisibility>("private")
   const [responseLimit, setResponseLimit] = useState("")
   const [allowAnonymous, setAllowAnonymous] = useState(true)
   const [enableRatings, setEnableRatings] = useState(true)
   const [autoCloseDate, setAutoCloseDate] = useState("")
   const [previewOpen, setPreviewOpen] = useState(false)
-  const [previewAnswers, setPreviewAnswers] = useState({})
+  const [previewAnswers, setPreviewAnswers] = useState<PreviewAnswers>({})
   const [savingState, setSavingState] = useState("idle") // idle | saving | saved | error
   const [submitState, setSubmitState] = useState("idle")
-  const [toast, setToast] = useState(null)
-  const [expandedQuestion, setExpandedQuestion] = useState(null)
-  const [templateSuggestions, setTemplateSuggestions] = useState([])
+  const [toast, setToast] = useState<ToastState | null>(null)
+  const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null)
+  const [templateSuggestions, setTemplateSuggestions] = useState<TemplateSuggestion[]>([])
   const [isGeneratingTemplates, setIsGeneratingTemplates] = useState(false)
-  const [draggingQuestionId, setDraggingQuestionId] = useState(null)
-  const [dragOverQuestionId, setDragOverQuestionId] = useState(null)
+  const [draggingQuestionId, setDraggingQuestionId] = useState<string | null>(null)
+  const [dragOverQuestionId, setDragOverQuestionId] = useState<string | null>(null)
 
   // Load form for editing
   useEffect(() => {
@@ -455,12 +481,12 @@ function CreateFeedbackInner() {
     )
   })
 
-  const showToast = useCallback((msg, type = "success") => {
+  const showToast = useCallback((msg: string, type: ToastState["type"] = "success") => {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 3000)
   }, [])
 
-  function handleSelectCompany(companyIdToSelect) {
+  function handleSelectCompany(companyIdToSelect: string) {
     const nextId = String(companyIdToSelect || "").trim()
     if (!nextId) return
 
@@ -474,7 +500,7 @@ function CreateFeedbackInner() {
 
   // ── Question helpers ────────────────────────────────────────────────────────
   function addQuestion() {
-    const newQ = {
+    const newQ: Question = {
       id: newQuestionId(),
       type: "text-short",
       title: "",
@@ -485,18 +511,18 @@ function CreateFeedbackInner() {
     setExpandedQuestion(newQ.id)
   }
 
-  function updateQuestion(id, patch) {
+  function updateQuestion(id: string, patch: Partial<Question>) {
     setQuestions((prev) =>
       prev.map((q) => (q.id === id ? { ...q, ...patch } : q))
     )
   }
 
-  function removeQuestion(id) {
+  function removeQuestion(id: string) {
     setQuestions((prev) => prev.filter((q) => q.id !== id))
     if (expandedQuestion === id) setExpandedQuestion(null)
   }
 
-  function moveQuestion(id, dir) {
+  function moveQuestion(id: string, dir: number) {
     setQuestions((prev) => {
       const idx = prev.findIndex((q) => q.id === id)
       if (idx === -1) return prev
@@ -508,7 +534,7 @@ function CreateFeedbackInner() {
     })
   }
 
-  function moveQuestionToPosition(sourceId, targetId) {
+  function moveQuestionToPosition(sourceId: string | null, targetId: string) {
     if (!sourceId || !targetId || sourceId === targetId) return
     setQuestions((prev) => {
       const sourceIndex = prev.findIndex((q) => q.id === sourceId)
@@ -521,7 +547,7 @@ function CreateFeedbackInner() {
     })
   }
 
-  function addOption(qid) {
+  function addOption(qid: string) {
     setQuestions((prev) =>
       prev.map((q) =>
         q.id === qid ? { ...q, options: [...q.options, `Option ${q.options.length + 1}`] } : q
@@ -529,7 +555,7 @@ function CreateFeedbackInner() {
     )
   }
 
-  function updateOption(qid, idx, val) {
+  function updateOption(qid: string, idx: number, val: string) {
     setQuestions((prev) =>
       prev.map((q) => {
         if (q.id !== qid) return q
@@ -540,7 +566,7 @@ function CreateFeedbackInner() {
     )
   }
 
-  function removeOption(qid, idx) {
+  function removeOption(qid: string, idx: number) {
     setQuestions((prev) =>
       prev.map((q) => {
         if (q.id !== qid) return q
@@ -569,8 +595,8 @@ function CreateFeedbackInner() {
     showToast(`Generated ${suggestions.length} AI template suggestions.`)
   }
 
-  function applyTemplateSuggestion(template) {
-    const mappedQuestions = template.questions.map((q) => ({
+  function applyTemplateSuggestion(template: TemplateSuggestion) {
+    const mappedQuestions: Question[] = template.questions.map((q) => ({
       id: newQuestionId(),
       type: q.type,
       title: q.title,
@@ -709,7 +735,7 @@ function CreateFeedbackInner() {
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
-  const hasOptionsType = (t) =>
+  const hasOptionsType = (t: QuestionType) =>
     ["multiple-choice", "multi-select"].includes(t)
 
   return (
@@ -1166,14 +1192,14 @@ function CreateFeedbackInner() {
                     {/* Tertiary: Quick Start */}
                     <button
                       onClick={() => {
-                        const q1 = {
+                        const q1: Question = {
                           id: newQuestionId(),
                           type: "star-rating",
                           title: "How satisfied are you?",
                           required: true,
                           options: [],
                         }
-                        const q2 = {
+                        const q2: Question = {
                           id: newQuestionId(),
                           type: "text-long",
                           title: "Any additional feedback?",
@@ -1314,7 +1340,7 @@ function CreateFeedbackInner() {
                                 <Label className="text-xs font-medium text-ink-dim mb-2 block">Question Type *</Label>
                                 <Select
                                   value={q.type}
-                                  onValueChange={(v) =>
+                                  onValueChange={(v: QuestionType) =>
                                     updateQuestion(q.id, {
                                       type: v,
                                       options: ["multiple-choice", "multi-select"].includes(v)
@@ -1411,7 +1437,7 @@ function CreateFeedbackInner() {
                 {/* Visibility */}
                 <div>
                   <Label className="text-xs font-medium text-ink-dim mb-2 block">Visibility</Label>
-                  <Select value={formVisibility} onValueChange={setFormVisibility}>
+                  <Select value={formVisibility} onValueChange={(v: FormVisibility) => setFormVisibility(v)}>
                     <SelectTrigger className="bg-white/[0.03] border-white/10 text-ink text-sm h-8">
                       <SelectValue>{formVisibility.charAt(0).toUpperCase() + formVisibility.slice(1)}</SelectValue>
                     </SelectTrigger>
@@ -1447,7 +1473,7 @@ function CreateFeedbackInner() {
                 <div className="flex items-center justify-between pt-1">
                   <div>
                     <p className="text-xs font-medium text-ink-dim">Anonymous Responses</p>
-                    <p className="text-[10px] text-ink-muted mt-0.5">Don't collect respondent info</p>
+                    <p className="text-[10px] text-ink-muted mt-0.5">Don&apos;t collect respondent info</p>
                   </div>
                   <Switch
                     checked={allowAnonymous}

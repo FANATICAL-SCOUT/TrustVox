@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Lightbulb, Save, MessageSquare, Star, Clock3, Users } from "lucide-react"
 import SearchWithAutocomplete from "@/components/search-with-autocomplete"
-import { getApprovedForms, subscribeToFormsUpdates, type FeedbackForm } from "@/lib/feedback-store"
+import { getApprovedForms, subscribeToFormsUpdates, type FeedbackForm, type FeedbackHandoff } from "@/lib/feedback-store"
 import { getTVXWalletState, subscribeToTVXWalletUpdates } from "@/lib/tvx-wallet"
 
 interface SuggestedFeedbackProps {
-  handleStartFeedbackFromSuggested: (feedback: any) => void
-  onSaveForLater: (feedback: any) => void
+  handleStartFeedbackFromSuggested: (feedback: FeedbackHandoff) => void
+  onSaveForLater: (feedback: FeedbackHandoff) => void
 }
 
 type FilterKey = "all" | "high-reward" | "ending-soon" | "easy"

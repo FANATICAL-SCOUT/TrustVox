@@ -8,11 +8,12 @@ import { User, Mail, Calendar, LogOut, Edit, Save, X, Shield, Eye, Copy, Check, 
 import InterestSelector from "./interest-selector"
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime"
 import { clearUserSession } from "@/lib/auth-utils"
+import type { FeedbackHandoff } from "@/lib/feedback-store"
 
 interface UserProfileProps {
   router: AppRouterInstance
-  savedFeedbacks: any[]
-  onContinueEditing: (feedbackData: any) => void
+  savedFeedbacks: FeedbackHandoff[]
+  onContinueEditing: (feedbackData: FeedbackHandoff) => void
 }
 
 const cardCls = "rounded-xl border border-white/[0.07] bg-white/[0.02] p-5"
@@ -58,7 +59,7 @@ export default function UserProfile({ router, savedFeedbacks, onContinueEditing 
   useEffect(() => {
     const storedUserData = localStorage.getItem("currentUser")
     if (storedUserData) {
-      let userData: Record<string, any> = {}
+      let userData: Partial<typeof userInfo> = {}
       try {
         userData = JSON.parse(storedUserData)
       } catch {
@@ -106,6 +107,10 @@ export default function UserProfile({ router, savedFeedbacks, onContinueEditing 
         userId: fallbackUserId,
       }),
     )
+    // Intentionally run once on mount to seed identity IDs from localStorage;
+    // buildUserId/buildWalletId are pure helpers redefined each render, adding them
+    // would re-run this on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleSave = () => {
@@ -281,7 +286,7 @@ export default function UserProfile({ router, savedFeedbacks, onContinueEditing 
           {/* Interests */}
           <div data-reveal-card className={cardCls}>
             <h3 className="font-display text-lg font-bold text-ink">Interests</h3>
-            <p className="mt-0.5 text-sm text-ink-muted">Select or add topics you'd like to give feedback on.</p>
+            <p className="mt-0.5 text-sm text-ink-muted">Select or add topics you&apos;d like to give feedback on.</p>
             <div className="mt-4">
               <InterestSelector
                 selectedInterests={userInfo.interests}

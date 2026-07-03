@@ -4,17 +4,17 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { History, Coins, Star, MessageSquare, Eye, Save } from "lucide-react"
 import CompanyDetailsModal from "./modals/company-details-modal"
-import { getForms, getResponsesByFormId, subscribeToFormsUpdates } from "@/lib/feedback-store"
+import { getForms, getResponsesByFormId, subscribeToFormsUpdates, type FeedbackHandoff } from "@/lib/feedback-store"
 
 interface FeedbackHistoryProps {
-  newFeedbacks: any[]
-  savedFeedbacks: any[] // Saved feedbacks (drafts)
-  onContinueEditing: (feedbackData: any) => void // Continue editing a draft
+  newFeedbacks: FeedbackHandoff[]
+  savedFeedbacks: FeedbackHandoff[] // Saved feedbacks (drafts)
+  onContinueEditing: (feedbackData: FeedbackHandoff) => void // Continue editing a draft
 }
 
 interface FeedbackHistoryModalHandlers {
-  onStartFeedback?: (feedback: any) => void
-  onSaveForLater?: (feedback: any) => void
+  onStartFeedback?: (feedback: FeedbackHandoff) => void
+  onSaveForLater?: (feedback: FeedbackHandoff) => void
 }
 
 type FeedbackHistoryAllProps = FeedbackHistoryProps & FeedbackHistoryModalHandlers
@@ -49,9 +49,9 @@ function StatTile({ label, value, tone, icon: Icon }: { label: string; value: st
 }
 
 export default function FeedbackHistory({ newFeedbacks, savedFeedbacks, onContinueEditing, onStartFeedback, onSaveForLater }: FeedbackHistoryAllProps) {
-  const [selectedFeedback, setSelectedFeedback] = useState<any>(null)
+  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackHandoff | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [allFeedbacks, setAllFeedbacks] = useState<any[]>([])
+  const [allFeedbacks, setAllFeedbacks] = useState<FeedbackHandoff[]>([])
   const [helpfulMessageId, setHelpfulMessageId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -97,13 +97,13 @@ export default function FeedbackHistory({ newFeedbacks, savedFeedbacks, onContin
 
   const userStats = {
     totalFeedbacks: allFeedbacks.length + savedFeedbacks.length,
-    tokensEarned: allFeedbacks.reduce((sum, f) => sum + f.tokensEarned, 0),
+    tokensEarned: allFeedbacks.reduce((sum, f) => sum + (f.tokensEarned ?? 0), 0),
     averageRating:
-      allFeedbacks.length > 0 ? (allFeedbacks.reduce((sum, f) => sum + f.rating, 0) / allFeedbacks.length).toFixed(1) : "0.0",
-    totalInteractions: allFeedbacks.reduce((sum, f) => sum + f.interactions, 0),
+      allFeedbacks.length > 0 ? (allFeedbacks.reduce((sum, f) => sum + (f.rating ?? 0), 0) / allFeedbacks.length).toFixed(1) : "0.0",
+    totalInteractions: allFeedbacks.reduce((sum, f) => sum + (f.interactions ?? 0), 0),
   }
 
-  const handleViewDetails = (feedback: any) => {
+  const handleViewDetails = (feedback: FeedbackHandoff) => {
     setSelectedFeedback(feedback)
     setIsModalOpen(true)
   }
@@ -194,7 +194,7 @@ export default function FeedbackHistory({ newFeedbacks, savedFeedbacks, onContin
                     <p className="text-sm font-medium text-ink-muted">{feedback.product}</p>
                   </div>
                   <div className="flex flex-none items-center gap-2">
-                    <StatusBadge status={feedback.status} />
+                    <StatusBadge status={feedback.status || "draft"} />
                     <span className="tvx-num text-xs text-ink-muted">{feedback.date}</span>
                   </div>
                 </div>
@@ -221,7 +221,7 @@ export default function FeedbackHistory({ newFeedbacks, savedFeedbacks, onContin
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleHelpfulClick(feedback.id)}
+                      onClick={() => handleHelpfulClick(String(feedback.id))}
                       className="text-ink-dim hover:text-gold"
                     >
                       Helpful?

@@ -8,14 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Home, Lightbulb, History, User, Bell, Wallet, Store } from "lucide-react"
 import BrandLogo from "@/components/brand-logo"
 import NotificationsModal from "@/components/modals/notifications-modal"
-import { getUnreadNotificationsCount, refreshSystemNotifications } from "@/lib/user-notifications"
+import { getUnreadNotificationsCount, refreshSystemNotifications, type UserNotification } from "@/lib/user-notifications"
 import { getTVXWalletState, subscribeToTVXWalletUpdates } from "@/lib/tvx-wallet"
 
 interface UserNavbarProps {
   activeSection: string
   setActiveSection?: (section: string) => void
   dailyFeedbackCount: number
-  onViewNotification: (notification: any) => void
+  onViewNotification: (notification: UserNotification) => void
 }
 
 const navItems = [

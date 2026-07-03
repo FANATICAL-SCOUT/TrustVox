@@ -3,20 +3,14 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Star, MessageSquare, Save } from "lucide-react"
+import type { FeedbackHandoff } from "@/lib/feedback-store"
 
 interface CompanyDetailsModalProps {
   isOpen: boolean
   onClose: () => void
-  company: {
-    id: string
-    company: string
-    product: string
-    category: string
-    rating: number
-    feedback: string // Using this for a mock description
-  } | null
-  onStartFeedback: (feedbackData: any) => void
-  onSaveForLater: (feedbackData: any) => void
+  company: FeedbackHandoff | null
+  onStartFeedback: (feedbackData: FeedbackHandoff) => void
+  onSaveForLater: (feedbackData: FeedbackHandoff) => void
 }
 
 export default function CompanyDetailsModal({
@@ -62,12 +56,12 @@ export default function CompanyDetailsModal({
             <span className="font-medium text-ink-dim">Average Rating:</span>
             <div className="flex items-center">
               <Star className="mr-1 h-4 w-4 fill-gold text-gold" />
-              <span className="tvx-num text-ink">{company.rating.toFixed(1)}</span>
+              <span className="tvx-num text-ink">{(company.rating ?? 0).toFixed(1)}</span>
             </div>
           </div>
           <div>
             <span className="mb-2 block font-medium text-ink-dim">Description:</span>
-            <p className="leading-relaxed text-ink-muted">{company.feedback}</p>
+            <p className="leading-relaxed text-ink-muted">{company.feedback || company.description}</p>
           </div>
         </div>
         <div className="flex justify-end gap-2">

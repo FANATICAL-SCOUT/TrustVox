@@ -13,6 +13,7 @@ export type QuestionType =
   | "voice-feedback";
 
 export type FormStatus = "draft" | "pending" | "approved" | "rejected";
+export type FormVisibility = "private" | "public" | "link";
 
 export interface Question {
   id: string;
@@ -20,6 +21,32 @@ export interface Question {
   title: string;
   required: boolean;
   options: string[]; // for multiple-choice / multi-select / tag-selection
+}
+
+// Loosely-shaped feedback/opportunity object passed between dashboard UI
+// components (landing, suggested, history, company modal, profile). The real
+// shape varies by call site -- sometimes a full opportunity card, sometimes
+// just {id, formId}, sometimes a saved draft or a completed-feedback record --
+// so every field beyond `id` is optional by design, not an oversight.
+export interface FeedbackHandoff {
+  id: string | number;
+  formId?: string;
+  company?: string;
+  product?: string;
+  category?: string;
+  description?: string;
+  feedback?: string;
+  reward?: number;
+  rating?: number;
+  totalFeedbacks?: number;
+  participants?: number;
+  estimatedTime?: string;
+  tags?: string[];
+  badges?: string[];
+  status?: string;
+  date?: string;
+  tokensEarned?: number;
+  interactions?: number;
 }
 
 export interface FeedbackForm {
@@ -30,7 +57,7 @@ export interface FeedbackForm {
   category: string;
   categoryDetails?: string;
   companyId?: string;
-  formVisibility?: "private" | "public" | "link";
+  formVisibility?: FormVisibility;
   responseLimit?: number;
   allowAnonymous?: boolean;
   enableRatings?: boolean;

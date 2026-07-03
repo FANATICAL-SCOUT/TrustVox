@@ -285,7 +285,7 @@ export default function ClientHomePage() {
   const campaignDetails = useMemo(() => {
     if (!selectedCampaign) return null
     return getCampaignDetails(selectedCampaign)
-  }, [selectedCampaign, campaigns])
+  }, [selectedCampaign])
 
   const selectedForms = useMemo(() => {
     return campaignDetails?.forms || []
@@ -524,7 +524,6 @@ export default function ClientHomePage() {
                       ? "border-mint/40 bg-mint/10 text-mint focus-visible:ring-mint/30"
                       : "border-white/15 bg-white/[0.04] text-ink-dim focus-visible:ring-white/20"
                   }`}
-                  aria-pressed={isLive}
                   role="switch"
                   aria-checked={isLive}
                   aria-label={`Live analytics ${isLive ? "enabled" : "disabled"}`}

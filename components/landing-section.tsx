@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { MessageSquare, Star, Save, Coins, Trophy, Flame, Clock3, ArrowRight } from "lucide-react"
 import SearchWithAutocomplete from "./search-with-autocomplete"
-import { getApprovedForms, subscribeToFormsUpdates, type FeedbackForm } from "@/lib/feedback-store"
+import { getApprovedForms, subscribeToFormsUpdates, type FeedbackForm, type FeedbackHandoff } from "@/lib/feedback-store"
 
 interface LandingSectionProps {
-  handleStartFeedbackFromSuggested: (feedbackData: any) => void
-  setSelectedCompanyForModal: (company: any) => void
+  handleStartFeedbackFromSuggested: (feedbackData: FeedbackHandoff) => void
+  setSelectedCompanyForModal: (company: FeedbackHandoff) => void
   setIsCompanyModalOpen: (isOpen: boolean) => void
-  onSaveForLater: (feedbackData: any) => void
+  onSaveForLater: (feedbackData: FeedbackHandoff) => void
   dailyFeedbackRemaining: number
   dailyFeedbackLimit: number
   completedToday: number
@@ -128,7 +128,7 @@ export default function LandingSection({
     [approvedForms],
   )
 
-  const handleSearchSelect = (item: any) => {
+  const handleSearchSelect = (item: { type: string; name: string; id: string }) => {
     const selectedId = item?.id
     if (typeof selectedId === "string" && selectedId.length > 0) {
       handleStartFeedbackFromSuggested({ formId: selectedId, id: selectedId })

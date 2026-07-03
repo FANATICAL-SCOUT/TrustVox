@@ -10,7 +10,7 @@ import UserProfile from "@/components/user-profile"
 import CompanyDetailsModal from "@/components/modals/company-details-modal"
 import { getFeedbackQuota, subscribeToFeedbackQuotaUpdates } from "@/lib/feedback-quota"
 import { refreshSystemNotifications, type UserNotification } from "@/lib/user-notifications"
-import { hasUserSubmittedForm } from "@/lib/feedback-store"
+import { hasUserSubmittedForm, type FeedbackHandoff } from "@/lib/feedback-store"
 
 function resolveCurrentUserId() {
   if (typeof window === "undefined") return "anonymous"
@@ -41,8 +41,8 @@ export default function UserDashboard() {
   const [completedToday, setCompletedToday] = useState(getFeedbackQuota().completedToday);
   const [canSubmitFeedback, setCanSubmitFeedback] = useState(getFeedbackQuota().canSubmit);
   const [quotaMessage, setQuotaMessage] = useState("");
-  const [savedFeedbacks, setSavedFeedbacks] = useState<any[]>([]); // State for saved feedbacks (drafts)
-  const [selectedCompanyForModal, setSelectedCompanyForModal] = useState<any>(null);
+  const [savedFeedbacks, setSavedFeedbacks] = useState<FeedbackHandoff[]>([]); // State for saved feedbacks (drafts)
+  const [selectedCompanyForModal, setSelectedCompanyForModal] = useState<FeedbackHandoff | null>(null);
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function UserDashboard() {
     }
   }, [searchParams])
 
-  const addOrUpdateSavedFeedback = (feedback: any) => {
+  const addOrUpdateSavedFeedback = (feedback: FeedbackHandoff) => {
     setSavedFeedbacks((prev) => {
       if (feedback.id && prev.some((f) => f.id === feedback.id)) {
         // Update existing draft
@@ -65,11 +65,7 @@ export default function UserDashboard() {
     setActiveSection("history"); // Route to history page after saving draft
   };
 
-  const removeSavedFeedback = (id: number) => {
-    setSavedFeedbacks((prev) => prev.filter((f) => f.id !== id));
-  };
-
-  const handleStartFeedbackFromSuggested = (feedbackData: any) => {
+  const handleStartFeedbackFromSuggested = (feedbackData?: FeedbackHandoff | null) => {
     if (!canSubmitFeedback) {
       setQuotaMessage("Daily limit reached: free users can submit up to 3 feedbacks per day. Please come back tomorrow.")
       return

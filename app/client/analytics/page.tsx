@@ -985,6 +985,10 @@ function ClientAnalyticsPageContent() {
         }
       }
     }
+    // exportReportToPdf is declared further down in this component (not yet hoisted at
+    // this point), and the autoDownloadTokenRef guard above already prevents
+    // duplicate/stale downloads, so omitting it here is safe.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reports, searchParams])
 
   const handleDropToSlot = (slotIndex: number, droppedCampaignId: string | null) => {

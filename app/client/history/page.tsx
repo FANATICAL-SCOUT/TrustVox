@@ -51,7 +51,7 @@ export default function ClientAnalyticsHistoryPage() {
               : [],
             metrics: Array.isArray(entry.metrics)
               ? entry.metrics
-                  .filter((metric: any) => typeof metric?.campaignId === "string" && typeof metric?.campaignName === "string")
+                  .filter((metric: Record<string, unknown>) => typeof metric?.campaignId === "string" && typeof metric?.campaignName === "string")
                   .map((metric: HistoryReportMetric) => ({
                     campaignId: metric.campaignId,
                     campaignName: metric.campaignName,

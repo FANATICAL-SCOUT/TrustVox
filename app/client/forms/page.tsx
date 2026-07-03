@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
-  Plus, FileText, BarChart2, Edit2, Trash2, Clock, CheckCircle2,
-  XCircle, AlertCircle, Eye, RefreshCw, Sparkles, ChevronRight,
+  FileText, BarChart2, Edit2, Trash2, Clock, CheckCircle2,
+  XCircle, RefreshCw, ChevronRight,
   MessageSquare,
 } from "lucide-react"
 import {
@@ -72,7 +72,7 @@ function FormCard({
             <StatusBadge status={form.status} />
             {form.status === "rejected" && form.rejectionReason && (
               <span className="text-[10px] text-destructive/70 truncate max-w-[180px]">
-                "{form.rejectionReason}"
+                &ldquo;{form.rejectionReason}&rdquo;
               </span>
             )}
             {form.requestChangesNote && (
