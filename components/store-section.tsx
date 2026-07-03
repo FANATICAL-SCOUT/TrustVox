@@ -1,95 +1,119 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import Image from "next/image"
-import { CheckCircle2, Sparkles, Store as StoreIcon, Lock } from "lucide-react"
+import { CheckCircle2, Sparkles, Store as StoreIcon, Lock, Gift, Tv, Shirt, ArrowRight, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { getTVXWalletState, redeemTVXItem, subscribeToTVXWalletUpdates } from "@/lib/tvx-wallet"
+import { getTVXWalletState, redeemTVXItem, subscribeToTVXWalletUpdates, type TVXWalletState } from "@/lib/tvx-wallet"
 import { recordStoreRedemptionNotification } from "@/lib/user-notifications"
 
-const STORE_ITEMS = [
+type StoreCategory = "vouchers" | "subscriptions" | "merch"
+
+interface StoreItem {
+  id: string
+  title: string
+  description: string
+  cost: number
+  badge: string
+  category: StoreCategory
+}
+
+const CATEGORY_ICON: Record<StoreCategory, LucideIcon> = {
+  vouchers: Gift,
+  subscriptions: Tv,
+  merch: Shirt,
+}
+
+const STORE_ITEMS: StoreItem[] = [
   {
     id: "amazon-gift-card",
     title: "Amazon Gift Card",
     description: "Redeem your TVX for a digital voucher and shop what you love.",
-    image: "/store-amazon.svg",
     cost: 200,
-    badge: "🔥 Popular",
+    badge: "Popular",
     category: "vouchers",
-    glow: "rgba(139, 92, 246, 0.18)",
   },
   {
     id: "netflix-subscription",
     title: "Netflix Subscription",
     description: "Unlock one month of entertainment powered by your TrustVox activity.",
-    image: "/store-netflix.svg",
     cost: 150,
-    badge: "⚡ Limited",
+    badge: "Limited",
     category: "subscriptions",
-    glow: "rgba(239, 68, 68, 0.15)",
   },
   {
     id: "trustvox-tshirt",
     title: "TrustVox T-Shirt",
     description: "Premium community merch for your most consistent feedback streaks.",
-    image: "/store-tshirt.svg",
     cost: 300,
-    badge: "💎 Premium",
+    badge: "Premium",
     category: "merch",
-    glow: "rgba(16, 185, 129, 0.16)",
   },
 ]
 
+const FILTER_OPTIONS: { key: "all" | StoreCategory; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "vouchers", label: "Vouchers" },
+  { key: "subscriptions", label: "Subscriptions" },
+  { key: "merch", label: "Merch" },
+]
+
+interface FeedbackMessage {
+  type: "success" | "error"
+  text: string
+}
+
+function StatTile({ label, value, unit, tone }: { label: string; value: number; unit?: string; tone: "gold" | "mint" | "ink" }) {
+  const toneClass = tone === "mint" ? "text-mint" : tone === "gold" ? "text-gold" : "text-ink"
+  return (
+    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+      <p className="text-xs uppercase tracking-wide text-ink-muted">{label}</p>
+      <p className={`tvx-num mt-1.5 text-2xl font-bold ${toneClass}`}>
+        {value.toLocaleString()}
+        {unit ? <span className="ml-1 text-sm font-semibold text-ink-muted">{unit}</span> : null}
+      </p>
+    </div>
+  )
+}
+
 export default function StoreSection() {
-  const [wallet, setWallet] = useState(() => getTVXWalletState())
-  const [selectedItem, setSelectedItem] = useState(null)
+  const [wallet, setWallet] = useState<TVXWalletState>(() => getTVXWalletState())
+  const [selectedItem, setSelectedItem] = useState<StoreItem | null>(null)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
-  const [feedbackMessage, setFeedbackMessage] = useState(null)
-  const [activeFilter, setActiveFilter] = useState("all")
+  const [feedbackMessage, setFeedbackMessage] = useState<FeedbackMessage | null>(null)
+  const [activeFilter, setActiveFilter] = useState<"all" | StoreCategory>("all")
 
   useEffect(() => {
-    const syncWallet = () => {
-      setWallet(getTVXWalletState())
-    }
-
+    const syncWallet = () => setWallet(getTVXWalletState())
     syncWallet()
     const unsubscribe = subscribeToTVXWalletUpdates(syncWallet)
     window.addEventListener("focus", syncWallet)
-
     return () => {
       unsubscribe()
       window.removeEventListener("focus", syncWallet)
     }
   }, [])
 
-  const redeemableCount = useMemo(() => {
-    return STORE_ITEMS.filter((item) => wallet.balance >= item.cost).length
-  }, [wallet.balance])
+  const redeemableCount = useMemo(
+    () => STORE_ITEMS.filter((item) => wallet.balance >= item.cost).length,
+    [wallet.balance],
+  )
 
   const lowestCost = useMemo(() => Math.min(...STORE_ITEMS.map((item) => item.cost)), [])
   const firstRewardGap = Math.max(0, lowestCost - wallet.balance)
+  const cheapestProgress = Math.min(100, Math.round((wallet.balance / lowestCost) * 100))
 
   const motivationMessage =
     firstRewardGap > 0
-      ? `You're ${firstRewardGap} TVX away from your first reward 🎯`
-      : "You can redeem a reward now. Keep earning more TVX to unlock premium items."
+      ? `${firstRewardGap} TVX to your first reward`
+      : `${redeemableCount} reward${redeemableCount === 1 ? "" : "s"} ready to redeem`
 
-  const filteredItems = useMemo(() => {
-    if (activeFilter === "all") return STORE_ITEMS
-    return STORE_ITEMS.filter((item) => item.category === activeFilter)
-  }, [activeFilter])
+  const filteredItems = useMemo(
+    () => (activeFilter === "all" ? STORE_ITEMS : STORE_ITEMS.filter((item) => item.category === activeFilter)),
+    [activeFilter],
+  )
 
-  const filterOptions = [
-    { key: "all", label: "All" },
-    { key: "vouchers", label: "Vouchers" },
-    { key: "subscriptions", label: "Subscriptions" },
-    { key: "merch", label: "Merch" },
-  ]
-
-  const openConfirmModal = (item) => {
+  const openConfirmModal = (item: StoreItem) => {
     setSelectedItem(item)
     setFeedbackMessage(null)
     setIsConfirmOpen(true)
@@ -117,200 +141,203 @@ export default function StoreSection() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <section className="space-y-4 text-center">
-        <p className="inline-flex items-center gap-2 rounded-full border border-violet-400/20 bg-violet-500/10 px-4 py-1 text-xs font-semibold tracking-wide text-violet-200">
-          <StoreIcon className="h-3.5 w-3.5" />
-          TrustVox Rewards
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+      {/* Header */}
+      <div data-reveal-block className="text-center">
+        <p className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-gold/[0.08] px-4 py-1.5 text-sm font-semibold text-gold">
+          <StoreIcon className="h-4 w-4" /> TrustVox rewards
         </p>
-        <h1 className="text-4xl font-bold tracking-tight text-white">TrustVox Store</h1>
-        <p className="text-base text-slate-300">Spend your TVX tokens</p>
-      </section>
+        <h1 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.03em] text-ink">Redemption store</h1>
+        <p className="mx-auto mt-3 max-w-xl text-ink-dim">Spend your TVX tokens on vouchers, subscriptions, and community merch.</p>
+      </div>
 
-      <section className="mt-8">
-        <div className="space-card rounded-2xl border border-violet-400/20 p-5 sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm uppercase tracking-wide text-violet-200/80">Balance</p>
-              <p className="mt-1 text-3xl font-bold text-violet-100">{wallet.balance} TVX</p>
-              <p className="mt-2 text-sm text-slate-300">{redeemableCount} item(s) currently redeemable</p>
-              <p className="mt-1 text-sm text-violet-200/85">{motivationMessage}</p>
+      {/* Balance hero */}
+      <div data-reveal-card className="tvx-card-gold mt-8 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-surface to-[#0e1017] p-7">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.16em] text-ink-muted">Available balance</p>
+            <div className="tvx-num mt-1 text-5xl font-bold text-ink">
+              {wallet.balance.toLocaleString()} <span className="text-2xl font-bold text-gold">TVX</span>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:min-w-[240px]">
-              <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3">
-                <p className="text-xs text-emerald-200/80">Earned</p>
-                <p className="text-lg font-semibold text-emerald-100">{wallet.totalEarned} TVX</p>
-              </div>
-              <div className="rounded-xl border border-rose-400/20 bg-rose-500/10 p-3">
-                <p className="text-xs text-rose-200/80">Spent</p>
-                <p className="text-lg font-semibold text-rose-100">{wallet.totalSpent} TVX</p>
-              </div>
-            </div>
+          </div>
+          <span className="rounded-full border border-mint/25 bg-mint/10 px-3 py-1 text-xs font-semibold text-mint">{motivationMessage}</span>
+        </div>
+        <div className="mt-6">
+          <div className="mb-1.5 flex items-center justify-between text-xs text-ink-muted">
+            <span>Toward your first reward</span>
+            <span className="tvx-num">{cheapestProgress}%</span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="h-2 rounded-full bg-gradient-to-r from-gold-deep to-gold" style={{ width: `${cheapestProgress}%` }} />
           </div>
         </div>
-      </section>
+      </div>
 
+      {/* Stats */}
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatTile label="Redeemable now" value={redeemableCount} tone="ink" />
+        <StatTile label="Total earned" value={wallet.totalEarned} unit="TVX" tone="mint" />
+        <StatTile label="Total spent" value={wallet.totalSpent} unit="TVX" tone="gold" />
+      </div>
+
+      {/* Redemption result banner */}
       {feedbackMessage ? (
-        <section className="mt-6">
-          <div
-            className={`rounded-xl border px-4 py-3 text-sm ${
-              feedbackMessage.type === "success"
-                ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-100"
-                : "border-rose-400/30 bg-rose-500/10 text-rose-100"
-            }`}
-          >
-            {feedbackMessage.type === "success" ? <CheckCircle2 className="mr-2 inline h-4 w-4" /> : null}
-            {feedbackMessage.text}
-          </div>
-        </section>
+        <div
+          role="status"
+          className={`mt-6 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${
+            feedbackMessage.type === "success"
+              ? "border-mint/25 bg-mint/10 text-mint"
+              : "border-destructive/30 bg-destructive/10 text-destructive"
+          }`}
+        >
+          {feedbackMessage.type === "success" ? <CheckCircle2 className="h-4 w-4 flex-none" /> : <Lock className="h-4 w-4 flex-none" />}
+          {feedbackMessage.text}
+        </div>
       ) : null}
 
-      <section className="mt-8">
-        <div className="mb-6 flex flex-wrap items-center justify-center gap-2">
-          {filterOptions.map((filter) => (
+      {/* Filters */}
+      <div className="mt-10 flex flex-wrap items-center justify-center gap-2">
+        {FILTER_OPTIONS.map((filter) => {
+          const active = activeFilter === filter.key
+          return (
             <button
               key={filter.key}
               onClick={() => setActiveFilter(filter.key)}
-              className={`rounded-full border px-3 py-1.5 text-sm transition-all duration-200 ${
-                activeFilter === filter.key
-                  ? "border-violet-400/50 bg-violet-500/20 text-violet-100"
-                  : "border-slate-600/50 bg-slate-800/40 text-slate-300 hover:border-violet-400/40 hover:text-violet-200"
+              aria-pressed={active}
+              className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 ${
+                active
+                  ? "border-gold/40 bg-gold/10 text-gold"
+                  : "border-white/[0.08] bg-white/[0.03] text-ink-dim hover:border-white/15 hover:text-ink"
               }`}
             >
               {filter.label}
             </button>
-          ))}
-        </div>
+          )
+        })}
+      </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {filteredItems.map((item) => {
-            const canRedeem = wallet.balance >= item.cost
-            const needed = Math.max(0, item.cost - wallet.balance)
-            const progressPercent = Math.min(100, Math.round((wallet.balance / item.cost) * 100))
+      {/* Catalog */}
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {filteredItems.map((item) => {
+          const canRedeem = wallet.balance >= item.cost
+          const needed = Math.max(0, item.cost - wallet.balance)
+          const progressPercent = Math.min(100, Math.round((wallet.balance / item.cost) * 100))
+          const Icon = CATEGORY_ICON[item.category]
 
-            return (
-              <Card
-                key={item.id}
-                className="group overflow-hidden border-violet-300/15 bg-[#0B1222]/70 backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:border-violet-300/35 hover:shadow-[0_20px_54px_rgba(76,29,149,0.42)]"
-                style={{ boxShadow: `0 10px 34px ${item.glow}` }}
-              >
-                <div className="relative h-44 w-full overflow-hidden">
-                  <Image
-                    src={item.image}
-                    alt={item.title}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                  />
-                  {item.badge ? (
-                    <Badge className="absolute left-3 top-3 border-violet-300/60 bg-violet-900/85 text-violet-100 shadow-[0_0_14px_rgba(139,92,246,0.35)]">
-                      {item.badge}
-                    </Badge>
-                  ) : null}
+          return (
+            <div
+              key={item.id}
+              data-reveal-card
+              className="group flex flex-col overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.02] transition-all duration-200 hover:-translate-y-1 hover:border-white/15"
+            >
+              {/* Icon header */}
+              <div className="relative flex h-32 items-center justify-center border-b border-white/[0.06] bg-gradient-to-b from-gold/[0.07] to-transparent">
+                <Icon className="h-12 w-12 text-gold/85 transition-transform duration-300 group-hover:scale-110" />
+                <span className="absolute left-3 top-3 rounded-full border border-white/[0.1] bg-background/60 px-2.5 py-1 text-[11px] font-semibold text-ink-dim backdrop-blur-sm">
+                  {item.badge}
+                </span>
+              </div>
+
+              <div className="flex flex-1 flex-col p-5">
+                <h3 className="font-display text-lg font-bold text-ink">{item.title}</h3>
+                <p className="mt-1.5 flex-1 text-sm leading-relaxed text-ink-muted">{item.description}</p>
+
+                <div className="mt-4 flex items-center justify-between rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2">
+                  <span className="text-sm text-ink-muted">Cost</span>
+                  <span className="tvx-num text-sm font-bold text-gold">{item.cost.toLocaleString()} TVX</span>
                 </div>
-                <CardHeader>
-                  <CardTitle className="text-xl text-white">{item.title}</CardTitle>
-                  <CardDescription className="text-slate-300">{item.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between rounded-lg border border-violet-300/15 bg-violet-950/20 px-3 py-2 text-sm">
-                    <span className="text-slate-300">Cost</span>
-                    <span className="font-semibold text-violet-100">{item.cost} TVX</span>
-                  </div>
 
-                  <div className="rounded-lg border border-slate-700/60 bg-slate-900/40 p-3">
-                    <div className="mb-2 flex items-center justify-between text-xs text-slate-300">
-                      <span>Progress</span>
-                      <span>
-                        {Math.min(wallet.balance, item.cost)} / {item.cost} TVX
-                      </span>
+                {canRedeem ? (
+                  <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-mint">
+                    <Sparkles className="h-3.5 w-3.5" /> Ready to redeem
+                  </p>
+                ) : (
+                  <div className="mt-3">
+                    <div className="mb-1.5 flex items-center justify-between text-xs text-ink-muted">
+                      <span className="tvx-num">{wallet.balance.toLocaleString()} / {item.cost.toLocaleString()}</span>
+                      <span className="tvx-num">{progressPercent}%</span>
                     </div>
-                    <div className="h-2 w-full rounded-full bg-slate-800/90 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all duration-500"
-                        style={{ width: `${progressPercent}%` }}
-                      />
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                      <div className="h-1.5 rounded-full bg-gradient-to-r from-gold-deep to-gold" style={{ width: `${progressPercent}%` }} />
                     </div>
                   </div>
+                )}
 
-                  {!canRedeem ? (
-                    <p className="text-xs text-amber-300">You need {needed} more TVX</p>
+                <Button
+                  className={`mt-5 w-full ${
+                    canRedeem
+                      ? "bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105"
+                      : "cursor-not-allowed border border-white/10 bg-white/[0.03] text-ink-muted hover:bg-white/[0.03]"
+                  }`}
+                  disabled={!canRedeem}
+                  onClick={() => openConfirmModal(item)}
+                >
+                  {canRedeem ? (
+                    <>
+                      Redeem now <ArrowRight className="ml-1 h-4 w-4" />
+                    </>
                   ) : (
-                    <p className="text-xs text-emerald-300 inline-flex items-center gap-1">
-                      <Sparkles className="h-3.5 w-3.5" />
-                      You can redeem this now
-                    </p>
+                    <>
+                      <Lock className="mr-1 h-4 w-4" /> Earn {needed.toLocaleString()} more TVX
+                    </>
                   )}
+                </Button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
 
-                  <Button
-                    className={`w-full ${
-                      canRedeem
-                        ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:brightness-110 shadow-[0_0_24px_rgba(124,58,237,0.35)]"
-                        : "bg-slate-800/70 text-slate-300 border border-slate-600/70 hover:bg-slate-800/80"
-                    }`}
-                    disabled={!canRedeem}
-                    onClick={() => openConfirmModal(item)}
-                  >
-                    {canRedeem ? (
-                      <>
-                        Redeem Now
-                        <span className="ml-1">→</span>
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="mr-1 h-4 w-4" />
-                        Earn {needed} TVX to unlock
-                      </>
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      </section>
-
+      {/* Confirm dialog */}
       <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-        <DialogContent className="border-violet-300/20 bg-[#090F1D] text-slate-100">
+        <DialogContent className="border-white/[0.08] bg-surface text-ink">
           <DialogHeader>
-            <DialogTitle>Confirm Redemption</DialogTitle>
-            <DialogDescription className="text-slate-300">
-              Review your TVX balance before redeeming this reward.
+            <DialogTitle className="font-display text-ink">Confirm redemption</DialogTitle>
+            <DialogDescription className="text-ink-muted">
+              Review your balance before redeeming this reward.
             </DialogDescription>
           </DialogHeader>
 
           {selectedItem ? (
-            <div className="space-y-3 rounded-xl border border-violet-300/20 bg-violet-950/20 p-4">
+            <div className="space-y-2.5 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-300">Item</span>
-                <span className="font-medium text-white">{selectedItem.title}</span>
+                <span className="text-ink-muted">Item</span>
+                <span className="font-medium text-ink">{selectedItem.title}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-300">Cost</span>
-                <span className="font-medium text-violet-100">{selectedItem.cost} TVX</span>
+                <span className="text-ink-muted">Cost</span>
+                <span className="tvx-num font-semibold text-gold">−{selectedItem.cost.toLocaleString()} TVX</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-300">Current Balance</span>
-                <span className="font-medium text-violet-100">{wallet.balance} TVX</span>
+                <span className="text-ink-muted">Current balance</span>
+                <span className="tvx-num font-medium text-ink">{wallet.balance.toLocaleString()} TVX</span>
               </div>
-              {wallet.balance < selectedItem.cost ? <p className="text-xs text-rose-300">Not enough TVX</p> : null}
+              <div className="flex items-center justify-between border-t border-white/[0.06] pt-2.5 text-sm">
+                <span className="text-ink-muted">Balance after</span>
+                <span className="tvx-num font-semibold text-ink">
+                  {Math.max(0, wallet.balance - selectedItem.cost).toLocaleString()} TVX
+                </span>
+              </div>
+              {wallet.balance < selectedItem.cost ? (
+                <p className="text-xs text-destructive">Not enough TVX to redeem this reward.</p>
+              ) : null}
             </div>
           ) : null}
 
           <DialogFooter>
             <Button
               variant="outline"
-              className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
+              className="border-white/10 bg-white/[0.03] text-ink-dim hover:bg-white/[0.06] hover:text-ink"
               onClick={() => setIsConfirmOpen(false)}
             >
               Cancel
             </Button>
             <Button
-              className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:brightness-110"
+              className="bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105"
               onClick={handleRedeemConfirm}
               disabled={!selectedItem || wallet.balance < (selectedItem?.cost ?? 0)}
             >
-              Confirm Redeem
+              Confirm redeem
             </Button>
           </DialogFooter>
         </DialogContent>

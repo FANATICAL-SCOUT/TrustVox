@@ -99,21 +99,21 @@ export default function SearchWithAutocomplete({
   return (
     <div className={`relative w-full max-w-md mx-auto ${className || ""}`} ref={searchRef}>
       <div className="relative flex items-center">
-        <Search className="absolute left-3 h-5 w-5 text-slate-400" />
+        <Search className="absolute left-3 h-5 w-5 text-ink-muted" />
         <Input
           type="text"
           placeholder={placeholder}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onFocus={() => searchTerm.length > 1 && setShowSuggestions(true)}
-          className="w-full pl-10 pr-10 py-2 rounded-full bg-slate-800/50 border-slate-600 text-slate-100 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 shadow-lg"
+          className="w-full rounded-full border-white/[0.08] bg-white/[0.03] py-2 pl-10 pr-10 text-ink shadow-sm placeholder:text-ink-muted focus-visible:border-gold/50 focus-visible:ring-gold/20"
         />
         {searchTerm && (
           <Button
             variant="ghost"
             size="icon"
             onClick={clearSearch}
-            className="absolute right-2 h-8 w-8 rounded-full text-slate-400 hover:bg-slate-700/50 hover:text-slate-200"
+            className="absolute right-2 h-8 w-8 rounded-full text-ink-muted hover:bg-white/5 hover:text-ink"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -121,26 +121,26 @@ export default function SearchWithAutocomplete({
       </div>
 
       {showSuggestions && suggestions.length > 0 && (
-        <Card className="absolute left-0 right-0 top-full z-[70] mt-2 w-full bg-slate-800/95 border-slate-600/50 backdrop-blur-sm rounded-lg shadow-2xl max-h-72 overflow-hidden">
+        <Card className="absolute left-0 right-0 top-full z-[70] mt-2 max-h-72 w-full overflow-hidden rounded-lg border-white/[0.08] bg-surface/95 shadow-2xl backdrop-blur-xl">
           <ScrollArea className="h-full">
             <CardContent className="p-0">
               {suggestions.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-700/50 transition-colors border-b border-slate-700/30 last:border-b-0"
+                  className="flex cursor-pointer items-center justify-between border-b border-white/[0.06] p-3 transition-colors last:border-b-0 hover:bg-white/5"
                   onClick={() => handleSelectSuggestion(item)}
                 >
                   <div className="min-w-0 pr-3">
-                    <p className="text-slate-100 font-medium truncate">{item.name}</p>
-                    {item.subtitle ? <p className="text-xs text-slate-400 truncate mt-0.5">{item.subtitle}</p> : null}
+                    <p className="truncate font-medium text-ink">{item.name}</p>
+                    {item.subtitle ? <p className="mt-0.5 truncate text-xs text-ink-muted">{item.subtitle}</p> : null}
                   </div>
                   <div className="flex items-center gap-2">
                     {item.category ? (
-                      <span className="hidden sm:inline text-[11px] text-violet-200 px-2 py-1 rounded-full bg-violet-500/20 border border-violet-400/30">
+                      <span className="hidden rounded-full border border-gold/20 bg-gold/10 px-2 py-1 text-[11px] text-gold sm:inline">
                         {item.category}
                       </span>
                     ) : null}
-                    <span className="text-xs text-slate-400 capitalize px-2 py-1 rounded-full bg-slate-700/50">
+                    <span className="rounded-full bg-white/5 px-2 py-1 text-xs capitalize text-ink-muted">
                       {item.type}
                     </span>
                   </div>

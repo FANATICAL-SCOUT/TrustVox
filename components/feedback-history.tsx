@@ -1,8 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { History, Coins, Star, MessageSquare, Eye, Save } from "lucide-react"
 import CompanyDetailsModal from "./modals/company-details-modal"
@@ -10,22 +8,51 @@ import { getForms, getResponsesByFormId, subscribeToFormsUpdates } from "@/lib/f
 
 interface FeedbackHistoryProps {
   newFeedbacks: any[]
-  savedFeedbacks: any[] // New prop for saved feedbacks
-  onContinueEditing: (feedbackData: any) => void // New prop to continue editing a draft
+  savedFeedbacks: any[] // Saved feedbacks (drafts)
+  onContinueEditing: (feedbackData: any) => void // Continue editing a draft
 }
 
 interface FeedbackHistoryModalHandlers {
-  onStartFeedback?: (feedback: any) => void;
-  onSaveForLater?: (feedback: any) => void;
+  onStartFeedback?: (feedback: any) => void
+  onSaveForLater?: (feedback: any) => void
 }
 
-type FeedbackHistoryAllProps = FeedbackHistoryProps & FeedbackHistoryModalHandlers;
+type FeedbackHistoryAllProps = FeedbackHistoryProps & FeedbackHistoryModalHandlers
+
+const STATUS_TONE: Record<string, string> = {
+  approved: "border-mint/25 bg-mint/10 text-mint",
+  pending: "border-gold/25 bg-gold/10 text-gold",
+  rejected: "border-destructive/30 bg-destructive/10 text-destructive",
+  draft: "border-white/10 bg-white/[0.04] text-ink-dim",
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const tone = STATUS_TONE[status] ?? STATUS_TONE.draft
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold capitalize ${tone}`}>
+      {status}
+    </span>
+  )
+}
+
+function StatTile({ label, value, tone, icon: Icon }: { label: string; value: string; tone: "gold" | "mint" | "ink"; icon: typeof Coins }) {
+  const toneClass = tone === "mint" ? "text-mint" : tone === "gold" ? "text-gold" : "text-ink"
+  return (
+    <div data-reveal-card className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs uppercase tracking-wide text-ink-muted">{label}</p>
+        <Icon className="h-4 w-4 text-gold" />
+      </div>
+      <p className={`tvx-num mt-1.5 text-2xl font-bold ${toneClass}`}>{value}</p>
+    </div>
+  )
+}
 
 export default function FeedbackHistory({ newFeedbacks, savedFeedbacks, onContinueEditing, onStartFeedback, onSaveForLater }: FeedbackHistoryAllProps) {
   const [selectedFeedback, setSelectedFeedback] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [allFeedbacks, setAllFeedbacks] = useState<any[]>([])
-  const [helpfulMessageId, setHelpfulMessageId] = useState<string | null>(null) // State for helpful message
+  const [helpfulMessageId, setHelpfulMessageId] = useState<string | null>(null)
 
   useEffect(() => {
     const loadLiveHistory = () => {
@@ -37,10 +64,7 @@ export default function FeedbackHistory({ newFeedbacks, savedFeedbacks, onContin
         return responses.map((response, index) => {
           const answerValues = Object.values(response.answers || {})
           const textAnswer = answerValues.find((value) => typeof value === "string" && value.trim().length > 0)
-          const feedbackText =
-            typeof textAnswer === "string"
-              ? textAnswer
-              : `Feedback submitted for ${form.product}.`
+          const feedbackText = typeof textAnswer === "string" ? textAnswer : `Feedback submitted for ${form.product}.`
 
           return {
             id: response.id,
@@ -72,25 +96,11 @@ export default function FeedbackHistory({ newFeedbacks, savedFeedbacks, onContin
   }, [newFeedbacks])
 
   const userStats = {
-    totalFeedbacks: allFeedbacks.length + savedFeedbacks.length, // Include drafts in total
+    totalFeedbacks: allFeedbacks.length + savedFeedbacks.length,
     tokensEarned: allFeedbacks.reduce((sum, f) => sum + f.tokensEarned, 0),
-    averageRating: allFeedbacks.length > 0 ? (allFeedbacks.reduce((sum, f) => sum + f.rating, 0) / allFeedbacks.length).toFixed(1) : "0.0",
+    averageRating:
+      allFeedbacks.length > 0 ? (allFeedbacks.reduce((sum, f) => sum + f.rating, 0) / allFeedbacks.length).toFixed(1) : "0.0",
     totalInteractions: allFeedbacks.reduce((sum, f) => sum + f.interactions, 0),
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "approved":
-        return "bg-green-500/80 text-white"
-      case "pending":
-        return "bg-yellow-500/80 text-white"
-      case "rejected":
-        return "bg-red-500/80 text-white"
-      case "draft":
-        return "bg-blue-500/80 text-white" // Color for drafts
-      default:
-        return "bg-slate-500/80 text-white"
-    }
   }
 
   const handleViewDetails = (feedback: any) => {
@@ -100,178 +110,137 @@ export default function FeedbackHistory({ newFeedbacks, savedFeedbacks, onContin
 
   const handleHelpfulClick = (id: string) => {
     setHelpfulMessageId(id)
-    setTimeout(() => {
-      setHelpfulMessageId(null)
-    }, 2000) // Message disappears after 2 seconds
+    setTimeout(() => setHelpfulMessageId(null), 2000)
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center mb-8" data-reveal-block>
-        <History className="w-8 h-8 text-[#a78bfa] mr-4" />
-        <div>
-          <h1 className="text-3xl font-bold text-slate-100">Feedback History & Rewards</h1>
-          <p className="text-slate-300 mt-2">Track your contributions and earnings</p>
-        </div>
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+      {/* Header */}
+      <div data-reveal-block className="text-center">
+        <p className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-gold/[0.08] px-4 py-1.5 text-sm font-semibold text-gold">
+          <History className="h-4 w-4" /> Activity
+        </p>
+        <h1 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.03em] text-ink">Feedback history &amp; rewards</h1>
+        <p className="mx-auto mt-3 max-w-xl text-ink-dim">Track your contributions and the TVX you&apos;ve earned.</p>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card className="space-card border-slate-600/30" data-reveal-card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-200">Total Feedbacks</CardTitle>
-            <MessageSquare className="h-4 w-4 text-[#a78bfa]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-100">{userStats.totalFeedbacks}</div>
-            <p className="text-xs text-slate-400 font-medium">+3 from last week</p>
-          </CardContent>
-        </Card>
-
-        <Card className="space-card border-slate-600/30" data-reveal-card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-200">Tokens Earned</CardTitle>
-            <Coins className="h-4 w-4 text-yellow-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-400">{userStats.tokensEarned}</div>
-            <p className="text-xs text-slate-400 font-medium">+185 from last week</p>
-          </CardContent>
-        </Card>
-
-        <Card className="space-card border-slate-600/30" data-reveal-card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-200">Avg. Rating</CardTitle>
-            <Star className="h-4 w-4 text-yellow-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-400">{userStats.averageRating}</div>
-            <p className="text-xs text-slate-400 font-medium">{userStats.totalInteractions} total interactions</p>
-          </CardContent>
-        </Card>
+      {/* Stats */}
+      <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatTile label="Total feedbacks" value={userStats.totalFeedbacks.toLocaleString()} tone="ink" icon={MessageSquare} />
+        <StatTile label="Tokens earned" value={`${userStats.tokensEarned.toLocaleString()} TVX`} tone="gold" icon={Coins} />
+        <StatTile label="Avg. rating" value={userStats.averageRating} tone="mint" icon={Star} />
       </div>
 
-      {/* Saved for Later Feedbacks */}
+      {/* Saved drafts */}
       {savedFeedbacks.length > 0 && (
-        <Card className="mb-8 space-card border-slate-600/30" data-reveal-card>
-          <CardHeader>
-            <CardTitle className="text-slate-100 flex items-center">
-              <Save className="w-5 h-5 text-[#a78bfa] mr-2" />
-              Saved Drafts
-            </CardTitle>
-            <CardDescription className="text-slate-300">Feedbacks you've saved to complete later</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {savedFeedbacks.map((feedback) => (
-                <div
-                  key={feedback.id}
-                  className="border border-slate-600/50 rounded-lg p-4 hover:bg-slate-800/30 transition-colors space-card"
-                >
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2">
-                    <div>
-                      <h3 className="font-semibold text-lg text-slate-100">{feedback.company}</h3>
-                      <p className="text-slate-300 font-medium">{feedback.product}</p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge className={`${getStatusColor(feedback.status)} font-medium`}>{feedback.status}</Badge>
-                      <span className="text-sm text-slate-400 font-medium">Draft</span>
-                    </div>
+        <section className="mt-10">
+          <h2 className="flex items-center gap-2 font-display text-xl font-bold text-ink">
+            <Save className="h-5 w-5 text-gold" /> Saved drafts
+          </h2>
+          <p className="mt-1 text-sm text-ink-muted">Feedbacks you&apos;ve saved to complete later</p>
+          <div className="mt-4 space-y-3">
+            {savedFeedbacks.map((feedback) => (
+              <div
+                key={feedback.id}
+                data-reveal-card
+                className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 transition-colors hover:border-white/15"
+              >
+                <div className="mb-3 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
+                  <div>
+                    <h3 className="font-display text-lg font-bold text-ink">{feedback.company}</h3>
+                    <p className="text-sm font-medium text-ink-muted">{feedback.product}</p>
                   </div>
-
-                  <p className="text-slate-200 mb-3 leading-relaxed line-clamp-2">
-                    {feedback.feedback || "No feedback entered yet."}
-                  </p>
-
-                  <div className="flex justify-end items-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onContinueEditing(feedback)}
-                      className="bg-slate-800/50 border-slate-600 text-slate-200 hover:bg-slate-700/50 font-medium"
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      Continue Editing
-                    </Button>
-                  </div>
+                  <StatusBadge status={feedback.status || "draft"} />
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <p className="mb-4 line-clamp-2 text-sm leading-relaxed text-ink-muted">
+                  {feedback.feedback || "No feedback entered yet."}
+                </p>
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onContinueEditing(feedback)}
+                    className="border-white/10 bg-white/[0.03] text-ink-dim hover:bg-white/[0.06] hover:text-ink"
+                  >
+                    <Eye className="mr-1 h-4 w-4" /> Continue editing
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
-      {/* Recent Feedbacks */}
-      <Card className="space-card border-slate-600/30" data-reveal-card>
-        <CardHeader>
-          <CardTitle className="text-slate-100">Recent Feedbacks</CardTitle>
-          <CardDescription className="text-slate-300">
-            Your latest feedback submissions and their status
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+      {/* Recent feedbacks */}
+      <section className="mt-10">
+        <h2 className="font-display text-xl font-bold text-ink">Recent feedbacks</h2>
+        <p className="mt-1 text-sm text-ink-muted">Your latest submissions and their status</p>
+
+        {allFeedbacks.length === 0 ? (
+          <p className="mt-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-8 text-center text-sm text-ink-muted">
+            No feedback yet. Complete an opportunity from Suggested to see it here and start earning TVX.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-3">
             {allFeedbacks.map((feedback) => (
               <div
                 key={feedback.id}
-                className="border border-slate-600/50 rounded-lg p-4 hover:bg-slate-800/30 transition-colors space-card"
+                data-reveal-card
+                className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 transition-colors hover:border-white/15"
               >
-                <div className="flex justify-between items-start mb-3">
+                <div className="mb-3 flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="font-semibold text-lg text-slate-100">{feedback.company}</h3>
-                    <p className="text-slate-300 font-medium">{feedback.product}</p>
+                    <h3 className="font-display text-lg font-bold text-ink">{feedback.company}</h3>
+                    <p className="text-sm font-medium text-ink-muted">{feedback.product}</p>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge className={`${getStatusColor(feedback.status)} font-medium`}>{feedback.status}</Badge>
-                    <span className="text-sm text-slate-400 font-medium">{feedback.date}</span>
+                  <div className="flex flex-none items-center gap-2">
+                    <StatusBadge status={feedback.status} />
+                    <span className="tvx-num text-xs text-ink-muted">{feedback.date}</span>
                   </div>
                 </div>
 
-                <p className="text-slate-200 mb-3 leading-relaxed">{feedback.feedback}</p>
+                <p className="mb-4 line-clamp-2 text-sm leading-relaxed text-ink-muted">{feedback.feedback}</p>
 
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center">
-                      <Coins className="w-4 h-4 text-yellow-400 mr-1" />
-                      <span className="text-sm text-slate-200 font-medium">{feedback.tokensEarned} tokens</span>
-                    </div>
-                    <div className="flex items-center">
-                      <MessageSquare className="w-4 h-4 text-blue-400 mr-1" />
-                      <span className="text-sm text-slate-200 font-medium">{feedback.interactions} interactions</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Star className="w-4 h-4 text-yellow-400 mr-1" />
-                      <span className="text-sm text-slate-200 font-medium">{feedback.rating}</span>
-                    </div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
+                    <span className="inline-flex items-center gap-1">
+                      <Coins className="h-3.5 w-3.5 text-gold" />
+                      <span className="tvx-num font-semibold text-gold">+{feedback.tokensEarned}</span> TVX
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <MessageSquare className="h-3.5 w-3.5" /> {feedback.interactions} interactions
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Star className="h-3.5 w-3.5 fill-gold text-gold" /> <span className="tvx-num">{feedback.rating}</span>
+                    </span>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center gap-2">
+                    {helpfulMessageId === feedback.id && (
+                      <span className="text-xs text-mint">Thanks for the note!</span>
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => handleHelpfulClick(feedback.id)}
-                      className="text-[#a78bfa] hover:text-[#c4b5fd]"
+                      className="text-ink-dim hover:text-gold"
                     >
                       Helpful?
                     </Button>
-                    {helpfulMessageId === feedback.id && (
-                      <span className="text-xs text-green-400">Thank you for the suggestion!</span>
-                    )}
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleViewDetails(feedback)}
-                      className="bg-slate-800/50 border-slate-600 text-slate-200 hover:bg-slate-700/50 font-medium"
+                      className="border-white/10 bg-white/[0.03] text-ink-dim hover:bg-white/[0.06] hover:text-ink"
                     >
-                      <Eye className="w-4 h-4 mr-1" />
-                      View Details
+                      <Eye className="mr-1 h-4 w-4" /> View details
                     </Button>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </section>
 
       {/* Company Details Modal */}
       {selectedFeedback && (
