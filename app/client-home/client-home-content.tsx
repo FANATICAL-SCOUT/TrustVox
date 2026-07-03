@@ -11,20 +11,16 @@ import {
   CheckCircle2,
   CircleDashed,
   Clock3,
-  Eye,
+  Coins,
   Lightbulb,
   MessageSquare,
   Plus,
   Star,
   TrendingDown,
   TrendingUp,
-  User,
   Users,
   XCircle,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -38,10 +34,10 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { getCampaignDetails, getCampaignSummaries, type CampaignSummary } from "@/lib/client-campaigns"
 
 const STATUS_STYLES: Record<FeedbackForm["status"], string> = {
-  draft: "border-slate-500/40 bg-slate-500/15 text-slate-300",
-  pending: "border-amber-400/40 bg-amber-500/15 text-amber-200",
-  approved: "border-emerald-400/40 bg-emerald-500/15 text-emerald-200",
-  rejected: "border-rose-400/40 bg-rose-500/15 text-rose-200",
+  draft: "border-white/15 bg-white/[0.04] text-ink-muted",
+  pending: "border-gold/30 bg-gold/10 text-gold",
+  approved: "border-mint/30 bg-mint/10 text-mint",
+  rejected: "border-destructive/30 bg-destructive/10 text-destructive",
 }
 
 const STATUS_LABELS: Record<FeedbackForm["status"], string> = {
@@ -74,7 +70,6 @@ type TrendPoint = {
   label: string
   fullLabel: string
   responses: number
-  views: number
   activeUsers: number
   rating: number
 }
@@ -86,17 +81,13 @@ const TIME_FILTERS: Array<{ key: TimeRange; label: string }> = [
 ]
 
 const CAMPAIGN_STATUS_STYLE = {
-  active: "border-emerald-400/30 bg-emerald-500/10 text-emerald-200",
-  draft: "border-amber-400/30 bg-amber-500/10 text-amber-200",
-  completed: "border-slate-400/30 bg-slate-500/10 text-slate-200",
+  active: "border-mint/30 bg-mint/10 text-mint",
+  draft: "border-gold/30 bg-gold/10 text-gold",
+  completed: "border-white/15 bg-white/[0.04] text-ink-muted",
 }
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
-}
-
-function formatCompactNumber(value: number) {
-  return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value)
 }
 
 function formatPercentDelta(value: number) {
@@ -133,19 +124,13 @@ function buildBuckets(range: TimeRange, periodOffset = 0) {
   })
 }
 
+// Real star rating (1-5) if the form captured one; otherwise a neutral
+// midpoint. No keyword/text sentiment guessing — that's fabricated signal.
 function deriveResponseScore(response: FormResponse): number {
   const values = Object.values(response.answers || {})
   const numeric = values.find((value) => typeof value === "number")
   if (typeof numeric === "number") return clamp(numeric, 1, 5)
-
-  const text = values.find((value) => typeof value === "string")
-  if (typeof text === "string") {
-    const normalized = text.toLowerCase()
-    if (normalized.includes("excellent") || normalized.includes("great") || normalized.includes("good")) return 4.5
-    if (normalized.includes("bad") || normalized.includes("poor") || normalized.includes("terrible")) return 2
-  }
-
-  return 3.5
+  return 3
 }
 
 function toPeriodDate(rawValue?: string): Date | null {
@@ -196,66 +181,41 @@ function resolveBucketKey(date: Date, range: TimeRange): string {
   return date.toISOString().slice(0, 10)
 }
 
-function buildTrendSeries(forms: FeedbackForm[], range: TimeRange, periodOffset = 0): TrendPoint[] {
+// Only real submitted responses feed the chart/insights — no fabricated
+// synthetic users or inferred ratings for forms that lack real response rows.
+function buildTrendSeries(responses: FormResponse[], range: TimeRange, periodOffset = 0): TrendPoint[] {
   const buckets = buildBuckets(range, periodOffset)
   const start = getPeriodStart(range, periodOffset)
   const end = getPeriodEnd(range, periodOffset)
 
   const accumulator = new Map(
-    buckets.map((bucket) => [
-      bucket.key,
-      { responses: 0, views: 0, activeUserIds: new Set<string>(), syntheticUsers: 0, ratingSum: 0, ratingCount: 0 },
-    ]),
+    buckets.map((bucket) => [bucket.key, { responses: 0, userIds: new Set<string>(), ratingSum: 0, ratingCount: 0 }]),
   )
 
-  forms.forEach((form) => {
-    const responses = getResponsesByFormId(form.id)
+  responses.forEach((response) => {
+    const date = toPeriodDate(response.submittedAt)
+    if (!date || date < start || date > end) return
 
-    if (responses.length > 0) {
-      responses.forEach((response) => {
-        const date = toPeriodDate(response.submittedAt)
-        if (!date || date < start || date > end) return
-
-        const bucket = accumulator.get(resolveBucketKey(date, range))
-        if (!bucket) return
-
-        const score = deriveResponseScore(response)
-        bucket.responses += 1
-        bucket.views += Math.max(1, form.questions.length)
-        if (response.userId) bucket.activeUserIds.add(response.userId)
-        bucket.ratingSum += score
-        bucket.ratingCount += 1
-      })
-      return
-    }
-
-    if (form.responseCount <= 0) return
-    const referenceDate = toPeriodDate(getLastUpdated(form))
-    if (!referenceDate || referenceDate < start || referenceDate > end) return
-
-    const bucket = accumulator.get(resolveBucketKey(referenceDate, range))
+    const bucket = accumulator.get(resolveBucketKey(date, range))
     if (!bucket) return
 
-    const inferredScore = form.status === "approved" ? 4.2 : form.status === "pending" ? 3.8 : 3.4
-    bucket.responses += form.responseCount
-    bucket.views += form.responseCount * Math.max(1, form.questions.length)
-    bucket.syntheticUsers += Math.max(1, Math.min(form.responseCount, Math.round(form.responseCount * 0.7)))
-    bucket.ratingSum += inferredScore * form.responseCount
-    bucket.ratingCount += form.responseCount
+    const score = deriveResponseScore(response)
+    bucket.responses += 1
+    if (response.userId) bucket.userIds.add(response.userId)
+    bucket.ratingSum += score
+    bucket.ratingCount += 1
   })
 
   return buckets.map((bucket) => {
     const data = accumulator.get(bucket.key)
     const rating = data && data.ratingCount > 0 ? data.ratingSum / data.ratingCount : 0
-    const activeUsers = data ? data.activeUserIds.size + data.syntheticUsers : 0
 
     return {
       key: bucket.key,
       label: bucket.label,
       fullLabel: bucket.fullLabel,
       responses: data?.responses ?? 0,
-      views: data?.views ?? 0,
-      activeUsers,
+      activeUsers: data?.userIds.size ?? 0,
       rating: Number(clamp(rating || 0, 0, 5).toFixed(1)),
     }
   })
@@ -331,6 +291,10 @@ export default function ClientHomePage() {
     return campaignDetails?.forms || []
   }, [campaignDetails])
 
+  const realResponses = useMemo(() => {
+    return selectedForms.flatMap((form) => getResponsesByFormId(form.id))
+  }, [selectedForms])
+
   const recentForms = useMemo(() => {
     return [...selectedForms]
       .sort((a, b) => Date.parse(getLastUpdated(b) || "") - Date.parse(getLastUpdated(a) || ""))
@@ -377,27 +341,29 @@ export default function ClientHomePage() {
 
   const currentSeries = useMemo(() => {
     if (!selectedCampaign) return []
-    return buildTrendSeries(selectedForms, timeRange, 0)
-  }, [selectedCampaign, selectedForms, timeRange])
+    return buildTrendSeries(realResponses, timeRange, 0)
+  }, [selectedCampaign, realResponses, timeRange])
 
   const previousSeries = useMemo(() => {
     if (!selectedCampaign) return []
-    return buildTrendSeries(selectedForms, timeRange, 1)
-  }, [selectedCampaign, selectedForms, timeRange])
+    return buildTrendSeries(realResponses, timeRange, 1)
+  }, [selectedCampaign, realResponses, timeRange])
+
+  const windowedResponses = useMemo(() => {
+    const start = getPeriodStart(timeRange, 0)
+    const end = getPeriodEnd(timeRange, 0)
+    return realResponses.filter((response) => {
+      const date = toPeriodDate(response.submittedAt)
+      return date && date >= start && date <= end
+    })
+  }, [realResponses, timeRange])
 
   const aggregates = useMemo(() => {
     const totalFeedbacks = currentSeries.reduce((sum, point) => sum + point.responses, 0)
     const previousFeedbacks = previousSeries.reduce((sum, point) => sum + point.responses, 0)
 
-    const views = currentSeries.reduce((sum, point) => sum + point.views, 0)
-    const previousViews = previousSeries.reduce((sum, point) => sum + point.views, 0)
-
-    const activeUsers = Math.round(
-      currentSeries.reduce((sum, point) => sum + point.activeUsers, 0) / Math.max(1, currentSeries.length),
-    )
-    const previousActiveUsers = Math.round(
-      previousSeries.reduce((sum, point) => sum + point.activeUsers, 0) / Math.max(1, previousSeries.length),
-    )
+    const uniqueRespondents = new Set(windowedResponses.map((response) => response.userId).filter(Boolean)).size
+    const tvxRewarded = windowedResponses.reduce((sum, response) => sum + (response.rewardTokens || 0), 0)
 
     const weightedRatingSum = currentSeries.reduce((sum, point) => sum + point.rating * point.responses, 0)
     const previousWeightedRatingSum = previousSeries.reduce((sum, point) => sum + point.rating * point.responses, 0)
@@ -407,106 +373,100 @@ export default function ClientHomePage() {
 
     return {
       totalFeedbacks,
-      views,
-      activeUsers,
+      uniqueRespondents,
+      tvxRewarded,
       averageRating,
       feedbackDelta: metricDelta(totalFeedbacks, previousFeedbacks),
-      viewsDelta: metricDelta(views, previousViews),
-      activeUsersDelta: metricDelta(activeUsers, previousActiveUsers),
       ratingDelta: averageRating - previousAverageRating,
     }
-  }, [currentSeries, previousSeries])
+  }, [currentSeries, previousSeries, windowedResponses])
 
-  const demographics = useMemo(() => {
-    const weightedRating = currentSeries.reduce(
-      (accumulator, point) => {
-        accumulator.responses += point.responses
-        accumulator.ratingSum += point.rating * point.responses
-        return accumulator
-      },
-      { responses: 0, ratingSum: 0 },
-    )
+  const sentimentBreakdown = useMemo(() => {
+    if (windowedResponses.length === 0) return null
 
-    const averageRating = weightedRating.responses > 0 ? weightedRating.ratingSum / weightedRating.responses : 0
-    const positiveRatio = clamp((averageRating - 1) / 4, 0, 1)
-    const neutralRatio = clamp(1 - Math.abs(averageRating - 3) / 2 - 0.25, 0.1, 0.5)
-    const negativeRatio = clamp(1 - positiveRatio - neutralRatio, 0, 1)
-    const totalRatio = positiveRatio + neutralRatio + negativeRatio || 1
+    let positive = 0
+    let neutral = 0
+    let negative = 0
 
-    const positivePct = Math.round((positiveRatio / totalRatio) * 100)
-    const neutralPct = Math.round((neutralRatio / totalRatio) * 100)
-    const negativePct = Math.max(0, 100 - positivePct - neutralPct)
+    windowedResponses.forEach((response) => {
+      const score = deriveResponseScore(response)
+      if (score >= 4) positive += 1
+      else if (score <= 2) negative += 1
+      else neutral += 1
+    })
 
+    const total = windowedResponses.length
     return [
-      { label: "Positive", tag: "High satisfaction", value: positivePct },
-      { label: "Neutral", tag: "Mixed sentiment", value: neutralPct },
-      { label: "Negative", tag: "Needs attention", value: negativePct },
+      { label: "Positive", tag: "4-5 star", value: Math.round((positive / total) * 100), tone: "mint" as const },
+      { label: "Neutral", tag: "3 star", value: Math.round((neutral / total) * 100), tone: "gold" as const },
+      { label: "Negative", tag: "1-2 star", value: Math.round((negative / total) * 100), tone: "destructive" as const },
     ]
-  }, [currentSeries])
+  }, [windowedResponses])
 
   const insightItems = useMemo<InsightItem[]>(() => {
-    if (!currentSeries.length) return []
+    if (aggregates.totalFeedbacks === 0) return []
 
     const avgResponses = currentSeries.reduce((sum, point) => sum + point.responses, 0) / currentSeries.length
     const peak = currentSeries.reduce((best, point) => (point.responses > best.responses ? point : best), currentSeries[0])
     const lowest = currentSeries.reduce((worst, point) => (point.responses < worst.responses ? point : worst), currentSeries[0])
     const engagementGap = metricDelta(peak.responses, Math.max(1, Math.round(avgResponses)))
-    const lowGap = metricDelta(lowest.responses, Math.max(1, Math.round(avgResponses)))
-    const topDemographic = demographics.reduce((best, segment) => (segment.value > best.value ? segment : best), demographics[0])
 
-    return [
+    const items: InsightItem[] = [
       {
         id: "peak",
         icon: TrendingUp,
-        title: `${peak.fullLabel} recorded ${peak.responses} responses`,
-        detail: `${formatPercentDelta(engagementGap)} above ${timeRange === "all" ? "monthly" : "period"} average engagement.`,
+        title: `${peak.fullLabel} recorded ${peak.responses} response${peak.responses === 1 ? "" : "s"}`,
+        detail: `${formatPercentDelta(engagementGap)} above ${timeRange === "all" ? "monthly" : "period"} average.`,
       },
       {
         id: "rating",
         icon: Star,
         title: `Average rating is ${aggregates.averageRating.toFixed(1)} / 5`,
-        detail: `${aggregates.ratingDelta >= 0 ? "+" : ""}${aggregates.ratingDelta.toFixed(2)} vs previous period quality score.`,
+        detail: `${aggregates.ratingDelta >= 0 ? "+" : ""}${aggregates.ratingDelta.toFixed(2)} vs the previous period.`,
       },
       {
-        id: "dip",
-        icon: TrendingDown,
-        title: `${lowest.fullLabel} dipped to ${lowest.responses} responses`,
-        detail: `${formatPercentDelta(lowGap)} compared with the current period average baseline.`,
-      },
-      {
-        id: "demographic",
-        icon: User,
-        title: `${topDemographic.label} sentiment dominates`,
-        detail: `${topDemographic.value}% share indicates ${topDemographic.tag.toLowerCase()} for this campaign window.`,
+        id: "respondents",
+        icon: Users,
+        title: `${aggregates.uniqueRespondents} unique respondent${aggregates.uniqueRespondents === 1 ? "" : "s"}`,
+        detail: `Across ${aggregates.totalFeedbacks} response${aggregates.totalFeedbacks === 1 ? "" : "s"} in this window.`,
       },
     ]
-  }, [currentSeries, demographics, aggregates.averageRating, aggregates.ratingDelta, timeRange])
+
+    if (lowest.key !== peak.key) {
+      items.push({
+        id: "dip",
+        icon: TrendingDown,
+        title: `${lowest.fullLabel} saw ${lowest.responses} response${lowest.responses === 1 ? "" : "s"}`,
+        detail: `The quietest point in the current period.`,
+      })
+    }
+
+    return items
+  }, [currentSeries, aggregates, timeRange])
 
   const feedbackItems = useMemo(() => {
-    return selectedForms.slice(0, 4).map((form, index) => {
-      const responses = getResponsesByFormId(form.id)
-      const averageScore =
-        responses.length > 0
-          ? responses.reduce((sum, response) => sum + deriveResponseScore(response), 0) / responses.length
-          : form.status === "approved"
-          ? 4.1
-          : form.status === "pending"
-          ? 3.7
-          : 3.3
+    return [...realResponses]
+      .sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt))
+      .slice(0, 4)
+      .map((response) => {
+        const form = selectedForms.find((candidate) => candidate.id === response.formId)
+        const textAnswer = Object.values(response.answers || {}).find((value) => typeof value === "string" && value.length > 12)
+        const rating = Math.round(deriveResponseScore(response))
+        const sentiment = rating >= 4 ? "Positive" : rating <= 2 ? "Negative" : "Neutral"
+        const suffixMatch = response.userId?.match(/(\d+)$/)
+        const respondentTag = suffixMatch ? `R${suffixMatch[1]}` : "R?"
 
-      const rating = Number(clamp(averageScore, 1, 5).toFixed(1))
-      const sentiment = rating >= 4.2 ? "Positive" : rating >= 3.4 ? "Neutral" : "Negative"
-      const text = form.description || `${form.title || "Form"} is collecting campaign responses and sentiment signals.`
-
-      return {
-        id: form.id,
-        user: `U${index + 1}`,
-        text,
-        rating: Math.round(rating),
-        sentiment,
-      }
-    })
-  }, [selectedForms])
+        return {
+          id: response.id,
+          respondentTag,
+          formTitle: form?.title || "Feedback form",
+          text: typeof textAnswer === "string" ? textAnswer : "No written comment on this response.",
+          rating,
+          sentiment,
+          time: timeAgo(response.submittedAt),
+        }
+      })
+  }, [realResponses, selectedForms])
 
   const engagementProgress = useMemo(() => {
     if (!campaignDetails) return 0
@@ -515,45 +475,44 @@ export default function ClientHomePage() {
   }, [campaignDetails])
 
   if (!mounted) {
-    return <div className="min-h-screen bg-[#090b14]" />
+    return <div className="min-h-screen bg-background" />
   }
 
   return (
-    <div className="min-h-screen bg-[#090b14] p-4 md:p-6">
+    <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="mx-auto max-w-7xl">
-        <section className="relative overflow-hidden rounded-2xl border border-[#a78bfa]/25 bg-[linear-gradient(120deg,rgba(167,139,250,0.16),rgba(17,24,39,0.58),rgba(76,29,149,0.18))] p-5 shadow-[0_12px_45px_rgba(76,29,149,0.35)] md:p-6">
-          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#a78bfa]/20 blur-3xl" />
+        <section className="tvx-card-gold relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-surface to-[#0e1017] p-5 md:p-6">
           <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-slate-100">Campaign Performance</h1>
-              <p className="mt-1 text-sm text-slate-300">Track responses, engagement, and trends in real time</p>
+              <h1 className="font-display text-2xl font-bold tracking-tight text-ink">Campaign Performance</h1>
+              <p className="mt-1 text-sm text-ink-dim">Track responses, engagement, and trends in real time</p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <Badge className={`border ${CAMPAIGN_STATUS_STYLE[(campaignDetails?.status || "draft") as keyof typeof CAMPAIGN_STATUS_STYLE]}`}>
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${CAMPAIGN_STATUS_STYLE[(campaignDetails?.status || "draft") as keyof typeof CAMPAIGN_STATUS_STYLE]}`}>
                   {(campaignDetails?.status || "draft").toUpperCase()}
-                </Badge>
-                <span className="text-xs text-slate-300">{campaignDetails?.formsCount || 0} forms</span>
-                <span className="text-xs text-slate-500">|</span>
-                <span className="text-xs text-slate-300">{campaignDetails?.totalResponses || 0} total responses</span>
+                </span>
+                <span className="text-xs text-ink-dim">{campaignDetails?.formsCount || 0} forms</span>
+                <span className="text-xs text-ink-muted">|</span>
+                <span className="text-xs text-ink-dim">{campaignDetails?.totalResponses || 0} lifetime responses</span>
               </div>
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <label className="text-xs font-medium uppercase tracking-wide text-slate-400">Campaign:</label>
+                <label className="text-xs font-medium uppercase tracking-wide text-ink-muted">Campaign:</label>
                 {campaigns.length > 0 ? (
                   <Select value={selectedCampaign} onValueChange={setSelectedCampaign}>
-                    <SelectTrigger className="w-64 border-white/15 bg-[#111827]/80 text-slate-100 focus:border-[#a78bfa]/70 focus:ring-[#a78bfa]/30">
+                    <SelectTrigger className="w-64 border-white/15 bg-white/[0.04] text-ink focus:border-gold/40 focus:ring-gold/20">
                       <SelectValue>
                         {selectedCampaignSummary ? selectedCampaignSummary.name : "Select a campaign"}
                       </SelectValue>
                     </SelectTrigger>
-                    <SelectContent className="border-white/15 bg-[#111827] text-slate-100">
+                    <SelectContent className="border-white/10 bg-surface-raised text-ink">
                       {campaigns.map((campaign) => (
-                        <SelectItem key={campaign.id} value={campaign.id} className="focus:bg-[#a78bfa]/20 focus:text-slate-100">
+                        <SelectItem key={campaign.id} value={campaign.id} className="focus:bg-gold/10 focus:text-gold">
                           {campaign.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 ) : (
-                  <div className="inline-flex h-9 items-center rounded-md border border-slate-600/40 bg-slate-500/10 px-3 text-xs text-slate-400">
+                  <div className="inline-flex h-9 items-center rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs text-ink-muted">
                     {isLive ? "No active campaigns available" : "No campaigns available"}
                   </div>
                 )}
@@ -562,8 +521,8 @@ export default function ClientHomePage() {
                   onClick={() => setIsLive((prev) => !prev)}
                   className={`inline-flex h-11 items-center gap-3 rounded-xl border px-3.5 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 ${
                     isLive
-                      ? "border-emerald-400/60 bg-emerald-500/18 text-emerald-100 focus-visible:ring-emerald-300/40"
-                      : "border-slate-500/50 bg-slate-700/40 text-slate-200 focus-visible:ring-slate-300/30"
+                      ? "border-mint/40 bg-mint/10 text-mint focus-visible:ring-mint/30"
+                      : "border-white/15 bg-white/[0.04] text-ink-dim focus-visible:ring-white/20"
                   }`}
                   aria-pressed={isLive}
                   role="switch"
@@ -572,9 +531,7 @@ export default function ClientHomePage() {
                 >
                   <span
                     className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-colors ${
-                      isLive
-                        ? "border-emerald-300/60 bg-emerald-400/30"
-                        : "border-slate-400/40 bg-slate-500/25"
+                      isLive ? "border-mint/40 bg-mint/20" : "border-white/15 bg-white/[0.06]"
                     }`}
                     aria-hidden="true"
                   >
@@ -584,13 +541,11 @@ export default function ClientHomePage() {
                       }`}
                     />
                   </span>
-                  <Activity className={`h-4 w-4 ${isLive ? "text-emerald-200" : "text-slate-300"}`} />
+                  <Activity className={`h-4 w-4 ${isLive ? "text-mint" : "text-ink-dim"}`} />
                   <span className="tracking-wide">Live Analytics</span>
                   <span
                     className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
-                      isLive
-                        ? "bg-emerald-300/25 text-emerald-100"
-                        : "bg-slate-400/20 text-slate-200"
+                      isLive ? "bg-mint/20 text-mint" : "bg-white/10 text-ink-dim"
                     }`}
                   >
                     {isLive ? "ON" : "OFF"}
@@ -600,27 +555,27 @@ export default function ClientHomePage() {
             </div>
 
             <div className="flex flex-col items-start gap-3 sm:items-end">
-              <p className="text-xs uppercase tracking-wide text-slate-400">Current Campaign</p>
-              <p className="text-sm font-medium text-slate-200">{campaignDetails?.name || "No campaign available"}</p>
+              <p className="text-xs uppercase tracking-wide text-ink-muted">Current Campaign</p>
+              <p className="text-sm font-medium text-ink-dim">{campaignDetails?.name || "No campaign available"}</p>
               <div className="w-56">
-                <div className="mb-1 flex items-center justify-between text-[11px] text-slate-300">
+                <div className="mb-1 flex items-center justify-between text-[11px] text-ink-dim">
                   <span>Engagement progress</span>
-                  <span>{engagementProgress}%</span>
+                  <span className="tvx-num">{engagementProgress}%</span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-slate-700/70">
+                <div className="h-2 w-full rounded-full bg-white/[0.06]">
                   <div
-                    className="h-2 rounded-full bg-gradient-to-r from-[#8b5cf6] via-[#a78bfa] to-[#ddd6fe]"
+                    className="h-2 rounded-full bg-gradient-to-r from-gold-deep to-gold"
                     style={{ width: `${engagementProgress}%` }}
                   />
                 </div>
               </div>
-              <Button
-                onClick={() => router.push("/create-form")}
-                className="w-full sm:w-auto border border-[#a78bfa]/45 bg-gradient-to-r from-[#8b5cf6]/90 to-[#a78bfa]/80 text-[#f5f7ff] shadow-[0_8px_30px_rgba(139,92,246,0.3)] hover:from-[#8b5cf6] hover:to-[#c4b5fd]"
+              <button
+                onClick={() => router.push("/client/create")}
+                className="inline-flex w-full items-center justify-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105 sm:w-auto"
               >
                 <Plus className="mr-2 h-4 w-4" />
-                + Create Form
-              </Button>
+                Create Form
+              </button>
             </div>
           </div>
         </section>
@@ -632,8 +587,8 @@ export default function ClientHomePage() {
               onClick={() => setTimeRange(option.key)}
               className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                 timeRange === option.key
-                  ? "border-[#a78bfa]/45 bg-[#8b5cf6]/15 text-[#ddd6fe]"
-                  : "border-white/15 bg-white/[0.03] text-slate-300 hover:border-[#a78bfa]/30 hover:text-slate-100"
+                  ? "border-gold/30 bg-gold/10 text-gold"
+                  : "border-white/[0.1] bg-white/[0.03] text-ink-muted hover:border-white/20 hover:text-ink-dim"
               }`}
             >
               {option.label}
@@ -645,7 +600,7 @@ export default function ClientHomePage() {
           {[
             {
               key: "feedbacks",
-              label: "Total Feedbacks",
+              label: "Total Responses",
               value: aggregates.totalFeedbacks.toLocaleString(),
               delta: formatPercentDelta(aggregates.feedbackDelta),
               positive: aggregates.feedbackDelta >= 0,
@@ -655,202 +610,202 @@ export default function ClientHomePage() {
             {
               key: "rating",
               label: "Average Rating",
-              value: aggregates.averageRating.toFixed(1),
+              value: aggregates.totalFeedbacks > 0 ? aggregates.averageRating.toFixed(1) : "—",
               delta: `${aggregates.ratingDelta >= 0 ? "+" : ""}${aggregates.ratingDelta.toFixed(2)}`,
               positive: aggregates.ratingDelta >= 0,
               icon: Star,
               subtext: "rating points vs previous period",
             },
             {
-              key: "users",
-              label: "Active Users",
-              value: formatCompactNumber(aggregates.activeUsers),
-              delta: formatPercentDelta(aggregates.activeUsersDelta),
-              positive: aggregates.activeUsersDelta >= 0,
+              key: "respondents",
+              label: "Unique Respondents",
+              value: aggregates.uniqueRespondents.toLocaleString(),
+              delta: null,
+              positive: true,
               icon: Users,
-              subtext: `vs previous ${timeRange === "all" ? "year" : "period"}`,
+              subtext: "in the selected window",
             },
             {
-              key: "views",
-              label: "Views",
-              value: aggregates.views.toLocaleString(),
-              delta: formatPercentDelta(aggregates.viewsDelta),
-              positive: aggregates.viewsDelta >= 0,
-              icon: Eye,
-              subtext: `vs previous ${timeRange === "all" ? "year" : "period"}`,
+              key: "tvx",
+              label: "TVX Rewarded",
+              value: aggregates.tvxRewarded.toLocaleString(),
+              delta: null,
+              positive: true,
+              icon: Coins,
+              subtext: "paid out for this window",
             },
           ].map((metric) => {
             const trendPositive = metric.positive
             return (
-              <Card key={metric.key} className="border-white/10 bg-white/[0.03] backdrop-blur-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-slate-400">{metric.label}</p>
-                      <p className="mt-1 text-2xl font-semibold text-slate-100">{metric.value}</p>
-                      <p className={`mt-1 inline-flex items-center text-xs ${trendPositive ? "text-emerald-300" : "text-rose-300"}`}>
+              <div key={metric.key} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-ink-muted">{metric.label}</p>
+                    <p className="tvx-num mt-1 text-2xl font-semibold text-ink">{metric.value}</p>
+                    {metric.delta !== null ? (
+                      <p className={`mt-1 inline-flex items-center text-xs ${trendPositive ? "text-mint" : "text-destructive"}`}>
                         {trendPositive ? <ArrowUpRight className="mr-1 h-3.5 w-3.5" /> : <ArrowDownRight className="mr-1 h-3.5 w-3.5" />}
                         {metric.delta}
                       </p>
-                      <p className="mt-1 text-[11px] text-slate-500">{metric.subtext}</p>
-                    </div>
-                    <metric.icon className={`h-5 w-5 ${trendPositive ? "text-emerald-300" : "text-rose-300"}`} />
+                    ) : null}
+                    <p className="mt-1 text-[11px] text-ink-muted">{metric.subtext}</p>
                   </div>
-                </CardContent>
-              </Card>
+                  <metric.icon className="h-5 w-5 text-gold" />
+                </div>
+              </div>
             )
           })}
         </section>
 
         <section className="mt-5">
-          <Card className="border-[#22d3ee]/35 bg-[linear-gradient(135deg,rgba(34,211,238,0.1),rgba(15,23,42,0.5),rgba(59,130,246,0.12))]">
-            <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-[#a5f3fc]">
-                  <BarChart3 className="h-3.5 w-3.5" />
-                  Analytics Workspace
-                </p>
-                <h3 className="mt-1 text-base font-semibold text-slate-100">Comparative Campaign Analytics</h3>
-                <p className="mt-1 text-sm text-slate-300">
-                  Compare up to 3 campaigns, generate executive insights, and export reports as PDF.
-                </p>
-              </div>
-              <Button
-                onClick={() => router.push("/client/analytics")}
-                className="w-full border border-[#22d3ee]/40 bg-[#0891b2]/20 text-[#ccfbf1] hover:bg-[#0891b2]/35 sm:w-auto"
-              >
-                Open Analytics
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="flex flex-col gap-4 rounded-xl border border-mint/25 bg-mint/[0.05] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-mint">
+                <BarChart3 className="h-3.5 w-3.5" />
+                Analytics Workspace
+              </p>
+              <h3 className="mt-1 text-base font-semibold text-ink">Comparative Campaign Analytics</h3>
+              <p className="mt-1 text-sm text-ink-dim">
+                Compare up to 3 campaigns, generate executive insights, and export reports as PDF.
+              </p>
+            </div>
+            <button
+              onClick={() => router.push("/client/analytics")}
+              className="inline-flex w-full items-center justify-center rounded-lg border border-mint/30 bg-mint/10 px-4 py-2 text-sm font-medium text-mint transition hover:bg-mint/15 sm:w-auto"
+            >
+              Open Analytics
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </button>
+          </div>
         </section>
 
         <section className="mt-8 grid gap-6 lg:grid-cols-[1.7fr_1fr]">
-          <Card className="border-[#a78bfa]/30 bg-[linear-gradient(180deg,rgba(167,139,250,0.08),rgba(255,255,255,0.03))] shadow-[0_10px_30px_rgba(76,29,149,0.2)]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-semibold text-slate-100">Weekly Feedback Trends</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <ResponsiveContainer width="100%" height={360}>
+          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+            <h2 className="mb-2 text-lg font-semibold text-ink">Feedback Trends</h2>
+            {aggregates.totalFeedbacks === 0 ? (
+              <p className="flex h-[300px] items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.02] text-center text-sm text-ink-muted">
+                No responses recorded for this campaign in this window yet.
+              </p>
+            ) : (
+              <ResponsiveContainer width="100%" height={340}>
                 <AreaChart data={currentSeries} margin={{ top: 16, right: 16, left: 0, bottom: 8 }}>
                   <defs>
                     <linearGradient id="feedbackGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.45} />
-                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.05} />
+                      <stop offset="0%" stopColor="#EBBC6B" stopOpacity={0.45} />
+                      <stop offset="100%" stopColor="#C89545" stopOpacity={0.05} />
                     </linearGradient>
-                    <filter id="lineGlow" x="-50%" y="-50%" width="200%" height="200%">
-                      <feGaussianBlur stdDeviation="4" result="coloredBlur" />
-                      <feMerge>
-                        <feMergeNode in="coloredBlur" />
-                        <feMergeNode in="SourceGraphic" />
-                      </feMerge>
-                    </filter>
                   </defs>
-                  <CartesianGrid stroke="#334155" strokeDasharray="3 3" opacity={0.45} />
+                  <CartesianGrid stroke="#878CA0" strokeDasharray="3 3" opacity={0.15} />
                   <XAxis
                     dataKey="label"
-                    stroke="#94a3b8"
+                    stroke="#878CA0"
                     tickLine={false}
-                    axisLine={{ stroke: "#334155" }}
+                    axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
                     interval={timeRange === "30d" ? 4 : 0}
-                    label={{ value: timeRange === "all" ? "Months" : "Days", position: "insideBottom", offset: -4, fill: "#94a3b8", fontSize: 12 }}
+                    label={{ value: timeRange === "all" ? "Months" : "Days", position: "insideBottom", offset: -4, fill: "#878CA0", fontSize: 12 }}
                   />
                   <YAxis
-                    stroke="#94a3b8"
+                    stroke="#878CA0"
                     tickLine={false}
-                    axisLine={{ stroke: "#334155" }}
-                    label={{ value: "Feedback Count", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 12 }}
+                    axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
+                    label={{ value: "Responses", angle: -90, position: "insideLeft", fill: "#878CA0", fontSize: 12 }}
+                    allowDecimals={false}
                   />
                   <Tooltip
-                    cursor={{ fill: "rgba(167,139,250,0.1)" }}
+                    cursor={{ fill: "rgba(235,188,107,0.08)" }}
                     contentStyle={{
-                      backgroundColor: "#111827",
-                      border: "1px solid rgba(167,139,250,0.3)",
+                      backgroundColor: "#1B1F2A",
+                      border: "1px solid rgba(255,255,255,0.1)",
                       borderRadius: "10px",
-                      color: "#f8fafc",
+                      color: "#ECEEF4",
                     }}
-                    labelStyle={{ color: "#cbd5e1" }}
+                    labelStyle={{ color: "#B6BACB" }}
                     labelFormatter={(label: string) => `Period: ${label}`}
-                    formatter={(value: number) => [value, "Feedbacks"]}
+                    formatter={(value: number) => [value, "Responses"]}
                   />
-                  <Area type="monotone" dataKey="responses" stroke="#a78bfa" strokeWidth={2.8} fill="url(#feedbackGradient)" filter="url(#lineGlow)" />
+                  <Area type="monotone" dataKey="responses" stroke="#EBBC6B" strokeWidth={2.5} fill="url(#feedbackGradient)" />
                 </AreaChart>
               </ResponsiveContainer>
-            </CardContent>
-          </Card>
+            )}
+          </div>
 
-          <Card className="border-white/10 bg-white/[0.03]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold text-slate-100">Demographics</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 p-4 pt-0">
+          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+            <h2 className="mb-2 text-base font-semibold text-ink">Rating breakdown</h2>
+            {!sentimentBreakdown ? (
+              <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-6 text-center text-sm text-ink-muted">
+                No ratings on file for this window.
+              </p>
+            ) : (
               <div className="space-y-4">
-                {demographics.map((group) => (
-                  <div key={group.label}>
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <span className="text-sm text-slate-300">{group.label} <span className="text-[11px] text-slate-500">({group.tag})</span></span>
-                      <span className="text-sm font-medium text-slate-200">{group.value}%</span>
+                {sentimentBreakdown.map((group) => {
+                  const barClass = group.tone === "mint" ? "bg-mint" : group.tone === "gold" ? "bg-gold" : "bg-destructive"
+                  return (
+                    <div key={group.label}>
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <span className="text-sm text-ink-dim">
+                          {group.label} <span className="text-[11px] text-ink-muted">({group.tag})</span>
+                        </span>
+                        <span className="tvx-num text-sm font-medium text-ink">{group.value}%</span>
+                      </div>
+                      <div className="h-2.5 w-full rounded-full bg-white/[0.06]">
+                        <div className={`h-2.5 rounded-full ${barClass} transition-all duration-500`} style={{ width: `${group.value}%` }} />
+                      </div>
                     </div>
-                    <div className="h-2.5 w-full rounded-full bg-slate-700/70">
-                      <div
-                        className="h-2.5 rounded-full bg-gradient-to-r from-[#8b5cf6] via-[#a78bfa] to-[#c4b5fd] transition-all duration-500"
-                        style={{ width: `${group.value}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </div>
         </section>
 
         <section className="mt-8">
           <div className="mb-3 flex items-center gap-2">
-            <Lightbulb className="h-4 w-4 text-[#c4b5fd]" />
-            <h2 className="text-lg font-semibold text-slate-100">Insights</h2>
+            <Lightbulb className="h-4 w-4 text-gold" />
+            <h2 className="text-lg font-semibold text-ink">Insights</h2>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {insightItems.map((insight) => (
-              <Card key={insight.id} className="border-white/10 bg-white/[0.03]">
-                <CardContent className="p-4">
-                  <div className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#a78bfa]/20 text-[#ddd6fe]">
+          {insightItems.length === 0 ? (
+            <p className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-6 text-center text-sm text-ink-muted">
+              No feedback yet in this window — insights populate once responses come in.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {insightItems.map((insight) => (
+                <div key={insight.id} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+                  <div className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-gold/10 text-gold">
                     <insight.icon className="h-4 w-4" />
                   </div>
-                  <p className="text-sm font-medium text-slate-100">{insight.title}</p>
-                  <p className="mt-1 text-xs text-slate-400">{insight.detail}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  <p className="text-sm font-medium text-ink">{insight.title}</p>
+                  <p className="mt-1 text-xs text-ink-muted">{insight.detail}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="mt-8">
-          <Card className="border-white/10 bg-white/[0.03]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold text-slate-100">Recent Feedback</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 p-4 pt-0">
+          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+            <h2 className="mb-3 text-base font-semibold text-ink">Recent Feedback</h2>
+            <div className="space-y-3">
               {feedbackItems.map((feedback) => {
                 const sentimentClass =
                   feedback.sentiment === "Positive"
-                    ? "border-emerald-400/35 bg-emerald-500/15 text-emerald-200"
+                    ? "border-mint/30 bg-mint/10 text-mint"
                     : feedback.sentiment === "Negative"
-                    ? "border-rose-400/35 bg-rose-500/15 text-rose-200"
-                    : "border-slate-400/30 bg-slate-500/15 text-slate-300"
+                    ? "border-destructive/30 bg-destructive/10 text-destructive"
+                    : "border-white/15 bg-white/[0.04] text-ink-muted"
 
                 return (
-                  <div key={feedback.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5">
+                  <div key={feedback.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
                     <div className="flex min-w-0 items-center gap-3">
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#7c3aed] to-[#4f46e5] text-xs font-semibold text-white">
-                        {feedback.user}
+                      <span className="inline-flex h-8 w-8 flex-none items-center justify-center rounded-full border border-gold/25 bg-gold/10 text-xs font-semibold text-gold">
+                        {feedback.respondentTag}
                       </span>
-                      <p className="max-w-xl truncate text-sm text-slate-200">{feedback.text}</p>
+                      <div className="min-w-0">
+                        <p className="max-w-xl truncate text-sm text-ink">{feedback.text}</p>
+                        <p className="truncate text-xs text-ink-muted">{feedback.formTitle} · {feedback.time}</p>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="border-emerald-500/30 text-emerald-300">
-                        Verified
-                      </Badge>
                       <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${sentimentClass}`}>
                         {feedback.sentiment}
                       </span>
@@ -858,7 +813,7 @@ export default function ClientHomePage() {
                         {Array.from({ length: 5 }).map((_, index) => (
                           <Star
                             key={`${feedback.id}-star-${index}`}
-                            className={`h-3.5 w-3.5 ${index < feedback.rating ? "fill-yellow-400 text-yellow-400" : "text-slate-600"}`}
+                            className={`h-3.5 w-3.5 ${index < feedback.rating ? "fill-gold text-gold" : "text-white/15"}`}
                           />
                         ))}
                       </div>
@@ -866,66 +821,58 @@ export default function ClientHomePage() {
                   </div>
                 )
               })}
-              {!feedbackItems.length ? <p className="rounded-lg border border-white/10 bg-white/5 px-3 py-4 text-center text-sm text-slate-400">No feedback captured for this campaign yet.</p> : null}
-            </CardContent>
-          </Card>
+              {!feedbackItems.length ? <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-4 text-center text-sm text-ink-muted">No feedback captured for this campaign yet.</p> : null}
+            </div>
+          </div>
         </section>
 
         <section className="mt-8 grid gap-6 lg:grid-cols-[1.45fr_1fr]">
-          <Card className="border-[#a78bfa]/35 bg-[linear-gradient(180deg,rgba(167,139,250,0.08),rgba(255,255,255,0.03))]">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-lg font-semibold text-slate-100">Recent Forms</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => router.push("/my-forms")}
-                  className="h-8 px-2 text-xs font-medium text-[#c4b5fd] hover:bg-[#a78bfa]/15 hover:text-[#ddd6fe]"
-                >
-                  View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2 p-4 pt-0">
+          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold text-ink">Recent Forms</h2>
+              <button
+                onClick={() => router.push("/client/forms")}
+                className="inline-flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-gold hover:bg-gold/10"
+              >
+                View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="space-y-2">
               {recentForms.length === 0 ? (
-                <p className="rounded-lg border border-white/10 bg-white/5 px-3 py-6 text-center text-sm text-slate-400">
+                <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-6 text-center text-sm text-ink-muted">
                   No forms available yet. Use Create Form to launch your first feedback campaign.
                 </p>
               ) : (
                 recentForms.map((form) => {
                   const canEdit = form.status === "draft" || form.status === "rejected"
                   return (
-                    <div key={form.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5">
+                    <div key={form.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-slate-100">{form.title || "Untitled Form"}</p>
-                        <p className="truncate text-xs text-slate-400">{form.clientName || "Company"} · {form.product || "Product"}</p>
+                        <p className="truncate text-sm font-medium text-ink">{form.title || "Untitled Form"}</p>
+                        <p className="truncate text-xs text-ink-muted">{form.clientName || "Company"} · {form.product || "Product"}</p>
                       </div>
-                      <Badge className={`border ${STATUS_STYLES[form.status]}`}>{STATUS_LABELS[form.status]}</Badge>
-                      <span className="text-xs text-slate-500">{timeAgo(getLastUpdated(form))}</span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLES[form.status]}`}>{STATUS_LABELS[form.status]}</span>
+                      <span className="text-xs text-ink-muted">{timeAgo(getLastUpdated(form))}</span>
+                      <button
                         onClick={() =>
                           canEdit ? router.push(`/client/create-feedback?edit=${form.id}`) : router.push("/client/forms")
                         }
-                        className="h-7 px-2 text-xs text-[#9df7ea] hover:bg-[#2dd4bf]/15 hover:text-[#b8fff5]"
+                        className="rounded-md px-2 py-1 text-xs font-medium text-mint hover:bg-mint/10"
                       >
                         {canEdit ? "Edit" : "View"}
-                      </Button>
+                      </button>
                     </div>
                   )
                 })
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card className="border-white/10 bg-white/[0.03]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold text-slate-100">Activity Feed</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 p-4 pt-0">
+          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+            <h2 className="mb-3 text-base font-semibold text-ink">Activity Feed</h2>
+            <div className="space-y-2">
               {activity.length === 0 ? (
-                <p className="rounded-lg border border-white/10 bg-white/5 px-3 py-6 text-center text-sm text-slate-400">
+                <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-6 text-center text-sm text-ink-muted">
                   No recent activity to display.
                 </p>
               ) : (
@@ -934,16 +881,16 @@ export default function ClientHomePage() {
                   const isPending = item.tone === "pending"
                   const isRejected = item.tone === "rejected"
                   const iconWrapClass = isApproved
-                    ? "text-emerald-300 bg-emerald-500/10"
+                    ? "text-mint bg-mint/10"
                     : isPending
-                    ? "text-amber-300 bg-amber-500/10"
+                    ? "text-gold bg-gold/10"
                     : isRejected
-                    ? "text-rose-300 bg-rose-500/10"
-                    : "text-slate-300 bg-slate-500/15"
+                    ? "text-destructive bg-destructive/10"
+                    : "text-ink-muted bg-white/[0.06]"
 
                   return (
-                    <div key={item.id} className="flex items-start gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5">
-                      <span className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full ${iconWrapClass}`}>
+                    <div key={item.id} className="flex items-start gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+                      <span className={`mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full ${iconWrapClass}`}>
                         {isApproved ? (
                           <CheckCircle2 className="h-3.5 w-3.5" />
                         ) : isPending ? (
@@ -955,15 +902,15 @@ export default function ClientHomePage() {
                         )}
                       </span>
                       <div className="min-w-0">
-                        <p className="text-sm text-slate-100">{item.title}</p>
-                        <p className="text-xs text-slate-500">{item.time}</p>
+                        <p className="text-sm text-ink">{item.title}</p>
+                        <p className="text-xs text-ink-muted">{item.time}</p>
                       </div>
                     </div>
                   )
                 })
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </section>
       </div>
     </div>

@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 const navItems = [
-  { name: "Dashboard", href: "/client/dashboard", icon: LayoutDashboard, match: ["/client/dashboard", "/client/home", "/client-home"] },
+  { name: "Dashboard", href: "/client/dashboard", icon: LayoutDashboard, match: ["/client/dashboard", "/client/home", "/client-home", "/client-dashboard"] },
   { name: "My Forms", href: "/client/forms", icon: FileText, match: ["/client/forms"] },
   { name: "Create Form", href: "/client/create", icon: Plus, match: ["/client/create", "/client/create-feedback"] },
   { name: "Campaigns", href: "/client/campaigns", icon: Rocket, match: ["/client/campaigns"] },
@@ -49,7 +49,7 @@ export default function ClientNavbar() {
   }
 
   return (
-    <header className="fixed top-0 z-50 w-full border-b border-[#30363D] bg-[#0D1117]/90 backdrop-blur-sm">
+    <header className="fixed top-0 z-50 w-full border-b border-white/[0.06] bg-background/70 backdrop-blur-xl">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-6">
           <Link href="/client/dashboard" className="inline-flex items-center">
@@ -63,14 +63,14 @@ export default function ClientNavbar() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`relative flex items-center rounded-md px-3 py-2 text-sm transition-colors ${
-                    active ? "text-[#A78BFA] bg-[#A78BFA]/10" : "text-[#C9D1D9] hover:text-[#F0F6FC] hover:bg-white/5"
+                  className={`relative flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 ${
+                    active ? "bg-gold/10 text-gold" : "text-ink-dim hover:bg-white/5 hover:text-ink"
                   }`}
                   aria-label={item.name}
+                  aria-current={active ? "page" : undefined}
                 >
                   <item.icon className="mr-1.5 h-4 w-4" />
                   {item.name}
-                  {active ? <span className="absolute inset-x-2 -bottom-1 h-0.5 rounded-full bg-[#A78BFA]" /> : null}
                 </Link>
               )
             })}
@@ -80,20 +80,20 @@ export default function ClientNavbar() {
         <div className="flex items-center space-x-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-[#C9D1D9] hover:text-[#F0F6FC] flex items-center gap-2" aria-label="Client profile menu">
-                <Avatar className="h-7 w-7 border border-[#30363D]">
-                  <AvatarFallback className="bg-[#21262D] text-[#F0F6FC] text-xs">{initials}</AvatarFallback>
+              <Button variant="ghost" size="sm" className="flex items-center gap-2 text-ink-dim hover:text-ink" aria-label="Client profile menu">
+                <Avatar className="h-7 w-7 border border-white/10">
+                  <AvatarFallback className="bg-surface-raised text-xs text-ink">{initials}</AvatarFallback>
                 </Avatar>
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-[#161B22] border-[#30363D] text-[#F0F6FC]">
-              <DropdownMenuLabel className="text-[#8B949E] text-xs">{profile.email}</DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-[#30363D]" />
-              <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/client/profile")}>
+            <DropdownMenuContent align="end" className="border-white/10 bg-surface-raised text-ink">
+              <DropdownMenuLabel className="text-xs text-ink-muted">{profile.email}</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-white/10" />
+              <DropdownMenuItem className="cursor-pointer focus:bg-gold/10 focus:text-gold" onClick={() => router.push("/client/profile")}>
                 <User className="mr-2 h-4 w-4" /> Profile
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer text-[#F87171] focus:text-[#F87171]" onClick={handleLogout}>
+              <DropdownMenuItem className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" /> Logout
               </DropdownMenuItem>
             </DropdownMenuContent>

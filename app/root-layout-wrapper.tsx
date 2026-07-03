@@ -14,7 +14,7 @@ export default function RootLayoutWrapper({ children }: { children: ReactNode })
 
   if (isClientRoute) {
     return (
-      <div className="min-h-screen bg-[#090b14]">
+      <div className="min-h-screen bg-background">
         <ClientNavbar />
         <main className="pt-16">{children}</main>
       </div>
