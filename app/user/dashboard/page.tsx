@@ -224,7 +224,7 @@ export default function UserDashboard() {
       <main className="pt-16">
         {quotaMessage ? (
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-20">
-            <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            <div className="rounded-lg border border-gold/30 bg-gold/10 px-4 py-3 text-sm text-gold">
               {quotaMessage}
             </div>
           </div>

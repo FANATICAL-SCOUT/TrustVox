@@ -10,13 +10,12 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "border border-[#8b5cf680] bg-gradient-to-r from-[#7c3aed] to-[#4f46e5] text-[#f1f5f9] shadow-[0_8px_26px_rgba(124,58,237,0.35)] hover:-translate-y-0.5 hover:brightness-110 before:absolute before:inset-0 before:rounded-[inherit] before:bg-[linear-gradient(120deg,transparent,rgba(255,255,255,0.18),transparent)] before:opacity-0 before:transition-opacity hover:before:opacity-100 relative overflow-hidden",
+          "bg-gradient-to-b from-[#f2c877] to-gold-deep text-[#241a06] font-semibold hover:brightness-105",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:
-          "border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] text-[rgba(241,245,249,0.9)] hover:-translate-y-0.5 hover:border-[rgba(139,92,246,0.4)] hover:bg-[rgba(255,255,255,0.08)]",
-        secondary:
-          "border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] text-[rgba(241,245,249,0.9)] hover:-translate-y-0.5 hover:border-[rgba(139,92,246,0.4)] hover:bg-[rgba(255,255,255,0.08)]",
-        ghost: "text-[rgba(241,245,249,0.7)] hover:bg-[rgba(255,255,255,0.06)] hover:text-[#f1f5f9]",
+          "border border-white/[0.08] bg-white/[0.02] text-ink-dim hover:border-gold/30 hover:bg-white/[0.05] hover:text-ink",
+        secondary: "border border-white/[0.06] bg-white/[0.06] text-ink hover:bg-white/[0.09]",
+        ghost: "text-ink-dim hover:bg-white/[0.06] hover:text-ink",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

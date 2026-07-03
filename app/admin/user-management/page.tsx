@@ -18,7 +18,7 @@ import {
 function RoleBadge({ role }: { role: UserRole }) {
   const map: Record<UserRole, string> = {
     Admin: "border-gold/35 bg-gold/15 text-gold",
-    Client: "border-sky-400/35 bg-sky-400/15 text-sky-200",
+    Client: "border-white/25 bg-white/[0.08] text-ink",
     User: "border-white/20 bg-white/[0.06] text-ink-dim",
   }
   return <Badge variant="outline" className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${map[role] || "border-white/15 text-ink-dim"}`}>{role}</Badge>
@@ -91,7 +91,7 @@ export default function UserManagementPage() {
         label: "Total Feedback Submitted",
         value: totalFeedbackSubmitted.toLocaleString(),
         icon: MessageSquare,
-        tint: "border-sky-400/20 bg-sky-400/10 text-sky-200",
+        tint: "border-white/15 bg-white/[0.04] text-ink-dim",
       },
     ]
   }, [users])
