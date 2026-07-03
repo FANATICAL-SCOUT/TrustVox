@@ -3,10 +3,8 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 
 interface InterestSelectorProps {
   selectedInterests: string[]
@@ -14,27 +12,27 @@ interface InterestSelectorProps {
   disabled?: boolean
 }
 
+const predefinedInterests = [
+  "Technology",
+  "Gaming",
+  "Food & Beverage",
+  "Travel",
+  "Fashion",
+  "Health & Fitness",
+  "Education",
+  "Finance",
+  "Automotive",
+  "Home Goods",
+  "Entertainment",
+  "Sports",
+]
+
 export default function InterestSelector({
   selectedInterests,
   onInterestsChange,
   disabled = false,
 }: InterestSelectorProps) {
   const [inputValue, setInputValue] = useState("")
-
-  const predefinedInterests = [
-    "Technology",
-    "Gaming",
-    "Food & Beverage",
-    "Travel",
-    "Fashion",
-    "Health & Fitness",
-    "Education",
-    "Finance",
-    "Automotive",
-    "Home Goods",
-    "Entertainment",
-    "Sports",
-  ]
 
   const addInterest = (interest: string) => {
     const normalizedInterest = interest.trim()
@@ -58,56 +56,65 @@ export default function InterestSelector({
   return (
     <div className="space-y-4">
       {!disabled && (
-        <div className="flex space-x-2">
+        <div className="flex gap-2">
           <Input
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Add a new interest or select below"
-            className="flex-grow bg-slate-800/50 border-slate-600 text-slate-100 placeholder:text-slate-400 focus:border-teal-500"
-            disabled={disabled}
+            placeholder="Add a new interest, or pick from below"
+            className="flex-grow"
           />
-          <Button onClick={() => addInterest(inputValue)} className="bg-teal-600 hover:bg-teal-700" disabled={disabled}>
+          <button
+            onClick={() => addInterest(inputValue)}
+            className="flex-none rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 text-sm font-semibold text-[#241a06] transition-all hover:brightness-105 disabled:opacity-50"
+            disabled={!inputValue.trim()}
+          >
             Add
-          </Button>
+          </button>
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        {selectedInterests.map((interest) => (
-          <Badge
-            key={interest}
-            className="bg-teal-500/80 text-white px-3 py-1 rounded-full flex items-center gap-1 font-medium"
-          >
-            {interest}
-            {!disabled && (
-              <button
-                onClick={() => removeInterest(interest)}
-                className="ml-1 text-white/80 hover:text-white transition-colors"
-                aria-label={`Remove ${interest}`}
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </Badge>
-        ))}
-      </div>
+      {/* Selected interests */}
+      {selectedInterests.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {selectedInterests.map((interest) => (
+            <span
+              key={interest}
+              className="inline-flex items-center gap-1.5 rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-sm font-medium text-gold"
+            >
+              {interest}
+              {!disabled && (
+                <button
+                  onClick={() => removeInterest(interest)}
+                  className="text-gold/70 transition-colors hover:text-gold"
+                  aria-label={`Remove ${interest}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-ink-muted">No interests selected yet.</p>
+      )}
 
-      <div className="flex flex-wrap gap-2">
-        {predefinedInterests.map((interest) => (
-          <Button
-            key={interest}
-            variant="outline"
-            size="sm"
-            onClick={() => addInterest(interest)}
-            className="bg-slate-700/50 border-slate-600 text-slate-200 hover:bg-slate-600/50"
-            disabled={selectedInterests.includes(interest) || disabled}
-          >
-            {interest}
-          </Button>
-        ))}
-      </div>
+      {/* Predefined options (edit mode only) */}
+      {!disabled && (
+        <div className="flex flex-wrap gap-2 border-t border-white/[0.06] pt-4">
+          {predefinedInterests.map((interest) => (
+            <button
+              key={interest}
+              onClick={() => addInterest(interest)}
+              disabled={selectedInterests.includes(interest)}
+              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-sm text-ink-dim transition-colors hover:border-white/20 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {interest}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
