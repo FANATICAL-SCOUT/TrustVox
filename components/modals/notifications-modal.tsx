@@ -9,8 +9,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Bell, Sparkles, CheckCircle2, Clock, AlertTriangle, BellRing } from "lucide-react"
 import {
@@ -51,27 +49,27 @@ export default function NotificationsModal({ isOpen, onClose, onViewNotification
   const getNotificationBg = (type: UserNotification["type"]) => {
     switch (type) {
       case "new_opportunity":
-        return "bg-yellow-500/10 border-yellow-500/20"
+        return "bg-gold/10 border-gold/25"
       case "reward_pending":
-        return "bg-cyan-500/10 border-cyan-500/20"
+        return "bg-gold/10 border-gold/25"
       case "reward_credited":
-        return "bg-green-500/10 border-green-500/20"
+        return "bg-mint/10 border-mint/25"
       case "reward_redeemed":
-        return "bg-violet-500/10 border-violet-500/20"
+        return "bg-gold/10 border-gold/25"
       case "streak_risk":
-        return "bg-orange-500/10 border-orange-500/20"
+        return "bg-destructive/10 border-destructive/25"
       default:
-        return "bg-slate-700/30 border-slate-600/30"
+        return "bg-white/[0.03] border-white/[0.08]"
     }
   }
 
   const iconByType = useMemo(
     () => ({
-      new_opportunity: <Sparkles className="w-4 h-4 text-yellow-300" />,
-      reward_pending: <Clock className="w-4 h-4 text-cyan-300" />,
-      reward_credited: <CheckCircle2 className="w-4 h-4 text-green-300" />,
-      reward_redeemed: <CheckCircle2 className="w-4 h-4 text-violet-300" />,
-      streak_risk: <AlertTriangle className="w-4 h-4 text-orange-300" />,
+      new_opportunity: <Sparkles className="h-4 w-4 text-gold" />,
+      reward_pending: <Clock className="h-4 w-4 text-gold" />,
+      reward_credited: <CheckCircle2 className="h-4 w-4 text-mint" />,
+      reward_redeemed: <CheckCircle2 className="h-4 w-4 text-gold" />,
+      streak_risk: <AlertTriangle className="h-4 w-4 text-destructive" />,
     }),
     [],
   )
@@ -103,66 +101,62 @@ export default function NotificationsModal({ isOpen, onClose, onViewNotification
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
-        className="bg-[#0f172a] text-white p-6 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
-      >
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl border-white/[0.08] bg-surface p-6 text-ink shadow-2xl">
         <DialogHeader>
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-purple-600 rounded-full flex items-center justify-center">
-              <Bell className="w-5 h-5 text-white" />
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-gold/20 bg-gradient-to-br from-gold/20 to-gold-deep/20">
+              <Bell className="h-5 w-5 text-gold" />
             </div>
             <div>
-              <DialogTitle className="text-xl text-slate-100">Notifications</DialogTitle>
-              <DialogDescription className="text-slate-400">
+              <DialogTitle className="font-display text-xl text-ink">Notifications</DialogTitle>
+              <DialogDescription className="text-ink-muted">
                 Survey updates, reward status, and activity alerts
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="space-y-3 mt-6">
+        <div className="mt-6 space-y-3">
           {notifications.length === 0 && (
-            <Card className="space-card border-slate-700/60 bg-slate-900/40">
-              <CardContent className="p-6 text-center text-slate-300">
-                <BellRing className="h-8 w-8 mx-auto mb-2 text-slate-400" />
-                No notifications yet. New surveys and reward updates will appear here.
-              </CardContent>
-            </Card>
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6 text-center text-sm text-ink-muted">
+              <BellRing className="mx-auto mb-2 h-8 w-8 text-ink-muted" />
+              No notifications yet. New surveys and reward updates will appear here.
+            </div>
           )}
           {notifications.map((notification, index) => (
             <div key={notification.id}>
-              <Card
-                className={`space-card ${getNotificationBg(notification.type)} hover:scale-[1.01] transition-transform duration-200 cursor-pointer`}
+              <div
+                className={`cursor-pointer rounded-xl border p-4 transition-transform duration-200 hover:scale-[1.01] ${getNotificationBg(notification.type)}`}
                 onClick={() => handleViewClick(notification)}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0 mt-1">{iconByType[notification.type]}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="text-sm font-medium text-slate-100 truncate">{notification.title}</h4>
-                        <div className="flex items-center space-x-2">
-                          {!notification.isRead && (
-                            <Badge className="bg-teal-600 text-white text-xs px-2 py-0.5">New</Badge>
-                          )}
-                          <div className="flex items-center text-xs text-slate-400">
-                            <Clock className="w-3 h-3 mr-1" />
-                            {formatTimeAgo(notification.createdAt)}
-                          </div>
+                <div className="flex items-start gap-3">
+                  <div className="mt-1 shrink-0">{iconByType[notification.type]}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <h4 className="truncate text-sm font-medium text-ink">{notification.title}</h4>
+                      <div className="flex items-center gap-2">
+                        {!notification.isRead && (
+                          <span className="rounded-full bg-gold px-2 py-0.5 text-xs font-semibold text-[#241a06]">
+                            New
+                          </span>
+                        )}
+                        <div className="flex items-center text-xs text-ink-muted">
+                          <Clock className="mr-1 h-3 w-3" />
+                          {formatTimeAgo(notification.createdAt)}
                         </div>
                       </div>
-                      <p className="text-sm text-slate-300 mb-2">{notification.message}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-400 capitalize">{notification.type.replace("_", " ")}</span>
-                        <Button size="sm" variant="ghost" className="text-teal-400 hover:text-teal-300 h-6 px-2">
-                          View
-                        </Button>
-                      </div>
+                    </div>
+                    <p className="mb-2 text-sm text-ink-dim">{notification.message}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs capitalize text-ink-muted">{notification.type.replace("_", " ")}</span>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-gold hover:text-gold">
+                        View
+                      </Button>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-              {index < notifications.length - 1 && <Separator className="bg-slate-700/50 my-2" />}
+                </div>
+              </div>
+              {index < notifications.length - 1 && <Separator className="my-2 bg-white/[0.06]" />}
             </div>
           ))}
         </div>
@@ -171,7 +165,7 @@ export default function NotificationsModal({ isOpen, onClose, onViewNotification
           <Button
             variant="outline"
             onClick={handleMarkAllAsRead}
-            className="bg-slate-800/50 border-slate-600 text-slate-300"
+            className="border-white/10 bg-white/[0.03] text-ink-dim hover:bg-white/[0.06] hover:text-ink"
           >
             Mark All as Read
           </Button>
