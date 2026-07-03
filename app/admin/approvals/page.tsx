@@ -4,8 +4,8 @@ import { useState, useEffect } from "react"
 import {
   CheckCircle2, XCircle, MessageSquare, Clock, Eye,
   Shield, RefreshCw, Star, Type, AlignLeft, List, CheckSquare,
-  Tag, Mic, ChevronDown, ChevronUp, Users, FileText, Sparkles,
-  AlertTriangle, Check,
+  Tag, Mic, ChevronDown, ChevronUp, FileText,
+  Check,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -27,10 +27,10 @@ type ApprovalFilterKey = "all" | "pending" | "approved" | "rejected"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
-  draft:    { label: "Draft",    color: "text-[#a5accb]", bg: "bg-[#a5accb]/10", border: "border-[#a5accb]/30" },
-  pending:  { label: "Pending",  color: "text-[#FBBF24]", bg: "bg-[#FBBF24]/10", border: "border-[#FBBF24]/30" },
-  approved: { label: "Live",     color: "text-[#a78bfa]", bg: "bg-[#a78bfa]/10", border: "border-[#a78bfa]/30" },
-  rejected: { label: "Rejected", color: "text-[#F87171]", bg: "bg-[#F87171]/10", border: "border-[#F87171]/30" },
+  draft:    { label: "Draft",    color: "text-ink-muted", bg: "bg-white/[0.04]", border: "border-white/15" },
+  pending:  { label: "Pending",  color: "text-gold",      bg: "bg-gold/10",      border: "border-gold/30" },
+  approved: { label: "Live",     color: "text-mint",      bg: "bg-mint/10",      border: "border-mint/30" },
+  rejected: { label: "Rejected", color: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/30" },
 }
 
 const QT_ICONS: Record<QuestionType, LucideIcon> = {
@@ -82,24 +82,24 @@ function FormPreviewDialog({
   if (!form) return null
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose() }}>
-      <DialogContent className="bg-[#121526] border-[#2b3150] max-w-lg max-h-[80vh] overflow-y-auto">
+      <DialogContent className="bg-surface-raised border-white/10 max-w-lg max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-[#f5f7ff] flex items-center gap-2">
-            <Eye size={18} className="text-[#8b5cf6]" />
+          <DialogTitle className="text-ink flex items-center gap-2">
+            <Eye size={18} className="text-gold" />
             Form Preview
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-[#14182a] border border-[#2b3150]">
-            <h3 className="text-base font-semibold text-[#f5f7ff]">{form.title}</h3>
+          <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.07]">
+            <h3 className="text-base font-semibold text-ink">{form.title}</h3>
             {form.description && (
-              <p className="text-sm text-[#a5accb] mt-1">{form.description}</p>
+              <p className="text-sm text-ink-dim mt-1">{form.description}</p>
             )}
             <div className="flex gap-2 mt-3 flex-wrap">
-              <Badge variant="outline" className="border-[#8b5cf6]/30 text-[#8b5cf6] text-xs">
+              <Badge variant="outline" className="border-gold/30 text-gold text-xs">
                 {form.product}
               </Badge>
-              <Badge variant="outline" className="border-[#2b3150] text-[#a5accb] text-xs">
+              <Badge variant="outline" className="border-white/15 text-ink-dim text-xs">
                 {form.category}
               </Badge>
             </div>
@@ -108,22 +108,22 @@ function FormPreviewDialog({
           {form.questions.map((q: Question, i: number) => {
             const Icon = QT_ICONS[q.type] || FileText
             return (
-              <div key={q.id} className="p-4 rounded-xl bg-[#14182a] border border-[#2b3150]">
+              <div key={q.id} className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.07]">
                 <div className="flex items-start gap-2 mb-2">
-                  <span className="text-xs text-[#6c7396] shrink-0 mt-0.5">Q{i + 1}</span>
+                  <span className="text-xs text-ink-muted shrink-0 mt-0.5">Q{i + 1}</span>
                   <div className="flex-1">
-                    <p className="text-sm text-[#d7ddf5] font-medium">
+                    <p className="text-sm text-ink font-medium">
                       {q.title}
-                      {q.required && <span className="text-[#F87171] ml-1 text-xs">*</span>}
+                      {q.required && <span className="text-destructive ml-1 text-xs">*</span>}
                     </p>
                     <div className="flex items-center gap-1 mt-1">
-                      <Icon size={11} className="text-[#6c7396]" />
-                      <span className="text-[10px] text-[#6c7396]">{QT_LABELS[q.type]}</span>
+                      <Icon size={11} className="text-ink-muted" />
+                      <span className="text-[10px] text-ink-muted">{QT_LABELS[q.type]}</span>
                     </div>
                     {q.options.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {q.options.map((opt: string) => (
-                          <span key={opt} className="px-2 py-0.5 rounded bg-[#1a1f33] text-xs text-[#a5accb] border border-[#2b3150]">
+                          <span key={opt} className="px-2 py-0.5 rounded bg-white/[0.04] text-xs text-ink-dim border border-white/[0.07]">
                             {opt}
                           </span>
                         ))}
@@ -136,7 +136,7 @@ function FormPreviewDialog({
           })}
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} className="text-[#a5accb] hover:text-[#f5f7ff]">
+          <Button variant="ghost" onClick={onClose} className="text-ink-dim hover:text-ink">
             Close
           </Button>
         </DialogFooter>
@@ -168,22 +168,22 @@ function ActionDialog({
   const [reason, setReason] = useState("")
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) { setReason(""); onClose() } }}>
-      <DialogContent className="bg-[#121526] border-[#2b3150] max-w-md">
+      <DialogContent className="bg-surface-raised border-white/10 max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-[#f5f7ff]">{title}</DialogTitle>
+          <DialogTitle className="text-ink">{title}</DialogTitle>
         </DialogHeader>
         <div>
-          <p className="text-sm text-[#a5accb] mb-3">{description}</p>
-          <Label className="text-xs text-[#a5accb] mb-1.5 block">Note (optional)</Label>
+          <p className="text-sm text-ink-dim mb-3">{description}</p>
+          <Label className="text-xs text-ink-dim mb-1.5 block">Note (optional)</Label>
           <Textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder={placeholder}
-            className="bg-[#1a1f33] border-[#2b3150] text-[#f5f7ff] placeholder:text-[#6c7396] min-h-[80px] resize-none"
+            className="bg-white/[0.04] border-white/[0.08] text-ink placeholder:text-ink-muted min-h-[80px] resize-none"
           />
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="ghost" onClick={() => { setReason(""); onClose() }} className="text-[#a5accb]">
+          <Button variant="ghost" onClick={() => { setReason(""); onClose() }} className="text-ink-dim">
             Cancel
           </Button>
           <Button
@@ -216,8 +216,8 @@ function ReviewCard({
   const isPending = form.status === "pending"
 
   return (
-    <div className={`rounded-2xl border bg-[#121526] overflow-hidden transition-all duration-200 ${
-      isPending ? "border-[#FBBF24]/30 shadow-[0_0_20px_#FBBF2408]" : "border-[#2b3150]"
+    <div className={`rounded-2xl border bg-white/[0.02] overflow-hidden transition-all duration-200 ${
+      isPending ? "border-gold/30" : "border-white/[0.07]"
     }`}>
       {/* Card header */}
       <div className="p-5">
@@ -225,19 +225,19 @@ function ReviewCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <StatusBadge status={form.status} />
-              <span className="text-xs text-[#6c7396]">
-                by <span className="text-[#a5accb]">{form.clientName}</span>
+              <span className="text-xs text-ink-muted">
+                by <span className="text-ink-dim">{form.clientName}</span>
               </span>
             </div>
-            <h3 className="text-base font-semibold text-[#f5f7ff] truncate">{form.title}</h3>
+            <h3 className="text-base font-semibold text-ink truncate">{form.title}</h3>
             {form.description && (
-              <p className="text-xs text-[#a5accb] mt-0.5 line-clamp-1">{form.description}</p>
+              <p className="text-xs text-ink-dim mt-0.5 line-clamp-1">{form.description}</p>
             )}
           </div>
           <Button
             size="sm"
             variant="ghost"
-            className="text-[#a5accb] hover:text-[#8b5cf6] gap-1 shrink-0 text-xs border border-[#2b3150] hover:border-[#8b5cf6]/40"
+            className="text-ink-dim hover:text-gold gap-1 shrink-0 text-xs border border-white/[0.07] hover:border-gold/40"
             onClick={() => onPreview(form)}
           >
             <Eye size={13} />
@@ -246,12 +246,12 @@ function ReviewCard({
         </div>
 
         {/* Meta row */}
-        <div className="flex items-center gap-3 mt-3 text-xs text-[#6c7396] flex-wrap">
+        <div className="flex items-center gap-3 mt-3 text-xs text-ink-muted flex-wrap">
           <span>{form.questions.length} question{form.questions.length !== 1 ? "s" : ""}</span>
           <span>·</span>
-          <span className="text-[#a5accb]">{form.product}</span>
+          <span className="text-ink-dim">{form.product}</span>
           <span>·</span>
-          <span className="text-[#a5accb]">{form.category}</span>
+          <span className="text-ink-dim">{form.category}</span>
           {form.submittedAt && (
             <>
               <span>·</span>
@@ -266,7 +266,7 @@ function ReviewCard({
         {/* Question summary toggle */}
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="mt-3 flex items-center gap-1 text-xs text-[#6c7396] hover:text-[#a5accb] transition-colors"
+          className="mt-3 flex items-center gap-1 text-xs text-ink-muted hover:text-ink-dim transition-colors"
         >
           {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           {expanded ? "Hide" : "Show"} questions
@@ -277,11 +277,11 @@ function ReviewCard({
             {form.questions.map((q: Question, i: number) => {
               const Icon = QT_ICONS[q.type] || FileText
               return (
-                <div key={q.id} className="flex items-center gap-2 p-2.5 rounded-lg bg-[#14182a] border border-[#2b3150]">
-                  <span className="text-[10px] text-[#6c7396] w-4 shrink-0">Q{i + 1}</span>
-                  <Icon size={12} className="text-[#8b5cf6] shrink-0" />
-                  <span className="text-xs text-[#d7ddf5] flex-1 truncate">{q.title || "Untitled"}</span>
-                  {q.required && <span className="text-[10px] text-[#F87171]">Required</span>}
+                <div key={q.id} className="flex items-center gap-2 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.07]">
+                  <span className="text-[10px] text-ink-muted w-4 shrink-0">Q{i + 1}</span>
+                  <Icon size={12} className="text-gold shrink-0" />
+                  <span className="text-xs text-ink-dim flex-1 truncate">{q.title || "Untitled"}</span>
+                  {q.required && <span className="text-[10px] text-destructive">Required</span>}
                 </div>
               )
             })}
@@ -290,12 +290,12 @@ function ReviewCard({
 
         {/* Rejection / changes message */}
         {form.rejectionReason && (
-          <div className="mt-3 p-2.5 rounded-lg bg-[#F87171]/5 border border-[#F87171]/20 text-xs text-[#F87171]">
+          <div className="mt-3 p-2.5 rounded-lg bg-destructive/5 border border-destructive/20 text-xs text-destructive">
             <span className="font-medium">Rejection reason: </span>{form.rejectionReason}
           </div>
         )}
         {form.requestChangesNote && (
-          <div className="mt-3 p-2.5 rounded-lg bg-[#FBBF24]/5 border border-[#FBBF24]/20 text-xs text-[#FBBF24]">
+          <div className="mt-3 p-2.5 rounded-lg bg-gold/5 border border-gold/20 text-xs text-gold">
             <span className="font-medium">Changes requested: </span>{form.requestChangesNote}
           </div>
         )}
@@ -303,19 +303,18 @@ function ReviewCard({
 
       {/* Action bar — only for pending */}
       {isPending && (
-        <div className="px-5 py-4 border-t border-[#2b3150] bg-[#090b14]/40 flex items-center gap-2 flex-wrap">
-          <Button
-            size="sm"
-            className="bg-[#a78bfa] hover:bg-[#7c3aed] text-[#090b14] font-semibold gap-1.5 text-xs"
+        <div className="px-5 py-4 border-t border-white/[0.07] bg-white/[0.01] flex items-center gap-2 flex-wrap">
+          <button
+            className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-3 py-2 text-xs font-semibold text-[#241a06] transition hover:brightness-105"
             onClick={() => onApprove(form.id)}
           >
             <CheckCircle2 size={14} />
             Approve & Publish
-          </Button>
+          </button>
           <Button
             size="sm"
             variant="ghost"
-            className="text-[#FBBF24] hover:text-[#FBBF24] hover:bg-[#FBBF24]/10 border border-[#FBBF24]/30 gap-1.5 text-xs"
+            className="text-gold hover:text-gold hover:bg-gold/10 border border-gold/30 gap-1.5 text-xs"
             onClick={() => onRequestChanges(form)}
           >
             <MessageSquare size={14} />
@@ -324,7 +323,7 @@ function ReviewCard({
           <Button
             size="sm"
             variant="ghost"
-            className="text-[#F87171] hover:text-[#F87171] hover:bg-[#F87171]/10 border border-[#F87171]/30 gap-1.5 text-xs ml-auto"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10 border border-destructive/30 gap-1.5 text-xs ml-auto"
             onClick={() => onReject(form)}
           >
             <XCircle size={14} />
@@ -406,102 +405,89 @@ export default function AdminApprovalsPage() {
   }
 
   return (
-    <div className="min-h-screen app-page bg-[#090b14] relative">
-      {/* Ambient */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-80 bg-[#A78BFA]/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-[#8b5cf6]/5 rounded-full blur-3xl" />
-      </div>
-
+    <div className="space-y-6">
       {/* Toast */}
       {toastMsg && (
-        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl border border-[#8b5cf6]/40 bg-[#140f24] text-[#8b5cf6] text-sm font-medium shadow-2xl">
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl border border-gold/40 bg-surface-raised text-gold text-sm font-medium shadow-2xl">
           <Check size={15} />
           {toastMsg}
         </div>
       )}
 
-      <main className="max-w-6xl mx-auto px-4 py-8 relative z-10">
-        <div className="mb-8 flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-[#f5f7ff] mb-1">Feedback Approvals</h1>
-            <p className="text-sm text-[#a5accb]">Review, approve, or reject client feedback forms before they go live to users.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-ink mb-1">Feedback Approvals</h1>
+          <p className="text-sm text-ink-dim">Review, approve, or reject client feedback forms before they go live to users.</p>
+        </div>
+        <button onClick={loadForms} className="p-2 text-ink-muted hover:text-gold transition-colors" title="Refresh">
+          <RefreshCw size={16} />
+        </button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Total Forms", value: counts.all, color: "text-ink" },
+          { label: "Awaiting Review", value: counts.pending, color: "text-gold" },
+          { label: "Published Live", value: counts.approved, color: "text-mint" },
+          { label: "Rejected", value: counts.rejected, color: "text-destructive" },
+        ].map((s) => (
+          <div key={s.label} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+            <p className={`tvx-num text-2xl font-bold ${s.color}`}>{s.value}</p>
+            <p className="text-xs text-ink-muted mt-0.5">{s.label}</p>
           </div>
-          <button onClick={loadForms} className="p-2 text-[#6c7396] hover:text-[#8b5cf6] transition-colors" title="Refresh">
-            <RefreshCw size={16} />
+        ))}
+      </div>
+
+      {/* Filter tabs */}
+      <div className="flex items-center gap-1 border-b border-white/[0.07] overflow-x-auto">
+        {FILTER_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setFilter(tab.key)}
+            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap border-b-2 -mb-px ${
+              filter === tab.key
+                ? "border-gold text-gold"
+                : "border-transparent text-ink-dim hover:text-ink"
+            }`}
+          >
+            {tab.label}
+            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+              filter === tab.key ? "bg-gold/20 text-gold" : "bg-white/[0.06] text-ink-muted"
+            }`}>
+              {counts[tab.key] ?? forms.length}
+            </span>
           </button>
-        </div>
+        ))}
+      </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          {[
-            { label: "Total Forms", value: counts.all, color: "#a5accb" },
-            { label: "Awaiting Review", value: counts.pending, color: "#FBBF24", pulse: counts.pending > 0 },
-            { label: "Published Live", value: counts.approved, color: "#a78bfa" },
-            { label: "Rejected", value: counts.rejected, color: "#F87171" },
-          ].map((s) => (
-            <div
-              key={s.label}
-              className={`rounded-xl border border-[#2b3150] bg-[#121526] p-4 ${
-                s.pulse ? "border-[#FBBF24]/30 shadow-[0_0_20px_#FBBF2408]" : ""
-              }`}
-            >
-              <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
-              <p className="text-xs text-[#6c7396] mt-0.5">{s.label}</p>
-            </div>
+      {/* List */}
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-white/[0.02] border border-white/[0.07] flex items-center justify-center mb-4">
+            <Shield size={28} className="text-ink-muted" />
+          </div>
+          <h3 className="text-base font-semibold text-ink-dim mb-2">Nothing to review</h3>
+          <p className="text-sm text-ink-muted">
+            {filter === "pending"
+              ? "All caught up! No pending forms right now."
+              : `No ${filter} forms found.`}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filtered.map((form) => (
+            <ReviewCard
+              key={form.id}
+              form={form}
+              onApprove={handleApprove}
+              onReject={(f: FeedbackForm) => setRejectTarget(f)}
+              onRequestChanges={(f: FeedbackForm) => setChangesTarget(f)}
+              onPreview={(f: FeedbackForm) => setPreviewForm(f)}
+            />
           ))}
         </div>
-
-        {/* Filter tabs */}
-        <div className="flex items-center gap-1 mb-6 border-b border-[#2b3150] overflow-x-auto">
-          {FILTER_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setFilter(tab.key)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap border-b-2 -mb-px ${
-                filter === tab.key
-                  ? "border-[#8b5cf6] text-[#8b5cf6]"
-                  : "border-transparent text-[#a5accb] hover:text-[#d7ddf5]"
-              }`}
-            >
-              {tab.label}
-              <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                filter === tab.key ? "bg-[#8b5cf6]/20 text-[#8b5cf6]" : "bg-[#1a1f33] text-[#6c7396]"
-              }`}>
-                {counts[tab.key] ?? forms.length}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* List */}
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-[#121526] border border-[#2b3150] flex items-center justify-center mb-4">
-              <Shield size={28} className="text-[#6c7396]" />
-            </div>
-            <h3 className="text-base font-semibold text-[#a5accb] mb-2">Nothing to review</h3>
-            <p className="text-sm text-[#6c7396]">
-              {filter === "pending"
-                ? "All caught up! No pending forms right now."
-                : `No ${filter} forms found.`}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filtered.map((form) => (
-              <ReviewCard
-                key={form.id}
-                form={form}
-                onApprove={handleApprove}
-                onReject={(f: FeedbackForm) => setRejectTarget(f)}
-                onRequestChanges={(f: FeedbackForm) => setChangesTarget(f)}
-                onPreview={(f: FeedbackForm) => setPreviewForm(f)}
-              />
-            ))}
-          </div>
-        )}
-      </main>
+      )}
 
       {/* Preview dialog */}
       <FormPreviewDialog
@@ -518,7 +504,7 @@ export default function AdminApprovalsPage() {
         description={`Rejecting "${rejectTarget?.title || "this form"}". The client will be notified.`}
         placeholder="Optional: Tell the client why this form was rejected…"
         confirmLabel="Reject Form"
-        confirmClass="bg-[#F87171]/20 hover:bg-[#F87171]/30 text-[#F87171] border border-[#F87171]/30"
+        confirmClass="bg-destructive/20 hover:bg-destructive/30 text-destructive border border-destructive/30"
         onConfirm={handleReject}
       />
 
@@ -530,10 +516,9 @@ export default function AdminApprovalsPage() {
         description={`The form will be returned to the client as draft.`}
         placeholder="Describe what changes are needed…"
         confirmLabel="Send Request"
-        confirmClass="bg-[#FBBF24]/20 hover:bg-[#FBBF24]/30 text-[#FBBF24] border border-[#FBBF24]/30"
+        confirmClass="bg-gold/20 hover:bg-gold/30 text-gold border border-gold/30"
         onConfirm={handleRequestChanges}
       />
     </div>
   )
 }
-

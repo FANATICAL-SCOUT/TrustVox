@@ -6,8 +6,6 @@ export interface ApprovedCompany {
   category: string;
   status: CompanyStatus;
   dateAdded: string;
-  baselineActiveCampaigns: number;
-  baselineTotalCampaigns: number;
 }
 
 export type UserRole = "User" | "Client" | "Admin";
@@ -45,10 +43,8 @@ const SEED_COMPANIES: ApprovedCompany[] = COMPANY_DATA.flatMap((group, groupInde
     id: `co-${group.category.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${index + 1}`,
     name,
     category: group.category,
-    status: "active",
+    status: "active" as CompanyStatus,
     dateAdded: new Date(Date.UTC(2025, Math.min(groupIndex, 11), Math.max(1, index + 1))).toISOString(),
-    baselineActiveCampaigns: (index + groupIndex) % 4,
-    baselineTotalCampaigns: 8 + index + groupIndex,
   }))
 );
 
@@ -124,7 +120,7 @@ export function getApprovedCompanyById(id: string): ApprovedCompany | undefined 
   return readCompanies().find((company) => company.id === id);
 }
 
-export function addApprovedCompany(input: Omit<ApprovedCompany, "id" | "dateAdded" | "baselineActiveCampaigns" | "baselineTotalCampaigns">) {
+export function addApprovedCompany(input: Omit<ApprovedCompany, "id" | "dateAdded">) {
   const companies = readCompanies();
   const newCompany: ApprovedCompany = {
     id: `co-custom-${Date.now()}`,
@@ -132,8 +128,6 @@ export function addApprovedCompany(input: Omit<ApprovedCompany, "id" | "dateAdde
     category: input.category,
     status: input.status,
     dateAdded: new Date().toISOString(),
-    baselineActiveCampaigns: 0,
-    baselineTotalCampaigns: 0,
   };
   writeCompanies([...companies, newCompany]);
   return newCompany;
@@ -224,8 +218,6 @@ export function upsertApprovedCompanyFromRegistration(input: {
     category: input.category?.trim() || "Service",
     status: "active",
     dateAdded: new Date().toISOString(),
-    baselineActiveCampaigns: 0,
-    baselineTotalCampaigns: 0,
   };
 
   writeCompanies([created, ...companies]);

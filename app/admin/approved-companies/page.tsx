@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
 import {
   addApprovedCompany,
   getApprovedCompanies,
@@ -23,7 +22,7 @@ const categories = ["all", "Software", "Service", "Mobile App", "Hardware", "E-C
 function StatusBadge({ status }) {
   const active = status === "active"
   return (
-    <Badge variant="outline" className={active ? "border-[#a78bfa]/40 text-[#a78bfa]" : "border-[#F87171]/40 text-[#F87171]"}>
+    <Badge variant="outline" className={active ? "border-mint/40 text-mint" : "border-destructive/40 text-destructive"}>
       {active ? "Active" : "Inactive"}
     </Badge>
   )
@@ -69,8 +68,8 @@ export default function ApprovedCompaniesPage() {
       const approved = related.filter((f) => f.status === "approved").length
       const live = approved
       map[company.id] = {
-        activeCampaigns: company.baselineActiveCampaigns + live,
-        totalCampaigns: company.baselineTotalCampaigns + related.length,
+        activeCampaigns: live,
+        totalCampaigns: related.length,
         draft,
         pending,
         approved,
@@ -101,6 +100,16 @@ export default function ApprovedCompaniesPage() {
     if (sortBy === "date-new") return new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime()
     return new Date(a.dateAdded).getTime() - new Date(b.dateAdded).getTime()
   })
+
+  const summaryStats = useMemo(() => {
+    const active = companies.filter((c) => c.status === "active").length
+    const withCampaigns = companies.filter((c) => (campaignStatsByCompanyId[c.id]?.totalCampaigns || 0) > 0).length
+    return [
+      { label: "Total Companies", value: companies.length },
+      { label: "Active", value: active },
+      { label: "With Campaign History", value: withCampaigns },
+    ]
+  }, [companies, campaignStatsByCompanyId])
 
   function handleAddCompany() {
     if (!newCompanyName.trim()) return
@@ -140,52 +149,67 @@ export default function ApprovedCompaniesPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-[#f5f7ff] font-semibold">
-          <Building2 size={16} /> Approved Companies
+        <div>
+          <h1 className="font-display flex items-center gap-2 text-2xl font-bold text-ink">
+            <Building2 size={20} className="text-gold" /> Approved Companies
+          </h1>
+          <p className="mt-1 text-sm text-ink-dim">Manage the companies clients can submit feedback campaigns under.</p>
         </div>
-        <Button size="sm" className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-[#090b14]" onClick={() => setAddOpen(true)}>
-          <Plus size={14} className="mr-1" /> Add New Company
-        </Button>
+        <button
+          onClick={() => setAddOpen(true)}
+          className="inline-flex items-center justify-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105"
+        >
+          <Plus size={14} className="mr-1.5" /> Add New Company
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {summaryStats.map((stat) => (
+          <div key={stat.label} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+            <p className="tvx-num text-2xl font-bold text-ink">{stat.value}</p>
+            <p className="text-xs text-ink-muted mt-0.5">{stat.label}</p>
+          </div>
+        ))}
       </div>
 
       <main className="space-y-4">
         <div className="grid md:grid-cols-[1fr_220px_220px_220px] gap-3">
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6c7396]" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search company or category" className="pl-8 bg-[#121526] border-[#2b3150] text-[#f5f7ff]" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search company or category" className="pl-8 bg-white/[0.04] border-white/[0.08] text-ink" />
           </div>
           <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger className="bg-[#121526] border-[#2b3150] text-[#f5f7ff]"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-[#14182a] border-[#2b3150]">
-              {categories.map((c) => (<SelectItem key={c} value={c} className="text-[#d7ddf5]">{c === "all" ? "All Categories" : c}</SelectItem>))}
+            <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-ink"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-surface-raised border-white/10">
+              {categories.map((c) => (<SelectItem key={c} value={c} className="text-ink-dim">{c === "all" ? "All Categories" : c}</SelectItem>))}
             </SelectContent>
           </Select>
           <Select value={campaignFilter} onValueChange={setCampaignFilter}>
-            <SelectTrigger className="bg-[#121526] border-[#2b3150] text-[#f5f7ff]"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-[#14182a] border-[#2b3150]">
-              <SelectItem value="all" className="text-[#d7ddf5]">All Campaigns</SelectItem>
-              <SelectItem value="active" className="text-[#d7ddf5]">Has Active Campaigns</SelectItem>
-              <SelectItem value="no-active" className="text-[#d7ddf5]">No Active Campaigns</SelectItem>
+            <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-ink"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-surface-raised border-white/10">
+              <SelectItem value="all" className="text-ink-dim">All Campaigns</SelectItem>
+              <SelectItem value="active" className="text-ink-dim">Has Live Campaigns</SelectItem>
+              <SelectItem value="no-active" className="text-ink-dim">No Live Campaigns</SelectItem>
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="bg-[#121526] border-[#2b3150] text-[#f5f7ff]"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-[#14182a] border-[#2b3150]">
-              <SelectItem value="name-asc" className="text-[#d7ddf5]">Sort: Name A-Z</SelectItem>
-              <SelectItem value="name-desc" className="text-[#d7ddf5]">Sort: Name Z-A</SelectItem>
-              <SelectItem value="active-campaigns" className="text-[#d7ddf5]">Sort: Active Campaigns</SelectItem>
-              <SelectItem value="total-campaigns" className="text-[#d7ddf5]">Sort: Total Campaigns</SelectItem>
-              <SelectItem value="date-new" className="text-[#d7ddf5]">Sort: Newest Added</SelectItem>
-              <SelectItem value="date-old" className="text-[#d7ddf5]">Sort: Oldest Added</SelectItem>
+            <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-ink"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-surface-raised border-white/10">
+              <SelectItem value="name-asc" className="text-ink-dim">Sort: Name A-Z</SelectItem>
+              <SelectItem value="name-desc" className="text-ink-dim">Sort: Name Z-A</SelectItem>
+              <SelectItem value="active-campaigns" className="text-ink-dim">Sort: Live Campaigns</SelectItem>
+              <SelectItem value="total-campaigns" className="text-ink-dim">Sort: Total Campaigns</SelectItem>
+              <SelectItem value="date-new" className="text-ink-dim">Sort: Newest Added</SelectItem>
+              <SelectItem value="date-old" className="text-ink-dim">Sort: Oldest Added</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        <div className="rounded-xl border border-[#2b3150] bg-[#121526] overflow-x-auto">
+        <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-x-auto">
           <table className="w-full min-w-[980px] text-sm">
-            <thead className="bg-[#14182a] text-[#a5accb]">
+            <thead className="bg-white/[0.03] text-ink-dim">
               <tr>
                 <th className="text-left px-4 py-3">Company Name</th>
                 <th className="text-left px-4 py-3">Category</th>
@@ -201,21 +225,23 @@ export default function ApprovedCompaniesPage() {
               {filteredCompanies.map((company) => {
                 const stats = campaignStatsByCompanyId[company.id] || { activeCampaigns: 0, totalCampaigns: 0, draft: 0, pending: 0, approved: 0, live: 0 }
                 return (
-                  <tr key={company.id} className="border-t border-[#2b3150]">
-                    <td className="px-4 py-3 text-[#f5f7ff]">{company.name}</td>
-                    <td className="px-4 py-3 text-[#a5accb]">{company.category}</td>
+                  <tr key={company.id} className="border-t border-white/[0.07]">
+                    <td className="px-4 py-3 text-ink">{company.name}</td>
+                    <td className="px-4 py-3 text-ink-dim">{company.category}</td>
                     <td className="px-4 py-3"><StatusBadge status={company.status} /></td>
-                    <td className="px-4 py-3"><Badge className="bg-[#a78bfa]/15 text-[#a78bfa] border border-[#a78bfa]/30">{stats.activeCampaigns}</Badge></td>
-                    <td className="px-4 py-3 text-[#d7ddf5]">{stats.totalCampaigns}</td>
-                    <td className="px-4 py-3 text-[#a5accb]">{new Date(company.dateAdded).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-[11px] text-[#a5accb]">
-                      Draft {stats.draft} · Pending {stats.pending} · Approved {stats.approved} · Live {stats.live}
+                    <td className="px-4 py-3"><Badge className="bg-gold/15 text-gold border border-gold/30">{stats.activeCampaigns}</Badge></td>
+                    <td className="px-4 py-3 text-ink">{stats.totalCampaigns}</td>
+                    <td className="px-4 py-3 text-ink-dim">{new Date(company.dateAdded).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-[11px] text-ink-dim">
+                      {stats.totalCampaigns === 0
+                        ? "No campaigns yet"
+                        : `Draft ${stats.draft} · Pending ${stats.pending} · Live ${stats.live}`}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <Button size="sm" variant="ghost" className="text-[#a5accb] hover:text-[#8b5cf6]" onClick={() => handleEditOpen(company)}><Edit3 size={14} /></Button>
-                        <Button size="sm" variant="ghost" className="text-[#a5accb] hover:text-[#A78BFA]" onClick={() => handleHistory(company)}><Eye size={14} /></Button>
-                        <Button size="sm" variant="ghost" className={company.status === "active" ? "text-[#F87171] hover:text-[#F87171]" : "text-[#a78bfa] hover:text-[#a78bfa]"} onClick={() => handleToggle(company)}><Power size={14} /></Button>
+                        <Button size="sm" variant="ghost" className="text-ink-dim hover:text-gold" onClick={() => handleEditOpen(company)}><Edit3 size={14} /></Button>
+                        <Button size="sm" variant="ghost" className="text-ink-dim hover:text-gold" onClick={() => handleHistory(company)}><Eye size={14} /></Button>
+                        <Button size="sm" variant="ghost" className={company.status === "active" ? "text-destructive hover:text-destructive" : "text-mint hover:text-mint"} onClick={() => handleToggle(company)}><Power size={14} /></Button>
                       </div>
                     </td>
                   </tr>
@@ -227,75 +253,74 @@ export default function ApprovedCompaniesPage() {
       </main>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="bg-[#121526] border-[#2b3150]">
-          <DialogHeader><DialogTitle className="text-[#f5f7ff]">Add New Company</DialogTitle></DialogHeader>
+        <DialogContent className="bg-surface-raised border-white/10">
+          <DialogHeader><DialogTitle className="text-ink">Add New Company</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label className="text-[#a5accb] text-xs">Company Name</Label>
-              <Input value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="bg-[#1a1f33] border-[#2b3150] text-[#f5f7ff]" />
+              <Label className="text-ink-dim text-xs">Company Name</Label>
+              <Input value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="bg-white/[0.04] border-white/[0.08] text-ink" />
             </div>
             <div>
-              <Label className="text-[#a5accb] text-xs">Category</Label>
+              <Label className="text-ink-dim text-xs">Category</Label>
               <Select value={newCompanyCategory} onValueChange={setNewCompanyCategory}>
-                <SelectTrigger className="bg-[#1a1f33] border-[#2b3150] text-[#f5f7ff]"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-[#14182a] border-[#2b3150]">
-                  {categories.filter((c) => c !== "all").map((c) => <SelectItem key={c} value={c} className="text-[#d7ddf5]">{c}</SelectItem>)}
+                <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-ink"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-surface-raised border-white/10">
+                  {categories.filter((c) => c !== "all").map((c) => <SelectItem key={c} value={c} className="text-ink-dim">{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setAddOpen(false)} className="text-[#a5accb]">Cancel</Button>
-            <Button onClick={handleAddCompany} className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-[#090b14]">Add Company</Button>
+            <Button variant="ghost" onClick={() => setAddOpen(false)} className="text-ink-dim">Cancel</Button>
+            <Button onClick={handleAddCompany} className="bg-gradient-to-b from-[#f2c877] to-gold-deep text-[#241a06] font-semibold hover:brightness-105">Add Company</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="bg-[#121526] border-[#2b3150]">
-          <DialogHeader><DialogTitle className="text-[#f5f7ff]">Edit Company Details</DialogTitle></DialogHeader>
+        <DialogContent className="bg-surface-raised border-white/10">
+          <DialogHeader><DialogTitle className="text-ink">Edit Company Details</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <Input value={editCompanyName} onChange={(e) => setEditCompanyName(e.target.value)} className="bg-[#1a1f33] border-[#2b3150] text-[#f5f7ff]" />
+            <Input value={editCompanyName} onChange={(e) => setEditCompanyName(e.target.value)} className="bg-white/[0.04] border-white/[0.08] text-ink" />
             <Select value={editCompanyCategory} onValueChange={setEditCompanyCategory}>
-              <SelectTrigger className="bg-[#1a1f33] border-[#2b3150] text-[#f5f7ff]"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-[#14182a] border-[#2b3150]">
-                {categories.filter((c) => c !== "all").map((c) => <SelectItem key={c} value={c} className="text-[#d7ddf5]">{c}</SelectItem>)}
+              <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-ink"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-surface-raised border-white/10">
+                {categories.filter((c) => c !== "all").map((c) => <SelectItem key={c} value={c} className="text-ink-dim">{c}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setEditOpen(false)} className="text-[#a5accb]">Cancel</Button>
-            <Button onClick={handleSaveEdit} className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-[#090b14]">Save</Button>
+            <Button variant="ghost" onClick={() => setEditOpen(false)} className="text-ink-dim">Cancel</Button>
+            <Button onClick={handleSaveEdit} className="bg-gradient-to-b from-[#f2c877] to-gold-deep text-[#241a06] font-semibold hover:brightness-105">Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent className="bg-[#121526] border-[#2b3150] max-w-3xl">
+        <DialogContent className="bg-surface-raised border-white/10 max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="text-[#f5f7ff]">Campaign History · {selectedCompany?.name}</DialogTitle>
+            <DialogTitle className="text-ink">Campaign History · {selectedCompany?.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 max-h-[420px] overflow-y-auto">
             {(campaignStatsByCompanyId[selectedCompany?.id]?.history || []).length === 0 ? (
-              <div className="p-4 rounded border border-[#2b3150] text-[#a5accb] text-sm">No campaign history for this company yet.</div>
+              <div className="p-4 rounded border border-white/[0.07] text-ink-dim text-sm">No campaign history for this company yet.</div>
             ) : (
               (campaignStatsByCompanyId[selectedCompany?.id]?.history || []).map((form) => (
-                <div key={form.id} className="p-3 rounded border border-[#2b3150] bg-[#14182a] flex items-center justify-between">
+                <div key={form.id} className="p-3 rounded border border-white/[0.07] bg-white/[0.02] flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-[#f5f7ff]">{form.title}</p>
-                    <p className="text-xs text-[#a5accb]">{form.product} · {form.category}</p>
+                    <p className="text-sm text-ink">{form.title}</p>
+                    <p className="text-xs text-ink-dim">{form.product} · {form.category}</p>
                   </div>
-                  <Badge variant="outline" className="border-[#2b3150] text-[#a5accb] capitalize">{form.status}</Badge>
+                  <Badge variant="outline" className="border-white/15 text-ink-dim capitalize">{form.status}</Badge>
                 </div>
               ))
             )}
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setHistoryOpen(false)} className="text-[#a5accb]">Close</Button>
+            <Button variant="ghost" onClick={() => setHistoryOpen(false)} className="text-ink-dim">Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   )
 }
-

@@ -17,18 +17,18 @@ import {
 
 function RoleBadge({ role }: { role: UserRole }) {
   const map: Record<UserRole, string> = {
-    Admin: "border-[#A78BFA]/35 bg-[#A78BFA]/15 text-[#cfc3ff]",
-    Client: "border-[#60A5FA]/35 bg-[#60A5FA]/15 text-[#bfddff]",
-    User: "border-[#8b5cf6]/35 bg-[#8b5cf6]/15 text-[#d8ccff]",
+    Admin: "border-gold/35 bg-gold/15 text-gold",
+    Client: "border-sky-400/35 bg-sky-400/15 text-sky-200",
+    User: "border-white/20 bg-white/[0.06] text-ink-dim",
   }
-  return <Badge variant="outline" className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${map[role] || "border-[#2b3150] text-[#a5accb]"}`}>{role}</Badge>
+  return <Badge variant="outline" className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${map[role] || "border-white/15 text-ink-dim"}`}>{role}</Badge>
 }
 
 function StatusBadge({ status }: { status: UserStatus }) {
   const className =
     status === "Active"
-      ? "border-emerald-400/35 bg-emerald-400/15 text-emerald-200 shadow-[0_0_16px_rgba(52,211,153,0.2)]"
-      : "border-rose-400/35 bg-rose-400/15 text-rose-200"
+      ? "border-mint/35 bg-mint/15 text-mint"
+      : "border-destructive/35 bg-destructive/15 text-destructive"
 
   return (
     <Badge variant="outline" className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${className}`}>
@@ -73,25 +73,25 @@ export default function UserManagementPage() {
         label: "Total Users",
         value: totalUsers.toLocaleString(),
         icon: Users,
-        tint: "border-violet-300/20 bg-violet-500/10 text-violet-100",
+        tint: "border-gold/20 bg-gold/10 text-gold",
       },
       {
         label: "Active Users",
         value: activeUsers.toLocaleString(),
         icon: UserCheck,
-        tint: "border-emerald-300/20 bg-emerald-500/10 text-emerald-100",
+        tint: "border-mint/20 bg-mint/10 text-mint",
       },
       {
         label: "Blocked Users",
         value: blockedUsers.toLocaleString(),
         icon: UserX,
-        tint: "border-rose-300/20 bg-rose-500/10 text-rose-100",
+        tint: "border-destructive/20 bg-destructive/10 text-destructive",
       },
       {
         label: "Total Feedback Submitted",
         value: totalFeedbackSubmitted.toLocaleString(),
         icon: MessageSquare,
-        tint: "border-sky-300/20 bg-sky-500/10 text-sky-100",
+        tint: "border-sky-400/20 bg-sky-400/10 text-sky-200",
       },
     ]
   }, [users])
@@ -103,13 +103,16 @@ export default function UserManagementPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-[#f5f7ff] md:text-3xl">
-          <Users size={20} className="text-[#c9b8ff]" />
-          User Management
-        </h1>
-        <div className="text-xs font-medium text-[#8f95b7]">{filteredUsers.length} users</div>
+        <div>
+          <h1 className="font-display flex items-center gap-2 text-2xl font-bold text-ink md:text-3xl">
+            <Users size={20} className="text-gold" />
+            User Management
+          </h1>
+          <p className="mt-1 text-sm text-ink-dim">Review accounts and manage access across users, clients, and admins.</p>
+        </div>
+        <div className="text-xs font-medium text-ink-muted">{filteredUsers.length} users</div>
       </div>
 
       <main className="space-y-5">
@@ -118,14 +121,11 @@ export default function UserManagementPage() {
             const StatIcon = stat.icon
 
             return (
-              <div
-                key={stat.label}
-                className="rounded-xl border border-white/10 bg-[#111528]/70 p-4 shadow-[0_10px_30px_rgba(7,10,22,0.45)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-300/25"
-              >
+              <div key={stat.label} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.12em] text-[#9ca3c7]">{stat.label}</p>
-                    <p className="mt-2 text-2xl font-semibold text-[#f5f7ff]">{stat.value}</p>
+                    <p className="text-[11px] uppercase tracking-[0.12em] text-ink-muted">{stat.label}</p>
+                    <p className="tvx-num mt-2 text-2xl font-semibold text-ink">{stat.value}</p>
                   </div>
                   <span className={`inline-flex rounded-lg border p-2 ${stat.tint}`}>
                     <StatIcon className="h-4 w-4" />
@@ -137,18 +137,18 @@ export default function UserManagementPage() {
         </div>
 
         <div className="relative max-w-md">
-          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7f87ad]" />
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by user, email, role, or status"
-            className="h-10 pl-9 pr-3 bg-[#121526]/80 border-[#313b62] text-[#f5f7ff] placeholder:text-[#8f96ba] transition-all duration-200 focus-visible:border-[#8b5cf6]/70 focus-visible:ring-2 focus-visible:ring-[#8b5cf6]/30 focus-visible:shadow-[0_0_18px_rgba(139,92,246,0.3)]"
+            className="h-10 pl-9 pr-3 bg-white/[0.04] border-white/[0.08] text-ink placeholder:text-ink-muted focus-visible:border-gold/40 focus-visible:ring-2 focus-visible:ring-gold/20"
           />
         </div>
 
-        <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#101426]/68 shadow-[0_18px_40px_rgba(7,10,22,0.52)] backdrop-blur-xl">
+        <div className="overflow-x-auto rounded-xl border border-white/[0.07] bg-white/[0.02]">
           <table className="w-full min-w-[900px] text-sm">
-            <thead className="bg-[#14182a]/88 text-[#bcc3e3]">
+            <thead className="bg-white/[0.03] text-ink-dim">
               <tr>
                 <th className="px-4 py-3 text-left text-[12px] font-semibold uppercase tracking-[0.1em]">Name</th>
                 <th className="px-4 py-3 text-left text-[12px] font-semibold uppercase tracking-[0.1em]">Email</th>
@@ -159,26 +159,23 @@ export default function UserManagementPage() {
                 <th className="px-4 py-3 text-left text-[12px] font-semibold uppercase tracking-[0.1em]">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/8">
+            <tbody className="divide-y divide-white/[0.06]">
               {filteredUsers.map((user) => (
-                <tr
-                  key={user.id}
-                  className="group relative transition-all duration-300 hover:bg-[#8b5cf6]/8 hover:shadow-[inset_2px_0_0_rgba(139,92,246,0.7)]"
-                >
-                  <td className="px-4 py-3.5 text-[#f5f7ff]">
+                <tr key={user.id} className="transition-colors hover:bg-gold/[0.04]">
+                  <td className="px-4 py-3.5 text-ink">
                     <span className="font-medium">{user.name}</span>
                   </td>
-                  <td className="px-4 py-3.5 text-[#a9b0cf]">{user.email}</td>
+                  <td className="px-4 py-3.5 text-ink-dim">{user.email}</td>
                   <td className="px-4 py-3.5"><RoleBadge role={user.role} /></td>
                   <td className="px-4 py-3.5"><StatusBadge status={user.status} /></td>
-                  <td className="px-4 py-3.5 text-[#d7ddf5]">{user.feedbackSubmittedCount.toLocaleString()}</td>
-                  <td className="px-4 py-3.5 text-[#9ba4c7]">{new Date(user.lastActiveAt).toLocaleString()}</td>
+                  <td className="px-4 py-3.5 text-ink">{user.feedbackSubmittedCount.toLocaleString()}</td>
+                  <td className="px-4 py-3.5 text-ink-muted">{new Date(user.lastActiveAt).toLocaleString()}</td>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-2">
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-8 w-8 rounded-lg border border-violet-300/15 p-0 text-[#b5bddf] transition-all duration-200 hover:scale-105 hover:border-violet-300/35 hover:bg-violet-500/15 hover:text-[#d6c9ff]"
+                        className="h-8 w-8 rounded-lg border border-white/[0.08] p-0 text-ink-dim hover:border-gold/35 hover:bg-gold/10 hover:text-gold"
                         onClick={() => {
                           setSelectedUser(user)
                           setActivityOpen(true)
@@ -189,10 +186,10 @@ export default function UserManagementPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className={`h-8 w-8 rounded-lg border p-0 transition-all duration-200 hover:scale-105 ${
+                        className={`h-8 w-8 rounded-lg border p-0 ${
                           user.status === "Active"
-                            ? "border-rose-300/25 text-rose-300 hover:border-rose-300/45 hover:bg-rose-500/15"
-                            : "border-emerald-300/25 text-emerald-300 hover:border-emerald-300/45 hover:bg-emerald-500/15"
+                            ? "border-destructive/25 text-destructive hover:border-destructive/45 hover:bg-destructive/15"
+                            : "border-mint/25 text-mint hover:border-mint/45 hover:bg-mint/15"
                         }`}
                         onClick={() => toggleStatus(user)}
                       >
@@ -208,24 +205,23 @@ export default function UserManagementPage() {
       </main>
 
       <Dialog open={activityOpen} onOpenChange={setActivityOpen}>
-        <DialogContent className="bg-[#121526] border-[#2b3150]">
+        <DialogContent className="bg-surface-raised border-white/10">
           <DialogHeader>
-            <DialogTitle className="text-[#f5f7ff]">User Activity</DialogTitle>
+            <DialogTitle className="text-ink">User Activity</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 text-sm">
-            <p className="text-[#f5f7ff]"><span className="text-[#a5accb]">Name:</span> {selectedUser?.name}</p>
-            <p className="text-[#f5f7ff]"><span className="text-[#a5accb]">Email:</span> {selectedUser?.email}</p>
-            <p className="text-[#f5f7ff]"><span className="text-[#a5accb]">Role:</span> {selectedUser?.role}</p>
-            <p className="text-[#f5f7ff]"><span className="text-[#a5accb]">Status:</span> {selectedUser?.status}</p>
-            <p className="text-[#f5f7ff]"><span className="text-[#a5accb]">Feedback submitted:</span> {selectedUser?.feedbackSubmittedCount}</p>
-            <p className="text-[#f5f7ff]"><span className="text-[#a5accb]">Last active:</span> {selectedUser ? new Date(selectedUser.lastActiveAt).toLocaleString() : "-"}</p>
+            <p className="text-ink"><span className="text-ink-dim">Name:</span> {selectedUser?.name}</p>
+            <p className="text-ink"><span className="text-ink-dim">Email:</span> {selectedUser?.email}</p>
+            <p className="text-ink"><span className="text-ink-dim">Role:</span> {selectedUser?.role}</p>
+            <p className="text-ink"><span className="text-ink-dim">Status:</span> {selectedUser?.status}</p>
+            <p className="text-ink"><span className="text-ink-dim">Feedback submitted:</span> {selectedUser?.feedbackSubmittedCount}</p>
+            <p className="text-ink"><span className="text-ink-dim">Last active:</span> {selectedUser ? new Date(selectedUser.lastActiveAt).toLocaleString() : "-"}</p>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setActivityOpen(false)} className="text-[#a5accb]">Close</Button>
+            <Button variant="ghost" onClick={() => setActivityOpen(false)} className="text-ink-dim">Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   )
 }
-
