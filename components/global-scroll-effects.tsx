@@ -93,6 +93,14 @@ export default function GlobalScrollEffects() {
       { threshold: 0.12, rootMargin: "0px 0px -48px 0px" },
     )
 
+    // Elements already inside the initial viewport are shown immediately instead of
+    // being hidden-then-revealed — avoids a visible flash while the observer's first
+    // callback is pending. Only genuinely below-the-fold content gets the reveal treatment.
+    const isInInitialViewport = (el: HTMLElement) => {
+      const rect = el.getBoundingClientRect()
+      return rect.top < window.innerHeight && rect.bottom > 0
+    }
+
     const wireElements = () => {
       splitWordsForReveal(document)
 
@@ -101,7 +109,11 @@ export default function GlobalScrollEffects() {
         if (!el.dataset.revealBound) {
           el.dataset.revealBound = "true"
           el.classList.add("global-reveal-block")
-          blockObserver.observe(el)
+          if (isInInitialViewport(el)) {
+            el.classList.add("is-revealed")
+          } else {
+            blockObserver.observe(el)
+          }
         }
       })
 
@@ -110,7 +122,11 @@ export default function GlobalScrollEffects() {
         if (!el.dataset.revealCardBound) {
           el.dataset.revealCardBound = "true"
           el.classList.add("global-reveal-card")
-          cardObserver.observe(el)
+          if (isInInitialViewport(el)) {
+            el.classList.add("is-revealed")
+          } else {
+            cardObserver.observe(el)
+          }
         }
       })
 
@@ -118,7 +134,11 @@ export default function GlobalScrollEffects() {
         if (!(el instanceof HTMLElement)) return
         if (!el.dataset.revealTextBound) {
           el.dataset.revealTextBound = "true"
-          textObserver.observe(el)
+          if (isInInitialViewport(el)) {
+            el.classList.add("is-revealed")
+          } else {
+            textObserver.observe(el)
+          }
         }
       })
     }

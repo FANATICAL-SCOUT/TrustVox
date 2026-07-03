@@ -22,12 +22,6 @@ export interface AdminUser {
   password: string
 }
 
-export interface PasswordHistory {
-  email: string
-  password: string
-  timestamp: number
-}
-
 function safeParse<T>(raw: string | null, fallback: T): T {
   if (!raw) return fallback
   try {
@@ -49,7 +43,6 @@ export const getStoredClientData = (): ClientUser | null => {
 // Store client data
 export const storeClientData = (data: ClientUser) => {
   localStorage.setItem("currentClient", JSON.stringify(data))
-  addPasswordToHistory(data.contactEmail, data.password)
 }
 
 // Get stored admin data
@@ -64,39 +57,6 @@ export const getStoredAdminData = (): AdminUser | null => {
 // Store admin data
 export const storeAdminData = (data: AdminUser) => {
   localStorage.setItem("currentAdmin", JSON.stringify(data))
-  addPasswordToHistory(data.email, data.password)
-}
-
-// Get password history for an email
-export const getPasswordHistory = (email: string): string[] => {
-  if (typeof window !== "undefined") {
-    const history = localStorage.getItem("passwordHistory")
-    const parsedHistory = safeParse<PasswordHistory[]>(history, [])
-    return parsedHistory
-      .filter((entry) => entry.email === email)
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .map((entry) => entry.password)
-  }
-  return []
-}
-
-// Add password to history
-export const addPasswordToHistory = (email: string, password: string) => {
-  if (typeof window !== "undefined") {
-    const history = localStorage.getItem("passwordHistory")
-    const parsedHistory = safeParse<PasswordHistory[]>(history, [])
-
-    // Avoid duplicates
-    const exists = parsedHistory.some((entry) => entry.email === email && entry.password === password)
-    if (!exists) {
-      parsedHistory.push({
-        email,
-        password,
-        timestamp: Date.now(),
-      })
-      localStorage.setItem("passwordHistory", JSON.stringify(parsedHistory))
-    }
-  }
 }
 
 // Set user as logged in (for admin/user)
