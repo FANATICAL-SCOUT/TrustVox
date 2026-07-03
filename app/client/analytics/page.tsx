@@ -6,7 +6,6 @@ import {
   BarChart3,
   ChevronDown,
   Download,
-  FileText,
   LineChart as LineChartIcon,
   Loader2,
   Trash2,
@@ -31,15 +30,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getClientForms, getResponsesByFormId, subscribeToFormsUpdates, type FeedbackForm, type FormResponse } from "@/lib/feedback-store"
 import AnalyticsPDFTemplate from "@/components/analytics-pdf-template"
 import { useSearchParams } from "next/navigation"
 
 const REPORTS_STORAGE_KEY = "trustvox.client.analytics.reports.v1"
-const DISTRIBUTION_COLORS = ["#22d3ee", "#a78bfa", "#34d399", "#f59e0b", "#f472b6", "#60a5fa"]
+// Single-accent Ledger palette for series that need to stay distinguishable
+// (compare mode caps out at 3 campaign slots).
+const LEDGER_SERIES_COLORS = ["#EBBC6B", "#5FD0A6", "#B6BACB"]
 
 type CampaignResponse = {
   date: string
@@ -120,64 +118,6 @@ type LineChartRow = {
   label: string
   [key: string]: string | number
 }
-
-const FALLBACK_CAMPAIGNS: AnalyticsCampaign[] = [
-  {
-    id: "cmp1",
-    name: "Campaign A",
-    date: "2026-03-01",
-    responses: [
-      { date: "2026-03-01", total: 50, positive: 30, negative: 20 },
-      { date: "2026-03-02", total: 80, positive: 50, negative: 30 },
-      { date: "2026-03-03", total: 85, positive: 56, negative: 29 },
-      { date: "2026-03-04", total: 66, positive: 40, negative: 26 },
-    ],
-  },
-  {
-    id: "cmp2",
-    name: "Campaign B",
-    date: "2026-03-05",
-    responses: [
-      { date: "2026-03-05", total: 44, positive: 31, negative: 13 },
-      { date: "2026-03-06", total: 59, positive: 43, negative: 16 },
-      { date: "2026-03-07", total: 74, positive: 55, negative: 19 },
-      { date: "2026-03-08", total: 92, positive: 65, negative: 27 },
-    ],
-  },
-  {
-    id: "cmp3",
-    name: "Campaign C",
-    date: "2026-03-10",
-    responses: [
-      { date: "2026-03-10", total: 63, positive: 34, negative: 29 },
-      { date: "2026-03-11", total: 72, positive: 37, negative: 35 },
-      { date: "2026-03-12", total: 70, positive: 36, negative: 34 },
-      { date: "2026-03-13", total: 68, positive: 34, negative: 34 },
-    ],
-  },
-  {
-    id: "cmp4",
-    name: "Campaign D",
-    date: "2026-03-14",
-    responses: [
-      { date: "2026-03-14", total: 38, positive: 29, negative: 9 },
-      { date: "2026-03-15", total: 49, positive: 38, negative: 11 },
-      { date: "2026-03-16", total: 57, positive: 43, negative: 14 },
-      { date: "2026-03-17", total: 61, positive: 45, negative: 16 },
-    ],
-  },
-  {
-    id: "cmp5",
-    name: "Campaign E",
-    date: "2026-03-18",
-    responses: [
-      { date: "2026-03-18", total: 55, positive: 30, negative: 25 },
-      { date: "2026-03-19", total: 73, positive: 40, negative: 33 },
-      { date: "2026-03-20", total: 101, positive: 52, negative: 49 },
-      { date: "2026-03-21", total: 62, positive: 33, negative: 29 },
-    ],
-  },
-]
 
 function formatDateLabel(value: string): string {
   const parsed = Date.parse(value)
@@ -302,6 +242,11 @@ function generateInsights(metrics: CampaignMetric[], pairwise: PairwiseCompariso
   })
 
   metrics.forEach((metric) => {
+    if (metric.totalResponses === 0) {
+      insightLines.push(`${metric.campaignName}: no responses recorded yet — insights will populate once feedback comes in.`)
+      return
+    }
+
     if (metric.sentimentScore < 10) {
       insightLines.push(
         `${metric.campaignName}: sentiment score ${metric.sentimentScore.toFixed(1)} with ${formatPercent(metric.negativeRate)} negative responses indicates a quality-risk zone.`,
@@ -539,6 +484,10 @@ function calculateCampaignHealthScore(metric: CampaignMetric): number {
 }
 
 function buildSingleCampaignSummary(metric: CampaignMetric, healthScore: number): string[] {
+  if (metric.totalResponses === 0) {
+    return [`${metric.campaignName} has no recorded responses yet — the summary below will populate once feedback comes in.`]
+  }
+
   const trendLabel =
     metric.trend.growthTrend === "increasing"
       ? "increasing"
@@ -576,7 +525,9 @@ function buildSummaryLines(metrics: CampaignMetric[], pairwise: PairwiseComparis
   const highNegative = metrics.filter((metric) => metric.negativeRate > 0.4)
 
   const lines = [
-    `${bestCampaign.campaignName} is the best-performing campaign with ${bestCampaign.totalResponses} total responses and ${formatPercent(bestCampaign.positiveRate)} positive feedback.`,
+    bestCampaign.totalResponses > 0
+      ? `${bestCampaign.campaignName} is the best-performing campaign with ${bestCampaign.totalResponses} total responses and ${formatPercent(bestCampaign.positiveRate)} positive feedback.`
+      : "None of the selected campaigns have recorded responses yet.",
     topShift
       ? `Largest comparative shift: ${topShift.currentCampaignName} vs ${topShift.previousCampaignName} (${formatDeltaPercent(topShift.responseChangePct)} response change).`
       : "Comparative shifts are limited due to fewer campaign combinations.",
@@ -676,92 +627,54 @@ function toThreeSlots(campaignIds: string[]): CampaignSlots {
   return [campaignIds[0] ?? null, campaignIds[1] ?? null, campaignIds[2] ?? null]
 }
 
+// Real star rating (1-5) if the form captured one; otherwise a neutral
+// midpoint. No keyword/text sentiment guessing — that's fabricated signal.
 function deriveResponseScore(response: FormResponse): number {
   const values = Object.values(response.answers || {})
   const numeric = values.find((value) => typeof value === "number")
   if (typeof numeric === "number") return numeric
-
-  const text = values.find((value) => typeof value === "string")
-  if (typeof text === "string") {
-    const normalized = text.toLowerCase()
-    if (normalized.includes("excellent") || normalized.includes("great") || normalized.includes("good")) return 4
-    if (normalized.includes("bad") || normalized.includes("poor") || normalized.includes("terrible")) return 2
-  }
-
   return 3
 }
 
-function hashSeed(input: string): number {
-  return Array.from(input).reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
-}
-
-function addDaysIso(dateIso: string, days: number): string {
-  const base = Date.parse(dateIso)
-  if (Number.isNaN(base)) return new Date().toISOString()
-  return new Date(base + days * 24 * 60 * 60 * 1000).toISOString()
-}
-
+// Only real submitted responses build a campaign's response curve. Forms
+// with zero real responses correctly show up as zero-response campaigns —
+// no fabricated multi-day curve invented from a hashed seed. Responses are
+// bucketed by calendar day (not a running cumulative counter) so summing
+// `total`/`positive`/`negative` across entries gives the true count instead
+// of double-counting via a cumulative snapshot.
 function buildCampaignResponsesFromForm(form: FeedbackForm): CampaignResponse[] {
-  const responses = [...getResponsesByFormId(form.id)].sort(
-    (left, right) => Date.parse(left.submittedAt) - Date.parse(right.submittedAt),
-  )
+  const responses = [...getResponsesByFormId(form.id)]
 
-  if (responses.length === 0) {
-    const seed = hashSeed(form.id || form.title || form.product || "trustvox")
-    const baseTotal = form.responseCount && form.responseCount > 0 ? form.responseCount : 18 + (seed % 36)
-    const dailyIncrements = [0.35, 0.6, 0.82, 1]
-    const positiveRatio = 0.58 + (seed % 20) / 100
+  const byDate = new Map<string, CampaignResponse>()
 
-    return dailyIncrements.map((ratio, index) => {
-      const total = Math.max(1, Math.round(baseTotal * ratio))
-      const positive = Math.max(0, Math.round(total * positiveRatio))
-      const negative = Math.max(0, total - positive)
-
-      return {
-        date: addDaysIso(form.submittedAt || form.createdAt, index),
-        total,
-        positive,
-        negative,
-      }
-    })
-  }
-
-  let positive = 0
-  let negative = 0
-
-  return responses.map((response, index) => {
+  responses.forEach((response) => {
+    const dateKey = new Date(response.submittedAt).toISOString().slice(0, 10)
+    const bucket = byDate.get(dateKey) || { date: dateKey, total: 0, positive: 0, negative: 0 }
     const score = deriveResponseScore(response)
-    if (score >= 4) positive += 1
-    else if (score <= 2) negative += 1
 
-    return {
-      date: response.submittedAt,
-      total: index + 1,
-      positive,
-      negative,
-    }
+    bucket.total += 1
+    if (score >= 4) bucket.positive += 1
+    else if (score <= 2) bucket.negative += 1
+
+    byDate.set(dateKey, bucket)
   })
+
+  return Array.from(byDate.values()).sort((left, right) => Date.parse(left.date) - Date.parse(right.date))
 }
 
+// Real client forms only. No fabricated "Campaign A-E" filler blended in —
+// if there are genuinely zero forms, the page shows an honest empty state.
 function buildAnalyticsCampaigns(): AnalyticsCampaign[] {
   const forms = getClientForms("client-1")
-  if (forms.length === 0) return FALLBACK_CAMPAIGNS
 
-  const formCampaigns = forms
+  return forms
     .map((form, index) => ({
       id: form.id,
       name: form.title || form.product || `Campaign ${index + 1}`,
       date: form.submittedAt || form.createdAt,
       responses: buildCampaignResponsesFromForm(form),
     }))
-
-  // Keep legacy fallback campaigns so previously generated report IDs still resolve.
-  const existingIds = new Set(formCampaigns.map((campaign) => campaign.id))
-  const legacyCampaigns = FALLBACK_CAMPAIGNS.filter((campaign) => !existingIds.has(campaign.id))
-
-  return [...formCampaigns, ...legacyCampaigns].sort(
-    (left, right) => Date.parse(right.date) - Date.parse(left.date),
-  )
+    .sort((left, right) => Date.parse(right.date) - Date.parse(left.date))
 }
 
 function ClientAnalyticsPageContent() {
@@ -1232,29 +1145,29 @@ function ClientAnalyticsPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#090b14]">
+    <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-7xl px-4 py-8">
-        <header className="mb-8 rounded-2xl border border-[#2b3150] bg-[linear-gradient(160deg,rgba(53,45,92,0.55),rgba(18,21,38,0.95))] p-6">
+        <header className="tvx-card-gold mb-8 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-surface to-[#0e1017] p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-[#f5f7ff]">Campaign Analytics</h1>
-              <p className="mt-1 text-sm text-[#a5accb]">
+              <h1 className="font-display text-2xl font-bold text-ink">Campaign Analytics</h1>
+              <p className="mt-1 text-sm text-ink-dim">
                 Compare up to 3 campaigns, analyze trends, generate insight-rich reports, and download PDF summaries.
               </p>
             </div>
-            <Badge className="border border-[#60a5fa]/40 bg-[#60a5fa]/15 text-[#bfdbfe]">
+            <span className="inline-flex items-center rounded-full border border-gold/30 bg-gold/10 px-2.5 py-0.5 text-xs font-semibold text-gold">
               Frontend Analytics Module
-            </Badge>
+            </span>
           </div>
         </header>
 
-        <section className="mb-8 rounded-2xl border border-[#2b3150] bg-[#121526] p-4">
+        <section className="mb-8 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-[#dbe1ff]">
-              <BarChart3 className="h-4 w-4 text-[#34d399]" />
+            <div className="flex items-center gap-2 text-ink">
+              <BarChart3 className="h-4 w-4 text-gold" />
               <h2 className="text-base font-semibold">Analysis Mode</h2>
             </div>
-            <div className="inline-flex items-center rounded-xl border border-[#2b3150] bg-[#0f1328] p-1">
+            <div className="inline-flex items-center rounded-xl border border-white/10 bg-white/[0.04] p-1">
               <button
                 type="button"
                 onClick={() => {
@@ -1262,7 +1175,7 @@ function ClientAnalyticsPageContent() {
                   setWarning("")
                 }}
                 className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-                  analysisMode === "single" ? "bg-[#1f2a4f] text-[#e5edff]" : "text-[#9ca8d0] hover:text-[#d3dcff]"
+                  analysisMode === "single" ? "bg-gold/10 text-gold" : "text-ink-muted hover:text-ink-dim"
                 }`}
               >
                 Single Campaign
@@ -1274,14 +1187,14 @@ function ClientAnalyticsPageContent() {
                   setWarning("")
                 }}
                 className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-                  analysisMode === "compare" ? "bg-[#1f2a4f] text-[#e5edff]" : "text-[#9ca8d0] hover:text-[#d3dcff]"
+                  analysisMode === "compare" ? "bg-gold/10 text-gold" : "text-ink-muted hover:text-ink-dim"
                 }`}
               >
                 Compare Campaigns
               </button>
             </div>
           </div>
-          <p className="mt-2 text-sm text-[#9ca8d0]">
+          <p className="mt-2 text-sm text-ink-muted">
             Choose single mode for deep analysis of one campaign, or compare mode for side-by-side campaign reporting.
           </p>
         </section>
@@ -1289,130 +1202,129 @@ function ClientAnalyticsPageContent() {
         {analysisMode === "compare" ? (
           <>
             <section className="mb-8">
-          <div className="mb-3 flex items-center gap-2 text-[#dbe1ff]">
-            <Activity className="h-4 w-4 text-[#a78bfa]" />
-            <h2 className="text-base font-semibold">Campaign Library</h2>
-          </div>
+              <div className="mb-3 flex items-center gap-2 text-ink">
+                <Activity className="h-4 w-4 text-gold" />
+                <h2 className="text-base font-semibold">Campaign Library</h2>
+              </div>
 
-          {campaigns.length === 0 ? (
-            <Card className="rounded-2xl border border-[#2b3150] bg-[#121526]">
-              <CardContent className="py-10 text-sm text-[#a5accb]">No campaign data is available.</CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {campaigns.map((campaign) => {
-                const totalResponses = getCampaignTotalResponses(campaign)
+              {campaigns.length === 0 ? (
+                <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] py-10 text-center text-sm text-ink-muted">
+                  No campaign data is available yet — create a form to get started.
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {campaigns.map((campaign) => {
+                    const totalResponses = getCampaignTotalResponses(campaign)
 
-                return (
-                  <Card
-                    key={campaign.id}
-                    draggable
-                    onDragStart={(event) => {
-                      event.dataTransfer.setData("text/plain", campaign.id)
-                      event.dataTransfer.effectAllowed = "copyMove"
-                      setDraggingCampaignId(campaign.id)
-                      setWarning("")
-                    }}
-                    onDragEnd={() => {
-                      setDraggingCampaignId(null)
-                      setHoveredSlot(null)
-                    }}
-                    className="cursor-grab rounded-2xl border border-[#2b3150] bg-[linear-gradient(180deg,rgba(27,32,58,0.95),rgba(18,21,38,0.95))] active:cursor-grabbing"
-                  >
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg text-[#f5f7ff]">{campaign.name}</CardTitle>
-                      <p className="text-xs text-[#8f98bb]">Launch Date: {formatDateLabel(campaign.date)}</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="rounded-xl border border-[#2b3150] bg-[#0f1328] p-3">
-                        <p className="text-[11px] uppercase tracking-wide text-[#7d86a9]">Total Responses</p>
-                        <p className="text-xl font-semibold text-[#f5f7ff]">{totalResponses}</p>
+                    return (
+                      <div
+                        key={campaign.id}
+                        draggable
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData("text/plain", campaign.id)
+                          event.dataTransfer.effectAllowed = "copyMove"
+                          setDraggingCampaignId(campaign.id)
+                          setWarning("")
+                        }}
+                        onDragEnd={() => {
+                          setDraggingCampaignId(null)
+                          setHoveredSlot(null)
+                        }}
+                        className="cursor-grab rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 transition-colors hover:border-white/20 active:cursor-grabbing"
+                      >
+                        <p className="text-lg font-semibold text-ink">{campaign.name}</p>
+                        <p className="mb-3 text-xs text-ink-muted">Launch Date: {formatDateLabel(campaign.date)}</p>
+                        <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
+                          <p className="text-[11px] uppercase tracking-wide text-ink-muted">Total Responses</p>
+                          <p className="text-xl font-semibold text-ink">{totalResponses}</p>
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          )}
+                    )
+                  })}
+                </div>
+              )}
             </section>
 
             <section className="mb-8">
-          <div className="mb-3 flex items-center gap-2 text-[#dbe1ff]">
-            <LineChartIcon className="h-4 w-4 text-[#22d3ee]" />
-            <h2 className="text-base font-semibold">Drag and Drop Comparison Zone</h2>
-          </div>
+              <div className="mb-3 flex items-center gap-2 text-ink">
+                <LineChartIcon className="h-4 w-4 text-gold" />
+                <h2 className="text-base font-semibold">Drag and Drop Comparison Zone</h2>
+              </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
-            {selectedCampaignIds.map((campaignId, slotIndex) => {
-              const slotCampaign = campaignId ? campaignMap.get(campaignId) : null
+              <div className="grid gap-4 md:grid-cols-3">
+                {selectedCampaignIds.map((campaignId, slotIndex) => {
+                  const slotCampaign = campaignId ? campaignMap.get(campaignId) : null
 
-              return (
-                <div
-                  key={`comparison-slot-${slotIndex}`}
-                  onDragOver={(event) => {
-                    event.preventDefault()
-                    setHoveredSlot(slotIndex)
-                  }}
-                  onDragLeave={() => setHoveredSlot((current) => (current === slotIndex ? null : current))}
-                  onDrop={(event) => {
-                    event.preventDefault()
-                    const payloadId = event.dataTransfer.getData("text/plain")
-                    handleDropToSlot(slotIndex, draggingCampaignId || payloadId)
-                  }}
-                  className={`min-h-[140px] rounded-2xl border border-dashed p-4 transition-all ${
-                    hoveredSlot === slotIndex
-                      ? "border-[#22d3ee] bg-[#22d3ee]/10"
-                      : "border-[#2b3150] bg-[#121526]"
-                  }`}
-                >
-                  <p className="mb-3 text-xs uppercase tracking-wide text-[#7f87aa]">Slot {slotIndex + 1}</p>
-                  {slotCampaign ? (
-                    <div className="rounded-xl border border-[#2b3150] bg-[#0f1328] p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-medium text-[#f5f7ff]">{slotCampaign.name}</p>
-                          <p className="text-xs text-[#8f98bb]">{formatDateLabel(slotCampaign.date)}</p>
+                  return (
+                    <div
+                      key={`comparison-slot-${slotIndex}`}
+                      onDragOver={(event) => {
+                        event.preventDefault()
+                        setHoveredSlot(slotIndex)
+                      }}
+                      onDragLeave={() => setHoveredSlot((current) => (current === slotIndex ? null : current))}
+                      onDrop={(event) => {
+                        event.preventDefault()
+                        const payloadId = event.dataTransfer.getData("text/plain")
+                        handleDropToSlot(slotIndex, draggingCampaignId || payloadId)
+                      }}
+                      className={`min-h-[140px] rounded-xl border border-dashed p-4 transition-all ${
+                        hoveredSlot === slotIndex
+                          ? "border-gold/50 bg-gold/10"
+                          : "border-white/15 bg-white/[0.02]"
+                      }`}
+                    >
+                      <p className="mb-3 text-xs uppercase tracking-wide text-ink-muted">Slot {slotIndex + 1}</p>
+                      {slotCampaign ? (
+                        <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-medium text-ink">{slotCampaign.name}</p>
+                              <p className="text-xs text-ink-muted">{formatDateLabel(slotCampaign.date)}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveFromSlot(slotIndex)}
+                              className="rounded-md border border-white/15 p-1.5 text-ink-dim transition-colors hover:border-destructive/50 hover:text-destructive"
+                              aria-label={`Remove ${slotCampaign.name} from slot ${slotIndex + 1}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveFromSlot(slotIndex)}
-                          className="rounded-md border border-[#3e466c] p-1.5 text-[#c4c9e2] transition-colors hover:border-[#ef4444] hover:text-[#fecaca]"
-                          aria-label={`Remove ${slotCampaign.name} from slot ${slotIndex + 1}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                      ) : (
+                        <div className="flex h-[80px] items-center justify-center rounded-lg border border-white/10 bg-white/[0.02] text-sm text-ink-muted">
+                          Drop Campaign Here
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="flex h-[80px] items-center justify-center rounded-xl border border-[#2b3150] bg-[#0f1328]/70 text-sm text-[#93a0d3]">
-                      Drop Campaign Here
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                  )
+                })}
+              </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <Button onClick={runReportGeneration} className="bg-[#22c55e] text-[#062112] hover:bg-[#16a34a]">
-              <TrendingUp className="mr-2 h-4 w-4" />
-              Generate Comparison
-            </Button>
-            {isGenerating ? (
-              <p className="inline-flex items-center gap-2 text-sm text-[#7dd3fc]">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Generating report... (~2 seconds)
-              </p>
-            ) : null}
-            {warning ? <p className="text-sm text-[#fca5a5]">{warning}</p> : null}
-          </div>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  onClick={runReportGeneration}
+                  className="inline-flex items-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105"
+                >
+                  <TrendingUp className="mr-2 h-4 w-4" />
+                  Generate Comparison
+                </button>
+                {isGenerating ? (
+                  <p className="inline-flex items-center gap-2 text-sm text-ink-dim">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating report... (~2 seconds)
+                  </p>
+                ) : null}
+                {warning ? <p className="text-sm text-destructive">{warning}</p> : null}
+              </div>
             </section>
           </>
         ) : (
           <>
-            <section className="mb-8 rounded-2xl border border-[#2b3150] bg-[#121526] p-4">
-              <div className="mb-3 flex items-center gap-2 text-[#dbe1ff]">
-                <Activity className="h-4 w-4 text-[#a78bfa]" />
+            <section className="mb-8 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+              <div className="mb-3 flex items-center gap-2 text-ink">
+                <Activity className="h-4 w-4 text-gold" />
                 <h2 className="text-base font-semibold">Single Campaign Selection</h2>
               </div>
               <div className="flex flex-col gap-3 md:flex-row md:items-center">
@@ -1423,7 +1335,7 @@ function ClientAnalyticsPageContent() {
                       setSingleCampaignId(event.target.value)
                       setWarning("")
                     }}
-                    className="w-full appearance-none rounded-xl border border-[#2b3150] bg-[#0f1328] px-3 py-2 pr-10 text-sm text-[#e5edff]"
+                    className="w-full appearance-none rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2 pr-10 text-sm text-ink"
                   >
                     <option value="">Select a campaign</option>
                     {campaigns.map((campaign) => (
@@ -1432,200 +1344,172 @@ function ClientAnalyticsPageContent() {
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca8d0]" />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
                 </div>
-                <Button onClick={analyzeSingleCampaign} className="bg-[#22c55e] text-[#062112] hover:bg-[#16a34a]">
+                <button
+                  onClick={analyzeSingleCampaign}
+                  className="inline-flex items-center justify-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105"
+                >
                   <TrendingUp className="mr-2 h-4 w-4" />
                   Analyze Campaign
-                </Button>
+                </button>
               </div>
-              {warning ? <p className="mt-3 text-sm text-[#fca5a5]">{warning}</p> : null}
+              {warning ? <p className="mt-3 text-sm text-destructive">{warning}</p> : null}
             </section>
 
             {singleCampaign && singleMetric ? (
               <section ref={reportSectionRef} className="pb-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-[#dbe1ff]">
-                    <BarChart3 className="h-4 w-4 text-[#34d399]" />
+                  <div className="flex items-center gap-2 text-ink">
+                    <BarChart3 className="h-4 w-4 text-gold" />
                     <h2 className="text-base font-semibold">Single Campaign Analysis</h2>
                   </div>
                   {singleReport ? (
-                    <Button className="bg-[#2563eb] text-white hover:bg-[#1d4ed8]" onClick={() => void exportReportToPdf(singleReport)}>
+                    <button
+                      className="inline-flex items-center rounded-lg border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-medium text-ink transition hover:bg-white/[0.08]"
+                      onClick={() => void exportReportToPdf(singleReport)}
+                    >
                       <Download className="mr-2 h-4 w-4" />
                       Download Detailed PDF
-                    </Button>
+                    </button>
                   ) : null}
                 </div>
 
-                <div className="space-y-5 rounded-2xl border border-[#2b3150] bg-[#11152b] p-5">
-                  <Card className="rounded-2xl border border-[#2f3b66] bg-[#121735]">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg text-[#f5f7ff]">Campaign Overview</CardTitle>
-                      <p className="text-xs text-[#9ca8d0]">
-                        {singleCampaign.name} | Launch Date: {formatDateLabel(singleCampaign.date)}
-                      </p>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-sm text-[#d4dbfb]">
+                <div className="space-y-5 rounded-xl border border-white/[0.07] bg-white/[0.02] p-5">
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                    <h3 className="text-lg font-semibold text-ink">Campaign Overview</h3>
+                    <p className="mb-2 text-xs text-ink-muted">
+                      {singleCampaign.name} | Launch Date: {formatDateLabel(singleCampaign.date)}
+                    </p>
+                    <div className="space-y-2 text-sm text-ink-dim">
                       {singleSummaryLines.map((line) => (
                         <p key={line}>{line}</p>
                       ))}
-                    </CardContent>
-                  </Card>
-
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    <Card className="rounded-2xl border border-[#2f3b66] bg-[#121735]">
-                      <CardContent className="p-4">
-                        <p className="text-xs uppercase tracking-wide text-[#9ca8d0]">Campaign Score</p>
-                        <p className="mt-2 text-xl font-semibold text-[#f5f7ff]">{singleHealthScore.toFixed(1)} / 100</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="rounded-2xl border border-[#2f3b66] bg-[#121735]">
-                      <CardContent className="p-4">
-                        <p className="text-xs uppercase tracking-wide text-[#9ca8d0]">Total Responses</p>
-                        <p className="mt-2 text-xl font-semibold text-[#f5f7ff]">{singleMetric.totalResponses}</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="rounded-2xl border border-[#2f3b66] bg-[#121735]">
-                      <CardContent className="p-4">
-                        <p className="text-xs uppercase tracking-wide text-[#9ca8d0]">Engagement / Day</p>
-                        <p className="mt-2 text-xl font-semibold text-[#f5f7ff]">{singleMetric.engagementRate.toFixed(1)}</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="rounded-2xl border border-[#2f3b66] bg-[#121735]">
-                      <CardContent className="p-4">
-                        <p className="text-xs uppercase tracking-wide text-[#9ca8d0]">Sentiment Score</p>
-                        <p className="mt-2 text-xl font-semibold text-[#f5f7ff]">{singleMetric.sentimentScore.toFixed(1)}</p>
-                      </CardContent>
-                    </Card>
+                    </div>
                   </div>
 
-                  <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg text-[#f5f7ff]">Response Trend</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {singleTrendRows.length > 0 ? (
-                        <div className="h-[290px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={singleTrendRows} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                              <CartesianGrid stroke="#2b3150" strokeDasharray="3 3" />
-                              <XAxis dataKey="label" stroke="#9ca8d0" tick={{ fill: "#9ca8d0", fontSize: 12 }} />
-                              <YAxis stroke="#9ca8d0" tick={{ fill: "#9ca8d0", fontSize: 12 }} />
-                              <Tooltip
-                                contentStyle={{
-                                  backgroundColor: "#0f1430",
-                                  border: "1px solid #2b3150",
-                                  borderRadius: "10px",
-                                }}
-                              />
-                              <Line
-                                type="monotone"
-                                dataKey={singleCampaign.name}
-                                stroke="#38bdf8"
-                                strokeWidth={2}
-                                dot={{ r: 2 }}
-                                activeDot={{ r: 4 }}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-[#9ca8d0]">No response timeline available for this campaign.</p>
-                      )}
-                    </CardContent>
-                  </Card>
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                      <p className="text-xs uppercase tracking-wide text-ink-muted">Campaign Score</p>
+                      <p className="mt-2 text-xl font-semibold text-ink">{singleHealthScore.toFixed(1)} / 100</p>
+                    </div>
+                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                      <p className="text-xs uppercase tracking-wide text-ink-muted">Total Responses</p>
+                      <p className="mt-2 text-xl font-semibold text-ink">{singleMetric.totalResponses}</p>
+                    </div>
+                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                      <p className="text-xs uppercase tracking-wide text-ink-muted">Engagement / Day</p>
+                      <p className="mt-2 text-xl font-semibold text-ink">{singleMetric.engagementRate.toFixed(1)}</p>
+                    </div>
+                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                      <p className="text-xs uppercase tracking-wide text-ink-muted">Sentiment Score</p>
+                      <p className="mt-2 text-xl font-semibold text-ink">{singleMetric.sentimentScore.toFixed(1)}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                    <h3 className="mb-3 text-lg font-semibold text-ink">Response Trend</h3>
+                    {singleTrendRows.length > 0 ? (
+                      <div className="h-[290px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={singleTrendRows} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <CartesianGrid stroke="rgba(255,255,255,0.1)" strokeDasharray="3 3" />
+                            <XAxis dataKey="label" stroke="#878CA0" tick={{ fill: "#878CA0", fontSize: 12 }} />
+                            <YAxis stroke="#878CA0" tick={{ fill: "#878CA0", fontSize: 12 }} allowDecimals={false} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "#1B1F2A",
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                borderRadius: "10px",
+                              }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey={singleCampaign.name}
+                              stroke="#EBBC6B"
+                              strokeWidth={2}
+                              dot={{ r: 2 }}
+                              activeDot={{ r: 4 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-ink-muted">No response timeline available for this campaign.</p>
+                    )}
+                  </div>
 
                   {singleReport ? (
                     <>
-                      <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-lg text-[#f5f7ff]">Detailed KPI Snapshot</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="overflow-x-auto">
-                            <table className="min-w-full border-collapse text-sm">
-                              <thead>
-                                <tr className="text-left text-[#9ca8d0]">
-                                  <th className="border-b border-[#2b3150] px-3 py-2">Campaign</th>
-                                  <th className="border-b border-[#2b3150] px-3 py-2">Responses</th>
-                                  <th className="border-b border-[#2b3150] px-3 py-2">Engagement / Day</th>
-                                  <th className="border-b border-[#2b3150] px-3 py-2">Positive %</th>
-                                  <th className="border-b border-[#2b3150] px-3 py-2">Negative %</th>
-                                  <th className="border-b border-[#2b3150] px-3 py-2">Consistency</th>
-                                  <th className="border-b border-[#2b3150] px-3 py-2">Drop-off</th>
+                      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                        <h3 className="mb-3 text-lg font-semibold text-ink">Detailed KPI Snapshot</h3>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full border-collapse text-sm">
+                            <thead>
+                              <tr className="text-left text-ink-muted">
+                                <th className="border-b border-white/[0.06] px-3 py-2">Campaign</th>
+                                <th className="border-b border-white/[0.06] px-3 py-2">Responses</th>
+                                <th className="border-b border-white/[0.06] px-3 py-2">Engagement / Day</th>
+                                <th className="border-b border-white/[0.06] px-3 py-2">Positive %</th>
+                                <th className="border-b border-white/[0.06] px-3 py-2">Negative %</th>
+                                <th className="border-b border-white/[0.06] px-3 py-2">Consistency</th>
+                                <th className="border-b border-white/[0.06] px-3 py-2">Drop-off</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {singleReport.metrics.map((metric) => (
+                                <tr key={`single-kpi-${metric.campaignId}`} className="text-ink">
+                                  <td className="border-b border-white/[0.05] px-3 py-2">{metric.campaignName}</td>
+                                  <td className="border-b border-white/[0.05] px-3 py-2">{metric.totalResponses}</td>
+                                  <td className="border-b border-white/[0.05] px-3 py-2">{metric.engagementRate.toFixed(2)}</td>
+                                  <td className="border-b border-white/[0.05] px-3 py-2 text-mint">{formatPercent(metric.positiveRate)}</td>
+                                  <td className="border-b border-white/[0.05] px-3 py-2 text-destructive">{formatPercent(metric.negativeRate)}</td>
+                                  <td className="border-b border-white/[0.05] px-3 py-2">{metric.consistencyLevel}</td>
+                                  <td className="border-b border-white/[0.05] px-3 py-2">{metric.dropOffPct.toFixed(1)}%</td>
                                 </tr>
-                              </thead>
-                              <tbody>
-                                {singleReport.metrics.map((metric) => (
-                                  <tr key={`single-kpi-${metric.campaignId}`} className="text-[#e6ebff]">
-                                    <td className="border-b border-[#232946] px-3 py-2">{metric.campaignName}</td>
-                                    <td className="border-b border-[#232946] px-3 py-2">{metric.totalResponses}</td>
-                                    <td className="border-b border-[#232946] px-3 py-2">{metric.engagementRate.toFixed(2)}</td>
-                                    <td className="border-b border-[#232946] px-3 py-2 text-[#4ade80]">{formatPercent(metric.positiveRate)}</td>
-                                    <td className="border-b border-[#232946] px-3 py-2 text-[#f87171]">{formatPercent(metric.negativeRate)}</td>
-                                    <td className="border-b border-[#232946] px-3 py-2">{metric.consistencyLevel}</td>
-                                    <td className="border-b border-[#232946] px-3 py-2">{metric.dropOffPct.toFixed(1)}%</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </CardContent>
-                      </Card>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
 
-                      <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-lg text-[#f5f7ff]">Auto-Generated Insights</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <ul className="space-y-2 text-sm text-[#d4dbfb]">
-                            {singleReport.insights.map((insight) => (
-                              <li key={insight} className="rounded-xl border border-[#2b3150] bg-[#0f1430] px-3 py-2">
-                                {insight}
-                              </li>
-                            ))}
-                          </ul>
-                        </CardContent>
-                      </Card>
+                      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                        <h3 className="mb-3 text-lg font-semibold text-ink">Auto-Generated Insights</h3>
+                        <ul className="space-y-2 text-sm text-ink-dim">
+                          {singleReport.insights.map((insight) => (
+                            <li key={insight} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                              {insight}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
 
-                      <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-lg text-[#f5f7ff]">Pattern Observations</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <ul className="space-y-2 text-sm text-[#d4dbfb]">
-                            {singleReport.patternObservations.map((observation) => (
-                              <li key={observation} className="rounded-xl border border-[#2b3150] bg-[#0f1430] px-3 py-2">
-                                {observation}
-                              </li>
-                            ))}
-                          </ul>
-                        </CardContent>
-                      </Card>
+                      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                        <h3 className="mb-3 text-lg font-semibold text-ink">Pattern Observations</h3>
+                        <ul className="space-y-2 text-sm text-ink-dim">
+                          {singleReport.patternObservations.map((observation) => (
+                            <li key={observation} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                              {observation}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
 
-                      <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-lg text-[#f5f7ff]">Final Recommendation</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="rounded-xl border border-[#2b3150] bg-[#0f1430] px-3 py-2 text-sm text-[#d4dbfb]">
-                            {singleReport.finalRecommendation}
-                          </p>
-                        </CardContent>
-                      </Card>
+                      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                        <h3 className="mb-3 text-lg font-semibold text-ink">Final Recommendation</h3>
+                        <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-sm text-ink-dim">
+                          {singleReport.finalRecommendation}
+                        </p>
+                      </div>
 
-                      <Card className="rounded-2xl border border-[#2b3150] bg-[#101a38]">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-lg text-[#d9e5ff]">Final Summary</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2 text-sm text-[#dbe5ff]">
-                            {singleReport.finalSummary.map((line) => (
-                              <p key={line}>{line}</p>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
+                        <h3 className="mb-3 text-lg font-semibold text-ink">Final Summary</h3>
+                        <div className="space-y-2 text-sm text-ink-dim">
+                          {singleReport.finalSummary.map((line) => (
+                            <p key={line}>{line}</p>
+                          ))}
+                        </div>
+                      </div>
                     </>
                   ) : null}
                 </div>
@@ -1637,491 +1521,435 @@ function ClientAnalyticsPageContent() {
         {analysisMode === "compare" && activeReport ? (
           <section ref={reportSectionRef} className="pb-4">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-[#dbe1ff]">
-                <BarChart3 className="h-4 w-4 text-[#34d399]" />
+              <div className="flex items-center gap-2 text-ink">
+                <BarChart3 className="h-4 w-4 text-gold" />
                 <h2 className="text-base font-semibold">Report Output</h2>
               </div>
-              <Button className="bg-[#2563eb] text-white hover:bg-[#1d4ed8]" onClick={() => void exportReportToPdf()}>
+              <button
+                className="inline-flex items-center rounded-lg border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-medium text-ink transition hover:bg-white/[0.08]"
+                onClick={() => void exportReportToPdf()}
+              >
                 <Download className="mr-2 h-4 w-4" />
                 Download PDF
-              </Button>
+              </button>
             </div>
 
-            <div className="space-y-5 rounded-2xl border border-[#2b3150] bg-[#11152b] p-5">
+            <div className="space-y-5 rounded-xl border border-white/[0.07] bg-white/[0.02] p-5">
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <Card className="rounded-2xl border border-[#2f3b66] bg-[#121735]">
-                  <CardContent className="p-4">
-                    <p className="text-xs uppercase tracking-wide text-[#9ca8d0]">Best Performing</p>
-                    <p className="mt-2 text-sm font-semibold text-[#f5f7ff]">{activeReport.highlights.bestPerforming}</p>
-                  </CardContent>
-                </Card>
-                <Card className="rounded-2xl border border-[#2f3b66] bg-[#121735]">
-                  <CardContent className="p-4">
-                    <p className="text-xs uppercase tracking-wide text-[#9ca8d0]">Highest Engagement</p>
-                    <p className="mt-2 text-sm font-semibold text-[#f5f7ff]">{activeReport.highlights.highestEngagement}</p>
-                  </CardContent>
-                </Card>
-                <Card className="rounded-2xl border border-[#2f3b66] bg-[#121735]">
-                  <CardContent className="p-4">
-                    <p className="text-xs uppercase tracking-wide text-[#9ca8d0]">Best Sentiment</p>
-                    <p className="mt-2 text-sm font-semibold text-[#f5f7ff]">{activeReport.highlights.bestSentiment}</p>
-                  </CardContent>
-                </Card>
-                <Card className="rounded-2xl border border-[#2f3b66] bg-[#121735]">
-                  <CardContent className="p-4">
-                    <p className="text-xs uppercase tracking-wide text-[#9ca8d0]">Most Volatile</p>
-                    <p className="mt-2 text-sm font-semibold text-[#f5f7ff]">{activeReport.highlights.mostVolatile}</p>
-                  </CardContent>
-                </Card>
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                  <p className="text-xs uppercase tracking-wide text-ink-muted">Best Performing</p>
+                  <p className="mt-2 text-sm font-semibold text-ink">{activeReport.highlights.bestPerforming}</p>
+                </div>
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                  <p className="text-xs uppercase tracking-wide text-ink-muted">Highest Engagement</p>
+                  <p className="mt-2 text-sm font-semibold text-ink">{activeReport.highlights.highestEngagement}</p>
+                </div>
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                  <p className="text-xs uppercase tracking-wide text-ink-muted">Best Sentiment</p>
+                  <p className="mt-2 text-sm font-semibold text-ink">{activeReport.highlights.bestSentiment}</p>
+                </div>
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                  <p className="text-xs uppercase tracking-wide text-ink-muted">Most Volatile</p>
+                  <p className="mt-2 text-sm font-semibold text-ink">{activeReport.highlights.mostVolatile}</p>
+                </div>
               </div>
 
-              <Card className="rounded-2xl border border-[#355087] bg-[#132040]">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm uppercase tracking-wide text-[#bcd7ff]">Comparative Highlights</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm text-[#d4e3ff]">
+              <div className="rounded-xl border border-mint/25 bg-mint/[0.05] p-4">
+                <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-mint">Comparative Highlights</p>
+                <div className="space-y-2 text-sm text-ink-dim">
                   {comparativeHighlights.map((line) => (
                     <p key={line}>{line}</p>
                   ))}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <div className="rounded-xl border border-[#2b3150] bg-[#0f1430] px-3 py-2 text-xs uppercase tracking-[0.14em] text-[#8ea4df]">
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs uppercase tracking-[0.14em] text-ink-muted">
                 Page 1 - Executive Comparison Snapshot
               </div>
 
-              <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-[#f5f7ff]">Executive Summary</CardTitle>
-                  <p className="text-xs text-[#9ca8d0]">
-                    Comparative report for {reportCampaignLabel} | Generated on {formatDateLabel(activeReport.generatedAt)}
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm text-[#d4dbfb]">
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <h3 className="text-lg font-semibold text-ink">Executive Summary</h3>
+                <p className="mb-2 text-xs text-ink-muted">
+                  Comparative report for {reportCampaignLabel} | Generated on {formatDateLabel(activeReport.generatedAt)}
+                </p>
+                <div className="space-y-2 text-sm text-ink-dim">
                   {activeReport.summaryLines.map((line) => (
                     <p key={line}>{line}</p>
                   ))}
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-[#f5f7ff]">KPI Table</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border-collapse text-sm">
-                      <thead>
-                        <tr className="text-left text-[#9ca8d0]">
-                          <th className="border-b border-[#2b3150] px-3 py-2">Campaign Name</th>
-                          <th className="border-b border-[#2b3150] px-3 py-2">Total Responses</th>
-                          <th className="border-b border-[#2b3150] px-3 py-2">Engagement / Day</th>
-                          <th className="border-b border-[#2b3150] px-3 py-2">Positive %</th>
-                          <th className="border-b border-[#2b3150] px-3 py-2">Negative %</th>
-                          <th className="border-b border-[#2b3150] px-3 py-2">Sentiment Score</th>
-                          <th className="border-b border-[#2b3150] px-3 py-2">Rank</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {activeReport.metrics.map((metric) => (
-                          <tr key={metric.campaignId} className="text-[#e6ebff]">
-                            <td className="border-b border-[#232946] px-3 py-2">{metric.campaignName}</td>
-                            <td className="border-b border-[#232946] px-3 py-2">{metric.totalResponses}</td>
-                            <td className="border-b border-[#232946] px-3 py-2">{metric.engagementRate.toFixed(1)}</td>
-                            <td className="border-b border-[#232946] px-3 py-2 text-[#4ade80]">
-                              {formatPercent(metric.positiveRate)}
-                            </td>
-                            <td className="border-b border-[#232946] px-3 py-2 text-[#f87171]">
-                              {formatPercent(metric.negativeRate)}
-                            </td>
-                            <td className="border-b border-[#232946] px-3 py-2 text-[#93c5fd]">{metric.sentimentScore.toFixed(1)}</td>
-                            <td className="border-b border-[#232946] px-3 py-2">#{metric.rank}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="grid gap-5 xl:grid-cols-2">
-                <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg text-[#f5f7ff]">Responses Over Time</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {lineChartData.length > 0 ? (
-                      <div className="h-[290px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={lineChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                            <CartesianGrid stroke="#2b3150" strokeDasharray="3 3" />
-                            <XAxis dataKey="label" stroke="#9ca8d0" tick={{ fill: "#9ca8d0", fontSize: 12 }} />
-                            <YAxis
-                              stroke="#9ca8d0"
-                              tick={{ fill: "#9ca8d0", fontSize: 12 }}
-                              label={{ value: "Responses", angle: -90, position: "insideLeft", fill: "#9ca8d0", fontSize: 11 }}
-                            />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: "#0f1430",
-                                border: "1px solid #2b3150",
-                                borderRadius: "10px",
-                              }}
-                              labelStyle={{ color: "#dbe4ff" }}
-                              formatter={(value: number, name: string) => [`${value} responses`, name]}
-                            />
-                            <Legend />
-                            {activeReportCampaigns.map((campaign, index) => {
-                              const colors = ["#38bdf8", "#a78bfa", "#34d399"]
-                              return (
-                                <Line
-                                  key={campaign.id}
-                                  type="monotone"
-                                  dataKey={campaign.name}
-                                  stroke={colors[index]}
-                                  strokeWidth={2}
-                                  dot={{ r: 2 }}
-                                  activeDot={{ r: 4 }}
-                                />
-                              )
-                            })}
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-[#9ca8d0]">No timeline data available for selected campaigns.</p>
-                    )}
-                    <p className="mt-3 text-xs text-[#9ca8d0]">
-                      This chart compares how response volume changed across each selected campaign date by date.
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg text-[#f5f7ff]">Positive vs Negative Responses</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {barChartData.length > 0 ? (
-                      <div className="h-[290px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={barChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                            <CartesianGrid stroke="#2b3150" strokeDasharray="3 3" />
-                            <XAxis dataKey="name" stroke="#9ca8d0" tick={{ fill: "#9ca8d0", fontSize: 12 }} />
-                            <YAxis
-                              stroke="#9ca8d0"
-                              tick={{ fill: "#9ca8d0", fontSize: 12 }}
-                              label={{ value: "Responses", angle: -90, position: "insideLeft", fill: "#9ca8d0", fontSize: 11 }}
-                            />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: "#0f1430",
-                                border: "1px solid #2b3150",
-                                borderRadius: "10px",
-                              }}
-                              formatter={(value: number, name: string) => [`${value} responses`, name]}
-                            />
-                            <Legend />
-                            <Bar dataKey="positive" name="Positive" fill="#22c55e" radius={[5, 5, 0, 0]} />
-                            <Bar dataKey="negative" name="Negative" fill="#ef4444" radius={[5, 5, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-[#9ca8d0]">No sentiment totals available for selected campaigns.</p>
-                    )}
-                    <p className="mt-3 text-xs text-[#9ca8d0]">
-                      Bars highlight positive (green) and negative (red) totals to expose sentiment quality gaps.
-                    </p>
-                  </CardContent>
-                </Card>
+                </div>
               </div>
 
-              <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-[#f5f7ff]">Analytics Summary Visuals</CardTitle>
-                  <p className="text-xs text-[#9ca8d0]">
-                    Response distribution, sentiment movement over time, and response-vs-sentiment pattern mapping.
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-5 xl:grid-cols-3">
-                    <div className="rounded-xl border border-[#2b3150] bg-[#0f1430] p-3">
-                      <p className="mb-2 text-sm font-medium text-[#dbe1ff]">Response Distribution</p>
-                      {responseDistributionData.length > 0 ? (
-                        <div className="h-[270px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={responseDistributionData}
-                                dataKey="value"
-                                nameKey="name"
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={58}
-                                outerRadius={92}
-                                paddingAngle={3}
-                              >
-                                {responseDistributionData.map((entry, index) => (
-                                  <Cell
-                                    key={`distribution-${entry.name}`}
-                                    fill={DISTRIBUTION_COLORS[index % DISTRIBUTION_COLORS.length]}
-                                  />
-                                ))}
-                              </Pie>
-                              <Tooltip
-                                contentStyle={{
-                                  backgroundColor: "#0f1430",
-                                  border: "1px solid #2b3150",
-                                  borderRadius: "10px",
-                                }}
-                                labelStyle={{ color: "#dbe4ff" }}
-                                formatter={(value: number, _name: string, payload) => {
-                                  const share = Number(payload?.payload?.sharePct || 0)
-                                  return [`${value} responses (${share.toFixed(1)}%)`, payload?.name || "Campaign"]
-                                }}
-                              />
-                              <Legend wrapperStyle={{ color: "#c9d6ff", fontSize: "12px" }} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-[#9ca8d0]">No distribution data available.</p>
-                      )}
-                    </div>
-
-                    <div className="rounded-xl border border-[#2b3150] bg-[#0f1430] p-3">
-                      <p className="mb-2 text-sm font-medium text-[#dbe1ff]">Sentiment Trend Over Time</p>
-                      {sentimentTrendData.length > 0 ? (
-                        <div className="h-[270px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={sentimentTrendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                              <CartesianGrid stroke="#2b3150" strokeDasharray="3 3" />
-                              <XAxis dataKey="label" stroke="#9ca8d0" tick={{ fill: "#9ca8d0", fontSize: 12 }} />
-                              <YAxis stroke="#9ca8d0" tick={{ fill: "#9ca8d0", fontSize: 12 }} />
-                              <Tooltip
-                                contentStyle={{
-                                  backgroundColor: "#0f1430",
-                                  border: "1px solid #2b3150",
-                                  borderRadius: "10px",
-                                }}
-                                labelStyle={{ color: "#dbe4ff" }}
-                              />
-                              <Legend wrapperStyle={{ color: "#c9d6ff", fontSize: "12px" }} />
-                              <Area
-                                type="monotone"
-                                dataKey="sentimentScore"
-                                name="Sentiment Score"
-                                stroke="#22d3ee"
-                                fill="#22d3ee"
-                                fillOpacity={0.26}
-                                strokeWidth={2}
-                              />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-[#9ca8d0]">No sentiment trend data available.</p>
-                      )}
-                    </div>
-
-                    <div className="rounded-xl border border-[#2b3150] bg-[#0f1430] p-3">
-                      <p className="mb-2 text-sm font-medium text-[#dbe1ff]">Responses vs Sentiment Score</p>
-                      {responseVsSentimentData.length > 0 ? (
-                        <div className="h-[270px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <ScatterChart margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                              <CartesianGrid stroke="#2b3150" strokeDasharray="3 3" />
-                              <XAxis
-                                type="number"
-                                dataKey="responses"
-                                name="Responses"
-                                stroke="#9ca8d0"
-                                tick={{ fill: "#9ca8d0", fontSize: 12 }}
-                              />
-                              <YAxis
-                                type="number"
-                                dataKey="sentimentScore"
-                                name="Sentiment Score"
-                                stroke="#9ca8d0"
-                                tick={{ fill: "#9ca8d0", fontSize: 12 }}
-                              />
-                              <Tooltip
-                                cursor={{ strokeDasharray: "3 3" }}
-                                contentStyle={{
-                                  backgroundColor: "#0f1430",
-                                  border: "1px solid #2b3150",
-                                  borderRadius: "10px",
-                                }}
-                                labelStyle={{ color: "#dbe4ff" }}
-                                formatter={(value: number, name: string) => [value, name]}
-                                content={({ active, payload }) => {
-                                  if (!active || !payload || payload.length === 0) return null
-                                  const point = payload[0]?.payload as {
-                                    campaignName: string
-                                    responses: number
-                                    sentimentScore: number
-                                    engagementRate: number
-                                  }
-                                  if (!point) return null
-                                  return (
-                                    <div className="rounded-lg border border-[#2b3150] bg-[#0f1430] p-2 text-xs text-[#dbe4ff]">
-                                      <p className="font-semibold text-[#f5f7ff]">{point.campaignName}</p>
-                                      <p>Responses: {point.responses}</p>
-                                      <p>Sentiment Score: {point.sentimentScore}</p>
-                                      <p>Engagement/Day: {point.engagementRate}</p>
-                                    </div>
-                                  )
-                                }}
-                              />
-                              <Legend wrapperStyle={{ color: "#c9d6ff", fontSize: "12px" }} />
-                              <Scatter
-                                name="Campaign Points"
-                                data={responseVsSentimentData}
-                                fill="#a78bfa"
-                              />
-                            </ScatterChart>
-                          </ResponsiveContainer>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-[#9ca8d0]">No scatter data available.</p>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-[#f5f7ff]">Comparative Trend Deltas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {activeReport.pairwise.length > 0 ? (
-                    <div className="space-y-2">
-                      {activeReport.pairwise.map((comparison) => (
-                        <div
-                          key={`${comparison.previousCampaignId}-${comparison.currentCampaignId}`}
-                          className="rounded-xl border border-[#2b3150] bg-[#0f1430] p-3 text-sm"
-                        >
-                          <p className="font-medium text-[#e3e9ff]">
-                            {comparison.currentCampaignName} vs {comparison.previousCampaignName}
-                          </p>
-                          <p className="mt-1 text-[#aeb8db]">
-                            Response change: {formatDeltaPercent(comparison.responseChangePct)} | Negative-rate change: {formatDeltaPercent(comparison.negativeRateChangePct)}
-                          </p>
-                        </div>
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <h3 className="mb-3 text-lg font-semibold text-ink">KPI Table</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="text-left text-ink-muted">
+                        <th className="border-b border-white/[0.06] px-3 py-2">Campaign Name</th>
+                        <th className="border-b border-white/[0.06] px-3 py-2">Total Responses</th>
+                        <th className="border-b border-white/[0.06] px-3 py-2">Engagement / Day</th>
+                        <th className="border-b border-white/[0.06] px-3 py-2">Positive %</th>
+                        <th className="border-b border-white/[0.06] px-3 py-2">Negative %</th>
+                        <th className="border-b border-white/[0.06] px-3 py-2">Sentiment Score</th>
+                        <th className="border-b border-white/[0.06] px-3 py-2">Rank</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeReport.metrics.map((metric) => (
+                        <tr key={metric.campaignId} className="text-ink">
+                          <td className="border-b border-white/[0.05] px-3 py-2">{metric.campaignName}</td>
+                          <td className="border-b border-white/[0.05] px-3 py-2">{metric.totalResponses}</td>
+                          <td className="border-b border-white/[0.05] px-3 py-2">{metric.engagementRate.toFixed(1)}</td>
+                          <td className="border-b border-white/[0.05] px-3 py-2 text-mint">
+                            {formatPercent(metric.positiveRate)}
+                          </td>
+                          <td className="border-b border-white/[0.05] px-3 py-2 text-destructive">
+                            {formatPercent(metric.negativeRate)}
+                          </td>
+                          <td className="border-b border-white/[0.05] px-3 py-2 text-gold">{metric.sentimentScore.toFixed(1)}</td>
+                          <td className="border-b border-white/[0.05] px-3 py-2">#{metric.rank}</td>
+                        </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="grid gap-5 xl:grid-cols-2">
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                  <h3 className="mb-3 text-lg font-semibold text-ink">Responses Over Time</h3>
+                  {lineChartData.length > 0 ? (
+                    <div className="h-[290px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={lineChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                          <CartesianGrid stroke="rgba(255,255,255,0.1)" strokeDasharray="3 3" />
+                          <XAxis dataKey="label" stroke="#878CA0" tick={{ fill: "#878CA0", fontSize: 12 }} />
+                          <YAxis
+                            stroke="#878CA0"
+                            tick={{ fill: "#878CA0", fontSize: 12 }}
+                            label={{ value: "Responses", angle: -90, position: "insideLeft", fill: "#878CA0", fontSize: 11 }}
+                            allowDecimals={false}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "#1B1F2A",
+                              border: "1px solid rgba(255,255,255,0.1)",
+                              borderRadius: "10px",
+                            }}
+                            labelStyle={{ color: "#B6BACB" }}
+                            formatter={(value: number, name: string) => [`${value} responses`, name]}
+                          />
+                          <Legend />
+                          {activeReportCampaigns.map((campaign, index) => (
+                            <Line
+                              key={campaign.id}
+                              type="monotone"
+                              dataKey={campaign.name}
+                              stroke={LEDGER_SERIES_COLORS[index % LEDGER_SERIES_COLORS.length]}
+                              strokeWidth={2}
+                              dot={{ r: 2 }}
+                              activeDot={{ r: 4 }}
+                            />
+                          ))}
+                        </LineChart>
+                      </ResponsiveContainer>
                     </div>
                   ) : (
-                    <p className="text-sm text-[#9ca8d0]">Not enough campaigns selected for comparative pair analysis.</p>
+                    <p className="text-sm text-ink-muted">No timeline data available for selected campaigns.</p>
                   )}
-                </CardContent>
-              </Card>
+                  <p className="mt-3 text-xs text-ink-muted">
+                    This chart compares how response volume changed across each selected campaign date by date.
+                  </p>
+                </div>
 
-              <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-[#f5f7ff]">Auto-Generated Insights</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-sm text-[#d4dbfb]">
-                    {activeReport.insights.map((insight) => (
-                      <li key={insight} className="rounded-xl border border-[#2b3150] bg-[#0f1430] px-3 py-2">
-                        {insight}
-                      </li>
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                  <h3 className="mb-3 text-lg font-semibold text-ink">Positive vs Negative Responses</h3>
+                  {barChartData.length > 0 ? (
+                    <div className="h-[290px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={barChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                          <CartesianGrid stroke="rgba(255,255,255,0.1)" strokeDasharray="3 3" />
+                          <XAxis dataKey="name" stroke="#878CA0" tick={{ fill: "#878CA0", fontSize: 12 }} />
+                          <YAxis
+                            stroke="#878CA0"
+                            tick={{ fill: "#878CA0", fontSize: 12 }}
+                            label={{ value: "Responses", angle: -90, position: "insideLeft", fill: "#878CA0", fontSize: 11 }}
+                            allowDecimals={false}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "#1B1F2A",
+                              border: "1px solid rgba(255,255,255,0.1)",
+                              borderRadius: "10px",
+                            }}
+                            formatter={(value: number, name: string) => [`${value} responses`, name]}
+                          />
+                          <Legend />
+                          <Bar dataKey="positive" name="Positive" fill="#5FD0A6" radius={[5, 5, 0, 0]} />
+                          <Bar dataKey="negative" name="Negative" fill="#F0899A" radius={[5, 5, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-ink-muted">No sentiment totals available for selected campaigns.</p>
+                  )}
+                  <p className="mt-3 text-xs text-ink-muted">
+                    Bars highlight positive (mint) and negative (rose) totals to expose sentiment quality gaps.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <h3 className="text-lg font-semibold text-ink">Analytics Summary Visuals</h3>
+                <p className="mb-3 text-xs text-ink-muted">
+                  Response distribution, sentiment movement over time, and response-vs-sentiment pattern mapping.
+                </p>
+                <div className="grid gap-5 xl:grid-cols-3">
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+                    <p className="mb-2 text-sm font-medium text-ink">Response Distribution</p>
+                    {responseDistributionData.length > 0 ? (
+                      <div className="h-[270px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={responseDistributionData}
+                              dataKey="value"
+                              nameKey="name"
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={58}
+                              outerRadius={92}
+                              paddingAngle={3}
+                            >
+                              {responseDistributionData.map((entry, index) => (
+                                <Cell
+                                  key={`distribution-${entry.name}`}
+                                  fill={LEDGER_SERIES_COLORS[index % LEDGER_SERIES_COLORS.length]}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "#1B1F2A",
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                borderRadius: "10px",
+                              }}
+                              labelStyle={{ color: "#B6BACB" }}
+                              formatter={(value: number, _name: string, payload) => {
+                                const share = Number(payload?.payload?.sharePct || 0)
+                                return [`${value} responses (${share.toFixed(1)}%)`, payload?.name || "Campaign"]
+                              }}
+                            />
+                            <Legend wrapperStyle={{ color: "#B6BACB", fontSize: "12px" }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-ink-muted">No distribution data available.</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+                    <p className="mb-2 text-sm font-medium text-ink">Sentiment Trend Over Time</p>
+                    {sentimentTrendData.length > 0 ? (
+                      <div className="h-[270px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={sentimentTrendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <CartesianGrid stroke="rgba(255,255,255,0.1)" strokeDasharray="3 3" />
+                            <XAxis dataKey="label" stroke="#878CA0" tick={{ fill: "#878CA0", fontSize: 12 }} />
+                            <YAxis stroke="#878CA0" tick={{ fill: "#878CA0", fontSize: 12 }} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "#1B1F2A",
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                borderRadius: "10px",
+                              }}
+                              labelStyle={{ color: "#B6BACB" }}
+                            />
+                            <Legend wrapperStyle={{ color: "#B6BACB", fontSize: "12px" }} />
+                            <Area
+                              type="monotone"
+                              dataKey="sentimentScore"
+                              name="Sentiment Score"
+                              stroke="#EBBC6B"
+                              fill="#EBBC6B"
+                              fillOpacity={0.26}
+                              strokeWidth={2}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-ink-muted">No sentiment trend data available.</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+                    <p className="mb-2 text-sm font-medium text-ink">Responses vs Sentiment Score</p>
+                    {responseVsSentimentData.length > 0 ? (
+                      <div className="h-[270px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <ScatterChart margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <CartesianGrid stroke="rgba(255,255,255,0.1)" strokeDasharray="3 3" />
+                            <XAxis
+                              type="number"
+                              dataKey="responses"
+                              name="Responses"
+                              stroke="#878CA0"
+                              tick={{ fill: "#878CA0", fontSize: 12 }}
+                            />
+                            <YAxis
+                              type="number"
+                              dataKey="sentimentScore"
+                              name="Sentiment Score"
+                              stroke="#878CA0"
+                              tick={{ fill: "#878CA0", fontSize: 12 }}
+                            />
+                            <Tooltip
+                              cursor={{ strokeDasharray: "3 3" }}
+                              contentStyle={{
+                                backgroundColor: "#1B1F2A",
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                borderRadius: "10px",
+                              }}
+                              labelStyle={{ color: "#B6BACB" }}
+                              formatter={(value: number, name: string) => [value, name]}
+                              content={({ active, payload }) => {
+                                if (!active || !payload || payload.length === 0) return null
+                                const point = payload[0]?.payload as {
+                                  campaignName: string
+                                  responses: number
+                                  sentimentScore: number
+                                  engagementRate: number
+                                }
+                                if (!point) return null
+                                return (
+                                  <div className="rounded-lg border border-white/10 bg-surface-raised p-2 text-xs text-ink-dim">
+                                    <p className="font-semibold text-ink">{point.campaignName}</p>
+                                    <p>Responses: {point.responses}</p>
+                                    <p>Sentiment Score: {point.sentimentScore}</p>
+                                    <p>Engagement/Day: {point.engagementRate}</p>
+                                  </div>
+                                )
+                              }}
+                            />
+                            <Legend wrapperStyle={{ color: "#B6BACB", fontSize: "12px" }} />
+                            <Scatter name="Campaign Points" data={responseVsSentimentData} fill="#EBBC6B" />
+                          </ScatterChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-ink-muted">No scatter data available.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <h3 className="mb-3 text-lg font-semibold text-ink">Comparative Trend Deltas</h3>
+                {activeReport.pairwise.length > 0 ? (
+                  <div className="space-y-2">
+                    {activeReport.pairwise.map((comparison) => (
+                      <div
+                        key={`${comparison.previousCampaignId}-${comparison.currentCampaignId}`}
+                        className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-sm"
+                      >
+                        <p className="font-medium text-ink">
+                          {comparison.currentCampaignName} vs {comparison.previousCampaignName}
+                        </p>
+                        <p className="mt-1 text-ink-muted">
+                          Response change: {formatDeltaPercent(comparison.responseChangePct)} | Negative-rate change: {formatDeltaPercent(comparison.negativeRateChangePct)}
+                        </p>
+                      </div>
                     ))}
-                  </ul>
-                </CardContent>
-              </Card>
+                  </div>
+                ) : (
+                  <p className="text-sm text-ink-muted">Not enough campaigns selected for comparative pair analysis.</p>
+                )}
+              </div>
 
-              <div className="rounded-xl border border-[#2b3150] bg-[#0f1430] px-3 py-2 text-xs uppercase tracking-[0.14em] text-[#8ea4df]">
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <h3 className="mb-3 text-lg font-semibold text-ink">Auto-Generated Insights</h3>
+                <ul className="space-y-2 text-sm text-ink-dim">
+                  {activeReport.insights.map((insight) => (
+                    <li key={insight} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                      {insight}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs uppercase tracking-[0.14em] text-ink-muted">
                 Page 2 - Advanced Analytics Interpretation
               </div>
 
-              <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-[#f5f7ff]">Advanced Metrics Section</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border-collapse text-sm">
-                      <thead>
-                        <tr className="text-left text-[#9ca8d0]">
-                          <th className="border-b border-[#2b3150] px-3 py-2">Campaign</th>
-                          <th className="border-b border-[#2b3150] px-3 py-2">Engagement Rate</th>
-                          <th className="border-b border-[#2b3150] px-3 py-2">Consistency</th>
-                          <th className="border-b border-[#2b3150] px-3 py-2">Sentiment Score</th>
-                          <th className="border-b border-[#2b3150] px-3 py-2">Peak Contribution</th>
-                          <th className="border-b border-[#2b3150] px-3 py-2">Drop-off</th>
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <h3 className="mb-3 text-lg font-semibold text-ink">Advanced Metrics Section</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="text-left text-ink-muted">
+                        <th className="border-b border-white/[0.06] px-3 py-2">Campaign</th>
+                        <th className="border-b border-white/[0.06] px-3 py-2">Engagement Rate</th>
+                        <th className="border-b border-white/[0.06] px-3 py-2">Consistency</th>
+                        <th className="border-b border-white/[0.06] px-3 py-2">Sentiment Score</th>
+                        <th className="border-b border-white/[0.06] px-3 py-2">Peak Contribution</th>
+                        <th className="border-b border-white/[0.06] px-3 py-2">Drop-off</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeReport.metrics.map((metric) => (
+                        <tr key={`advanced-${metric.campaignId}`} className="text-ink">
+                          <td className="border-b border-white/[0.05] px-3 py-2">{metric.campaignName}</td>
+                          <td className="border-b border-white/[0.05] px-3 py-2">{metric.engagementRate.toFixed(2)} / day</td>
+                          <td className="border-b border-white/[0.05] px-3 py-2">{metric.consistencyLevel} ({metric.consistencyScore.toFixed(2)})</td>
+                          <td className="border-b border-white/[0.05] px-3 py-2">{metric.sentimentScore.toFixed(1)}</td>
+                          <td className="border-b border-white/[0.05] px-3 py-2">{metric.peakContributionPct.toFixed(1)}%</td>
+                          <td className="border-b border-white/[0.05] px-3 py-2">{metric.dropOffPct.toFixed(1)}%</td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {activeReport.metrics.map((metric) => (
-                          <tr key={`advanced-${metric.campaignId}`} className="text-[#e6ebff]">
-                            <td className="border-b border-[#232946] px-3 py-2">{metric.campaignName}</td>
-                            <td className="border-b border-[#232946] px-3 py-2">{metric.engagementRate.toFixed(2)} / day</td>
-                            <td className="border-b border-[#232946] px-3 py-2">{metric.consistencyLevel} ({metric.consistencyScore.toFixed(2)})</td>
-                            <td className="border-b border-[#232946] px-3 py-2">{metric.sentimentScore.toFixed(1)}</td>
-                            <td className="border-b border-[#232946] px-3 py-2">{metric.peakContributionPct.toFixed(1)}%</td>
-                            <td className="border-b border-[#232946] px-3 py-2">{metric.dropOffPct.toFixed(1)}%</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-              <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-[#f5f7ff]">Comparative Analysis</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm text-[#d4dbfb]">
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <h3 className="mb-3 text-lg font-semibold text-ink">Comparative Analysis</h3>
+                <div className="space-y-2 text-sm text-ink-dim">
                   {activeReport.comparativeAnalysis.map((paragraph) => (
-                    <p key={paragraph} className="rounded-xl border border-[#2b3150] bg-[#0f1430] px-3 py-2">
+                    <p key={paragraph} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
                       {paragraph}
                     </p>
                   ))}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-[#f5f7ff]">Pattern Observations</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-sm text-[#d4dbfb]">
-                    {activeReport.patternObservations.map((observation) => (
-                      <li key={observation} className="rounded-xl border border-[#2b3150] bg-[#0f1430] px-3 py-2">
-                        {observation}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <h3 className="mb-3 text-lg font-semibold text-ink">Pattern Observations</h3>
+                <ul className="space-y-2 text-sm text-ink-dim">
+                  {activeReport.patternObservations.map((observation) => (
+                    <li key={observation} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                      {observation}
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
-              <Card className="rounded-2xl border border-[#2b3150] bg-[#121735]">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-[#f5f7ff]">Final Recommendation</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="rounded-xl border border-[#2b3150] bg-[#0f1430] px-3 py-2 text-sm text-[#d4dbfb]">
-                    {activeReport.finalRecommendation}
-                  </p>
-                </CardContent>
-              </Card>
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <h3 className="mb-3 text-lg font-semibold text-ink">Final Recommendation</h3>
+                <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-sm text-ink-dim">
+                  {activeReport.finalRecommendation}
+                </p>
+              </div>
 
-              <Card className="rounded-2xl border border-[#2b3150] bg-[#101a38]">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-[#d9e5ff]">Final Summarization</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 text-sm text-[#dbe5ff]">
-                    {activeReport.finalSummary.map((line) => (
-                      <p key={line}>{line}</p>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
+                <h3 className="mb-3 text-lg font-semibold text-ink">Final Summarization</h3>
+                <div className="space-y-2 text-sm text-ink-dim">
+                  {activeReport.finalSummary.map((line) => (
+                    <p key={line}>{line}</p>
+                  ))}
+                </div>
+              </div>
             </div>
           </section>
         ) : null}
@@ -2149,7 +1977,6 @@ function ClientAnalyticsPageContent() {
             />
           </div>
         ) : null}
-
       </main>
     </div>
   )
@@ -2157,7 +1984,7 @@ function ClientAnalyticsPageContent() {
 
 export default function ClientAnalyticsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#090b14]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
       <ClientAnalyticsPageContent />
     </Suspense>
   )
