@@ -35,39 +35,6 @@ select option {
   padding: 8px 12px;
 }
 
-/* Improved card styling */
-.space-card {
-  background: linear-gradient(145deg, rgba(20, 18, 38, 0.72), rgba(10, 11, 20, 0.72));
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(167, 139, 250, 0.16);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  transition: all 0.3s ease;
-  will-change: transform;
-  transform: translateZ(0);
-}
-
-.space-card:hover {
-  border-color: rgba(167, 139, 250, 0.35);
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45), 0 0 48px rgba(139, 92, 246, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  transform: translateY(-4px) translateZ(0);
-}
-
-/* Improved text visibility */
-.neon-text {
-  color: #14b8a6;
-  text-shadow: 0 0 5px #14b8a6, 0 0 10px #14b8a6, 0 0 15px #14b8a6;
-}
-
-.neon-purple {
-  color: #a855f7;
-  text-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
-}
-
-.neon-red {
-  color: #ef4444;
-  text-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
-}
-
 input,
 textarea,
 select {
@@ -78,36 +45,6 @@ select {
 input::placeholder,
 textarea::placeholder {
   color: hsl(228 12% 58%) !important;
-}
-
-/* Glowing borders */
-.glow-border {
-  position: relative;
-  border: 1px solid rgba(71, 85, 105, 0.3);
-  transition: all 0.3s ease;
-}
-
-.glow-border:hover {
-  border-color: rgba(71, 85, 105, 0.6);
-  box-shadow: 0 0 15px rgba(71, 85, 105, 0.2);
-}
-
-.glow-border-purple {
-  border: 1px solid rgba(168, 85, 247, 0.3);
-}
-
-.glow-border-purple:hover {
-  border-color: rgba(168, 85, 247, 0.6);
-  box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
-}
-
-.glow-border-red {
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.glow-border-red:hover {
-  border-color: rgba(239, 68, 68, 0.6);
-  box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
 }
 
 /* Floating animation */
