@@ -44,7 +44,7 @@ export default function ClientSignupPage() {
       companyName,
       category: "Service",
     })
-    router.push("/client-home")
+    router.push("/client/dashboard")
   }
 
   return (

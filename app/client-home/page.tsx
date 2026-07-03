@@ -1,5 +1,5 @@
-import ClientHomeContent from "./client-home-content"
+import { redirect } from "next/navigation"
 
-export default function ClientHomePageRoute() {
-  return <ClientHomeContent />
+export default function ClientHomePage() {
+  redirect("/client/dashboard")
 }

@@ -42,7 +42,7 @@ export default function ClientCompanies() {
   ])
 
   const handleViewAnalysis = (companyId: number) => {
-    router.push(`/client-dashboard?company=${companyId}`)
+    router.push(`/client/dashboard?company=${companyId}`)
   }
 
   const handleCreateCampaign = (companyId: number) => {

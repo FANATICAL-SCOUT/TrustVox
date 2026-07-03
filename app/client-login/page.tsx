@@ -44,7 +44,7 @@ export default function ClientLoginPage() {
       role: "client",
     }
     localStorage.setItem("currentClient", JSON.stringify(currentClient))
-    router.push("/client-home")
+    router.push("/client/dashboard")
   }
 
   return (

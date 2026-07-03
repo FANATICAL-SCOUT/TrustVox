@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 const navItems = [
-  { name: "Dashboard", href: "/client/dashboard", icon: LayoutDashboard, match: ["/client/dashboard", "/client/home", "/client-home", "/client-dashboard"] },
+  { name: "Dashboard", href: "/client/dashboard", icon: LayoutDashboard, match: ["/client/dashboard"] },
   { name: "My Forms", href: "/client/forms", icon: FileText, match: ["/client/forms"] },
   { name: "Create Form", href: "/client/create", icon: Plus, match: ["/client/create", "/client/create-feedback"] },
   { name: "Campaigns", href: "/client/campaigns", icon: Rocket, match: ["/client/campaigns"] },
