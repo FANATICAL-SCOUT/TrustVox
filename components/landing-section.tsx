@@ -116,9 +116,17 @@ export default function LandingSection({
     }
   }, [])
 
+  // Staggered offsets so Recommended/Continue/Trending never merge in the same
+  // approved form twice across the three dashboard-home lists.
   const recommended = useMemo(() => mergeWithForms(RECOMMENDED_SEED, approvedForms, 0), [approvedForms])
-  const continueItems = useMemo(() => mergeWithForms(CONTINUE_SEED, approvedForms, 0), [approvedForms])
-  const trending = useMemo(() => mergeWithForms(TRENDING_SEED, approvedForms, 2), [approvedForms])
+  const continueItems = useMemo(
+    () => mergeWithForms(CONTINUE_SEED, approvedForms, RECOMMENDED_SEED.length),
+    [approvedForms],
+  )
+  const trending = useMemo(
+    () => mergeWithForms(TRENDING_SEED, approvedForms, RECOMMENDED_SEED.length + CONTINUE_SEED.length),
+    [approvedForms],
+  )
 
   const handleSearchSelect = (item: any) => {
     const selectedId = item?.id

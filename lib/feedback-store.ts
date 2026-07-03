@@ -166,6 +166,160 @@ const SEED_FORMS: FeedbackForm[] = [
       },
     ],
   },
+  {
+    id: "form-seed-4",
+    title: "Seller Dashboard Feedback",
+    description: "Help us improve the seller dashboard you use every day.",
+    product: "Flipkart Seller Hub",
+    category: "E-Commerce",
+    companyId: "co-e-commerce-4",
+    status: "approved",
+    clientId: "client-1",
+    clientName: "Flipkart",
+    createdAt: "2026-05-02T09:00:00Z",
+    submittedAt: "2026-05-03T10:00:00Z",
+    approvedAt: "2026-05-04T13:00:00Z",
+    rewardTokens: 32,
+    responseCount: 63,
+    questions: [
+      {
+        id: "q1",
+        type: "star-rating",
+        title: "How would you rate the new seller dashboard?",
+        required: true,
+        options: [],
+      },
+      {
+        id: "q2",
+        type: "multi-select",
+        title: "Which sections do you use most?",
+        required: false,
+        options: ["Orders", "Inventory", "Payments", "Analytics", "Returns"],
+      },
+      {
+        id: "q3",
+        type: "text-short",
+        title: "What's one thing that would make the dashboard faster to use?",
+        required: false,
+        options: [],
+      },
+    ],
+  },
+  {
+    id: "form-seed-5",
+    title: "Rewards App Experience",
+    description: "Share your experience with the redesigned Rewards app.",
+    product: "Starbucks Rewards App",
+    category: "Food & Beverage",
+    companyId: "co-food-beverage-4",
+    status: "approved",
+    clientId: "client-1",
+    clientName: "Starbucks",
+    createdAt: "2026-05-10T09:00:00Z",
+    submittedAt: "2026-05-11T10:00:00Z",
+    approvedAt: "2026-05-12T13:00:00Z",
+    rewardTokens: 20,
+    responseCount: 89,
+    questions: [
+      {
+        id: "q1",
+        type: "star-rating",
+        title: "How satisfied are you with the Rewards app?",
+        required: true,
+        options: [],
+      },
+      {
+        id: "q2",
+        type: "multiple-choice",
+        title: "How often do you redeem rewards?",
+        required: false,
+        options: ["Every visit", "Weekly", "Monthly", "Rarely"],
+      },
+      {
+        id: "q3",
+        type: "voice-feedback",
+        title: "Tell us about your last redemption experience",
+        required: false,
+        options: [],
+      },
+      {
+        id: "q4",
+        type: "text-long",
+        title: "Anything you'd like to see added to the app?",
+        required: false,
+        options: [],
+      },
+    ],
+  },
+];
+
+// Sample submitted responses so History reads as populated in the demo.
+// Tied to distinct seed userIds (never "anonymous") so they never block the
+// live demo user from submitting any approved form themselves.
+const SEED_RESPONSES: FormResponse[] = [
+  {
+    id: "resp-seed-1",
+    formId: "form-seed-1",
+    userId: "seed-user-1",
+    submittedAt: "2026-06-20T14:32:00Z",
+    rewardTokens: 40,
+    answers: {
+      q4: "The dashboard redesign feels a lot snappier than before. Great work on the loading times!",
+      q1: 5,
+      q2: "Search Engine",
+      q3: ["Easy to use", "Reliable"],
+    },
+  },
+  {
+    id: "resp-seed-2",
+    formId: "form-seed-1",
+    userId: "seed-user-2",
+    submittedAt: "2026-06-25T09:10:00Z",
+    rewardTokens: 40,
+    answers: {
+      q4: "Support resolved my billing question within minutes. Would love a dark mode toggle though.",
+      q1: 4,
+      q2: "Friend/Colleague",
+      q3: ["Fast", "Great support"],
+    },
+  },
+  {
+    id: "resp-seed-3",
+    formId: "form-seed-4",
+    userId: "seed-user-3",
+    submittedAt: "2026-06-22T11:05:00Z",
+    rewardTokens: 32,
+    answers: {
+      q1: 4,
+      q2: ["Orders", "Analytics"],
+      q3: "Bulk-editing prices across listings would save me a ton of time.",
+    },
+  },
+  {
+    id: "resp-seed-4",
+    formId: "form-seed-5",
+    userId: "seed-user-4",
+    submittedAt: "2026-06-28T16:45:00Z",
+    rewardTokens: 20,
+    answers: {
+      q4: "Would love seasonal drink previews inside the app before they launch in stores.",
+      q1: 5,
+      q2: "Every visit",
+      q3: "Redeemed a free drink this morning, the scan-to-pay flow was seamless.",
+    },
+  },
+  {
+    id: "resp-seed-5",
+    formId: "form-seed-5",
+    userId: "seed-user-5",
+    submittedAt: "2026-06-30T08:20:00Z",
+    rewardTokens: 20,
+    answers: {
+      q4: "Star balance sometimes takes a day to update after purchase.",
+      q1: 3,
+      q2: "Monthly",
+    },
+  },
 ];
 
 // ── Low-level storage helpers ─────────────────────────────────────────────────
@@ -301,9 +455,13 @@ function readResponses(): FormResponse[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(RESPONSES_KEY);
-    return raw ? (JSON.parse(raw) as FormResponse[]) : [];
+    if (!raw) {
+      localStorage.setItem(RESPONSES_KEY, JSON.stringify(SEED_RESPONSES));
+      return SEED_RESPONSES;
+    }
+    return JSON.parse(raw) as FormResponse[];
   } catch {
-    return [];
+    return SEED_RESPONSES;
   }
 }
 
