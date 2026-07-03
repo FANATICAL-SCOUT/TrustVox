@@ -36,7 +36,7 @@ export default function ClientNavbar() {
 
   useEffect(() => {
     const stored = getStoredClientData()
-    const email = stored?.contactEmail || stored?.email || "client@trustvox.com"
+    const email = stored?.contactEmail || "client@trustvox.com"
     const company = stored?.companyName || "Client"
     setProfile({ email, company })
   }, [pathname])

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { getFormById } from "@/lib/feedback-store"
 
-function formatDate(value) {
+function formatDate(value: string | undefined) {
   if (!value) return "-"
   const parsed = Date.parse(value)
   if (Number.isNaN(parsed)) return "-"

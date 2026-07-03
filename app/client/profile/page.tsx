@@ -50,7 +50,7 @@ export default function ClientProfilePage() {
       .join("")
   }, [draft.companyName, draft.contactName])
 
-  const onChange = (field, value) => {
+  const onChange = (field: keyof typeof DEFAULT_PROFILE, value: string) => {
     setDraft((prev) => ({ ...prev, [field]: value }))
   }
 

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import UserNavbar from "@/components/user-navbar"
 import StoreSection from "@/components/store-section"
 import { getFeedbackQuota, subscribeToFeedbackQuotaUpdates } from "@/lib/feedback-quota"
-import { refreshSystemNotifications } from "@/lib/user-notifications"
+import { refreshSystemNotifications, type UserNotification } from "@/lib/user-notifications"
 
 export default function StorePage() {
   const router = useRouter()
@@ -37,7 +37,7 @@ export default function StorePage() {
     }
   }, [])
 
-  const handleViewNotification = (notification) => {
+  const handleViewNotification = (notification: UserNotification) => {
     const actionRoute = notification.action?.route
 
     if (notification.type === "reward_pending" || notification.type === "reward_credited") {

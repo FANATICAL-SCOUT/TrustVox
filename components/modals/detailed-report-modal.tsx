@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Star, MessageSquare, Calendar, BarChart3, CheckCircle } from "lucide-react"
+import { Star, MessageSquare, Calendar, BarChart3, CheckCircle, Info } from "lucide-react"
 
 interface DetailedReportModalProps {
   isOpen: boolean

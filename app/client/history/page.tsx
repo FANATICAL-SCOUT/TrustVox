@@ -6,7 +6,17 @@ import { useRouter } from "next/navigation"
 
 const REPORTS_STORAGE_KEY = "trustvox.client.analytics.reports.v1"
 
-function formatDateLabel(value) {
+type HistoryReportMetric = { campaignId: string; campaignName: string }
+type HistoryReport = {
+  id: string
+  generatedAt: string
+  campaignIds: string[]
+  metrics: HistoryReportMetric[]
+  summaryLines: string[]
+  finalSummary: string[]
+}
+
+function formatDateLabel(value: string) {
   const parsed = Date.parse(value)
   if (Number.isNaN(parsed)) return value
   return new Date(parsed).toLocaleString("en-US")
@@ -14,7 +24,7 @@ function formatDateLabel(value) {
 
 export default function ClientAnalyticsHistoryPage() {
   const router = useRouter()
-  const [reports, setReports] = useState([])
+  const [reports, setReports] = useState<HistoryReport[]>([])
 
   useEffect(() => {
     const loadReports = () => {
@@ -37,21 +47,21 @@ export default function ClientAnalyticsHistoryPage() {
             id: entry.id,
             generatedAt: typeof entry.generatedAt === "string" ? entry.generatedAt : new Date().toISOString(),
             campaignIds: Array.isArray(entry.campaignIds)
-              ? entry.campaignIds.filter((id) => typeof id === "string")
+              ? entry.campaignIds.filter((id: unknown) => typeof id === "string")
               : [],
             metrics: Array.isArray(entry.metrics)
               ? entry.metrics
-                  .filter((metric) => typeof metric?.campaignId === "string" && typeof metric?.campaignName === "string")
-                  .map((metric) => ({
+                  .filter((metric: any) => typeof metric?.campaignId === "string" && typeof metric?.campaignName === "string")
+                  .map((metric: HistoryReportMetric) => ({
                     campaignId: metric.campaignId,
                     campaignName: metric.campaignName,
                   }))
               : [],
             summaryLines: Array.isArray(entry.summaryLines)
-              ? entry.summaryLines.filter((line) => typeof line === "string")
+              ? entry.summaryLines.filter((line: unknown) => typeof line === "string")
               : [],
             finalSummary: Array.isArray(entry.finalSummary)
-              ? entry.finalSummary.filter((line) => typeof line === "string")
+              ? entry.finalSummary.filter((line: unknown) => typeof line === "string")
               : [],
           }))
 

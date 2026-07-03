@@ -1,8 +1,59 @@
-function formatPercent(value) {
+type PdfMetric = {
+  campaignId: string
+  campaignName: string
+  totalResponses: number
+  engagementRate: number
+  positiveRate: number
+  negativeRate: number
+  sentimentScore: number
+  consistencyLevel: string
+  consistencyScore: number
+  peakContributionPct: number
+  dropOffPct: number
+  rank: number
+}
+
+type PdfPairwiseComparison = {
+  previousCampaignId: string
+  currentCampaignId: string
+  previousCampaignName: string
+  currentCampaignName: string
+  responseChangePct: number
+  negativeRateChangePct: number
+}
+
+type PdfReport = {
+  generatedAt: string
+  summaryLines: string[]
+  metrics: PdfMetric[]
+  comparativeAnalysis: string[]
+  patternObservations: string[]
+  pairwise: PdfPairwiseComparison[]
+  finalRecommendation: string
+  finalSummary: string[]
+}
+
+type LineChartRow = { date: string; label: string; [key: string]: string | number }
+type BarChartDatum = { name: string; positive: number; negative: number }
+type ResponseDistributionDatum = { name: string; value: number; sharePct: number }
+type SentimentTrendDatum = { date: string; label: string; positive: number; negative: number; sentimentScore: number }
+type ScatterDatum = { campaignName: string; responses: number; sentimentScore: number; engagementRate: number }
+
+interface AnalyticsPDFTemplateProps {
+  report: PdfReport
+  campaignLabel: string
+  lineChartData: LineChartRow[]
+  barChartData: BarChartDatum[]
+  responseDistributionData: ResponseDistributionDatum[]
+  sentimentTrendData: SentimentTrendDatum[]
+  responseVsSentimentData: ScatterDatum[]
+}
+
+function formatPercent(value: number) {
   return `${(value * 100).toFixed(1)}%`
 }
 
-function formatDelta(value) {
+function formatDelta(value: number) {
   return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`
 }
 
@@ -14,7 +65,7 @@ export default function AnalyticsPDFTemplate({
   responseDistributionData,
   sentimentTrendData,
   responseVsSentimentData,
-}) {
+}: AnalyticsPDFTemplateProps) {
   const generatedOn = new Date(report.generatedAt).toLocaleString("en-US")
   const trendKeys = lineChartData.length > 0 ? Object.keys(lineChartData[0]).filter((key) => key !== "date" && key !== "label") : []
   const trendColors = ["#2563eb", "#7c3aed", "#059669", "#dc2626", "#0ea5e9"]
