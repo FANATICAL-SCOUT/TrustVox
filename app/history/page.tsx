@@ -1,7 +1,5 @@
-"use client";
-
-import FeedbackHistory from "@/components/feedback-history";
+import { redirect } from "next/navigation"
 
 export default function HistoryPage() {
-  return <FeedbackHistory newFeedbacks={[]} savedFeedbacks={[]} onContinueEditing={() => {}} />;
+  redirect("/dashboard?section=history")
 }
