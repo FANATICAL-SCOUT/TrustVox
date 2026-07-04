@@ -424,26 +424,30 @@ function CreateFeedbackInner() {
 
   // Load form for editing
   useEffect(() => {
-    if (editId) {
-      const form = getFormById(editId)
-      if (form) {
-        const activeCompanies = getActiveApprovedCompanies()
-        const matchedCompany = activeCompanies.find((company) => company.id === form.companyId || company.name.toLowerCase() === (form.clientName || "").toLowerCase())
-        setFormId(form.id)
-        setTitle(form.title)
-        setDescription(form.description)
-        setCompanyId(matchedCompany?.id || "")
-        setProduct(form.product)
-        setCategory(form.category)
-        setOtherCategoryDetails(form.categoryDetails || "")
-        setRewardTokens(String(form.rewardTokens || 24))
-        setFormVisibility(form.formVisibility || "private")
-        setResponseLimit(form.responseLimit ? String(form.responseLimit) : "")
-        setAllowAnonymous(typeof form.allowAnonymous === "boolean" ? form.allowAnonymous : true)
-        setEnableRatings(typeof form.enableRatings === "boolean" ? form.enableRatings : true)
-        setAutoCloseDate(form.autoCloseDate || "")
-        setQuestions(form.questions)
-      }
+    if (!editId) return
+    let active = true
+    void (async () => {
+      const form = await getFormById(editId)
+      if (!active || !form) return
+      const activeCompanies = getActiveApprovedCompanies()
+      const matchedCompany = activeCompanies.find((company) => company.id === form.companyId || company.name.toLowerCase() === (form.clientName || "").toLowerCase())
+      setFormId(form.id)
+      setTitle(form.title)
+      setDescription(form.description)
+      setCompanyId(matchedCompany?.id || "")
+      setProduct(form.product)
+      setCategory(form.category)
+      setOtherCategoryDetails(form.categoryDetails || "")
+      setRewardTokens(String(form.rewardTokens || 24))
+      setFormVisibility(form.formVisibility || "private")
+      setResponseLimit(form.responseLimit ? String(form.responseLimit) : "")
+      setAllowAnonymous(typeof form.allowAnonymous === "boolean" ? form.allowAnonymous : true)
+      setEnableRatings(typeof form.enableRatings === "boolean" ? form.enableRatings : true)
+      setAutoCloseDate(form.autoCloseDate || "")
+      setQuestions(form.questions)
+    })()
+    return () => {
+      active = false
     }
   }, [editId])
 
@@ -691,11 +695,17 @@ function CreateFeedbackInner() {
     if (err) { showToast(err, "error"); return }
     setSavingState("saving")
     const payload = buildPayload()
-    if (formId) {
-      updateForm(formId, payload)
-    } else {
-      const created = createForm({ ...payload, status: "draft" })
-      setFormId(created.id)
+    try {
+      if (formId) {
+        await updateForm(formId, payload)
+      } else {
+        const created = await createForm({ ...payload, status: "draft" })
+        setFormId(created.id)
+      }
+    } catch {
+      setSavingState("idle")
+      showToast("Could not save draft. Please try again.", "error")
+      return
     }
     await new Promise((r) => setTimeout(r, 600))
     setSavingState("saved")
@@ -709,15 +719,21 @@ function CreateFeedbackInner() {
     setSubmitState("loading")
     const payload = buildPayload()
     let id = formId
-    if (!id) {
-      const created = createForm({ ...payload, status: "draft" })
-      id = created.id
-      setFormId(id)
-    } else {
-      updateForm(id, payload)
+    try {
+      if (!id) {
+        const created = await createForm({ ...payload, status: "draft" })
+        id = created.id
+        setFormId(id)
+      } else {
+        await updateForm(id, payload)
+      }
+    } catch {
+      setSubmitState("idle")
+      showToast("Could not save the form. Please try again.", "error")
+      return
     }
     await new Promise((r) => setTimeout(r, 800))
-    const submitted = submitFormForApproval(id)
+    const submitted = await submitFormForApproval(id)
     if (!submitted) {
       setSubmitState("idle")
       showToast("Submission blocked: selected company is not active/approved.", "error")

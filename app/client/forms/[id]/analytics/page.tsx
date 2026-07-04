@@ -6,7 +6,7 @@ import { ArrowLeft, BarChart3, MessageSquare, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { getFormById, getResponsesByFormId } from "@/lib/feedback-store"
+import { getFormById, getResponsesByFormId, type FeedbackForm, type FormResponse } from "@/lib/feedback-store"
 
 function formatDate(value: string | undefined) {
   if (!value) return "-"
@@ -15,11 +15,11 @@ function formatDate(value: string | undefined) {
   return new Date(parsed).toLocaleDateString()
 }
 
-// Real numeric star-rating answers from the form's actual seeded responses.
+// Real numeric star-rating answers from the form's actual submitted responses.
 // Returns an empty array (rendered as an honest "no ratings yet" state by
 // callers) when there's no real data — no formula-derived placeholder score.
-function getResponseRatings(formId: string): number[] {
-  return getResponsesByFormId(formId)
+function extractRatings(responses: FormResponse[]): number[] {
+  return responses
     .map((response) => Object.values(response.answers || {}).find((value) => typeof value === "number"))
     .filter((value): value is number => typeof value === "number")
 }
@@ -28,19 +28,31 @@ export default function FormAnalyticsPage() {
   const params = useParams()
   const router = useRouter()
   const [isReady, setIsReady] = useState(false)
+  const [form, setForm] = useState<FeedbackForm | null>(null)
+  const [responses, setResponses] = useState<FormResponse[]>([])
 
   const formId = Array.isArray(params?.id) ? params.id[0] : params?.id
 
   useEffect(() => {
-    setIsReady(true)
-  }, [])
+    if (!formId) {
+      setIsReady(true)
+      return
+    }
+    let active = true
+    void (async () => {
+      const foundForm = await getFormById(formId)
+      const foundResponses = foundForm ? await getResponsesByFormId(foundForm.id) : []
+      if (!active) return
+      setForm(foundForm ?? null)
+      setResponses(foundResponses)
+      setIsReady(true)
+    })()
+    return () => {
+      active = false
+    }
+  }, [formId])
 
-  const form = useMemo(() => {
-    if (!isReady || !formId) return null
-    return getFormById(formId)
-  }, [isReady, formId])
-
-  const ratings = useMemo(() => (form ? getResponseRatings(form.id) : []), [form])
+  const ratings = useMemo(() => extractRatings(responses), [responses])
   const averageRating = ratings.length > 0 ? ratings.reduce((sum, value) => sum + value, 0) / ratings.length : 0
 
   const ratingCounts = useMemo(() => {
@@ -53,12 +65,10 @@ export default function FormAnalyticsPage() {
   }, [ratings])
 
   const recentResponses = useMemo(() => {
-    if (!form) return []
-    return getResponsesByFormId(form.id)
-      .slice()
+    return [...responses]
       .sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt))
       .slice(0, 5)
-  }, [form])
+  }, [responses])
 
   if (!isReady) {
     return (

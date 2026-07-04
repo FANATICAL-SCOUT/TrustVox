@@ -16,17 +16,17 @@ export default function StorePage() {
       setDailyFeedbackCount(getFeedbackQuota().remaining)
     }
 
-    refreshSystemNotifications()
+    void refreshSystemNotifications()
     syncQuota()
 
     const unsubscribeQuota = subscribeToFeedbackQuotaUpdates(() => {
       syncQuota()
-      refreshSystemNotifications()
+      void refreshSystemNotifications()
     })
 
     const onFocus = () => {
       syncQuota()
-      refreshSystemNotifications()
+      void refreshSystemNotifications()
     }
 
     window.addEventListener("focus", onFocus)

@@ -23,6 +23,7 @@ import { subscribeToApprovedCompanies } from "@/lib/approved-company-store"
 import { consumeFeedbackQuota, getFeedbackQuota } from "@/lib/feedback-quota"
 import { recordFeedbackSubmittedNotification } from "@/lib/user-notifications"
 import { addTVXReward } from "@/lib/tvx-wallet"
+import { createClient } from "@/lib/supabase/client"
 
 type AnswerValue = string | number | string[]
 
@@ -42,24 +43,10 @@ type SpeechRecognitionWindow = Window & typeof globalThis & {
   webkitSpeechRecognition?: SpeechRecognitionConstructor
 }
 
-function resolveCurrentUserId() {
-  if (typeof window === "undefined") return "anonymous"
-
-  try {
-    const currentUserRaw = localStorage.getItem("currentUser")
-    if (currentUserRaw) {
-      const parsed = JSON.parse(currentUserRaw) as { email?: string; name?: string }
-      const fromCurrentUser = String(parsed.email || parsed.name || "").trim().toLowerCase()
-      if (fromCurrentUser) return fromCurrentUser
-    }
-
-    const userEmail = String(localStorage.getItem("userEmail") || "").trim().toLowerCase()
-    if (userEmail) return userEmail
-
-    return "anonymous"
-  } catch {
-    return "anonymous"
-  }
+async function resolveCurrentUserId(): Promise<string | null> {
+  const supabase = createClient()
+  const { data } = await supabase.auth.getUser()
+  return data.user?.id ?? null
 }
 
 // ── Star Rating ────────────────────────────────────────────────────────────────
@@ -341,61 +328,67 @@ export default function FeedbackSubmitPage() {
   useEffect(() => {
     if (!id) return
 
-    const loadForm = (reason = "manual") => {
-      const found = getFormById(id)
-      const isApproved = Boolean(found && String(found.status).toLowerCase() === "approved")
+    const loadForm = async (reason = "manual") => {
+      try {
+        const found = await getFormById(id)
+        const isApproved = Boolean(found && String(found.status).toLowerCase() === "approved")
 
-      logFlow("user-open-form", {
-        reason,
-        formId: id,
-        found: Boolean(found),
-        status: found?.status,
-        companyId: found?.companyId,
-        clientName: found?.clientName,
-        isApproved,
-      })
+        logFlow("user-open-form", {
+          reason,
+          formId: id,
+          found: Boolean(found),
+          status: found?.status,
+          companyId: found?.companyId,
+          clientName: found?.clientName,
+          isApproved,
+        })
 
-      if (!isApproved) {
-        setNotFound(true)
-        setForm(null)
-        return
-      }
+        if (!isApproved) {
+          setNotFound(true)
+          setForm(null)
+          return
+        }
 
-      const closeAt = found?.autoCloseDate ? Date.parse(found.autoCloseDate) : NaN
-      const isClosedByDate = !Number.isNaN(closeAt) && Date.now() > closeAt
-      const reachedResponseLimit = Boolean(
-        found?.responseLimit && found.responseCount >= found.responseLimit
-      )
+        const closeAt = found?.autoCloseDate ? Date.parse(found.autoCloseDate) : NaN
+        const isClosedByDate = !Number.isNaN(closeAt) && Date.now() > closeAt
+        const reachedResponseLimit = Boolean(
+          found?.responseLimit && found.responseCount >= found.responseLimit
+        )
 
-      if (isClosedByDate || reachedResponseLimit) {
-        setNotFound(true)
-        setForm(null)
-        return
-      }
+        if (isClosedByDate || reachedResponseLimit) {
+          setNotFound(true)
+          setForm(null)
+          return
+        }
 
-      const userId = resolveCurrentUserId()
-      const alreadyFilled = hasUserSubmittedForm(id, userId)
+        const userId = await resolveCurrentUserId()
+        const alreadyFilled = userId ? await hasUserSubmittedForm(id, userId) : false
 
-      if (alreadyFilled) {
-        setAlreadySubmitted(true)
+        if (alreadyFilled) {
+          setAlreadySubmitted(true)
+          setNotFound(false)
+          setForm(found || null)
+          return
+        }
+
+        setAlreadySubmitted(false)
         setNotFound(false)
         setForm(found || null)
-        return
+      } catch (error) {
+        logFlow("user-open-form-error", { reason, formId: id, error: String(error) })
+        setNotFound(true)
+        setForm(null)
       }
-
-      setAlreadySubmitted(false)
-      setNotFound(false)
-      setForm(found || null)
     }
 
-    loadForm("mount")
-    const unsubscribeForms = subscribeToFormsUpdates(() => loadForm("forms-updated"))
-    const unsubscribeCompanies = subscribeToApprovedCompanies(() => loadForm("companies-updated"))
+    void loadForm("mount")
+    const unsubscribeForms = subscribeToFormsUpdates(() => void loadForm("forms-updated"))
+    const unsubscribeCompanies = subscribeToApprovedCompanies(() => void loadForm("companies-updated"))
 
-    const handleFocus = () => loadForm("window-focus")
+    const handleFocus = () => void loadForm("window-focus")
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        loadForm("tab-visible")
+        void loadForm("tab-visible")
       }
     }
 
@@ -452,8 +445,12 @@ export default function FeedbackSubmitPage() {
       return
     }
 
-    const userId = resolveCurrentUserId()
-    if (hasUserSubmittedForm(form.id, userId)) {
+    const userId = await resolveCurrentUserId()
+    if (!userId) {
+      setQuotaError("You must be signed in to submit feedback.")
+      return
+    }
+    if (await hasUserSubmittedForm(form.id, userId)) {
       setQuotaError("Blocked: you can submit each feedback form only once per account.")
       return
     }
@@ -471,7 +468,7 @@ export default function FeedbackSubmitPage() {
     let response
 
     try {
-      response = addResponse(form.id, answers, { userId, rewardTokens })
+      response = await addResponse(form.id, answers, { userId, rewardTokens })
     } catch {
       setSubmitting(false)
       setQuotaError("Blocked: you can submit each feedback form only once per account.")

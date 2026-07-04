@@ -86,7 +86,7 @@ const SuggestedFeedbacks = ({ handleStartFeedbackFromSuggested, onSaveForLater }
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all")
 
   useEffect(() => {
-    const loadForms = () => setApprovedForms(getApprovedForms())
+    const loadForms = () => void getApprovedForms().then(setApprovedForms)
     loadForms()
     const unsubscribe = subscribeToFormsUpdates(loadForms)
     window.addEventListener("focus", loadForms)

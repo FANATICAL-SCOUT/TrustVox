@@ -69,7 +69,7 @@ export default function AdminCommandCenter() {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const loadForms = () => setForms(getForms())
+    const loadForms = () => void getForms().then(setForms)
     const loadCompanies = () => setCompanies(getApprovedCompanies())
     const loadUsers = () => setUsers(getManagedUsers())
 
@@ -88,10 +88,19 @@ export default function AdminCommandCenter() {
     }
   }, [])
 
-  const responsesByForm = useMemo(() => {
-    const map = new Map<string, FormResponse[]>()
-    for (const form of forms) map.set(form.id, getResponsesByFormId(form.id))
-    return map
+  const [responsesByForm, setResponsesByForm] = useState<Map<string, FormResponse[]>>(new Map())
+
+  useEffect(() => {
+    let active = true
+    void (async () => {
+      const entries = await Promise.all(
+        forms.map(async (form) => [form.id, await getResponsesByFormId(form.id)] as const),
+      )
+      if (active) setResponsesByForm(new Map(entries))
+    })()
+    return () => {
+      active = false
+    }
   }, [forms])
 
   const allResponses = useMemo(() => Array.from(responsesByForm.values()).flat(), [responsesByForm])

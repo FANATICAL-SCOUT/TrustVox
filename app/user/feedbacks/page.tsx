@@ -16,25 +16,12 @@ import {
 } from "@/lib/feedback-store"
 import { logFlow } from "@/lib/debug-log"
 import { subscribeToApprovedCompanies } from "@/lib/approved-company-store"
+import { createClient } from "@/lib/supabase/client"
 
-function resolveCurrentUserId() {
-  if (typeof window === "undefined") return "anonymous"
-
-  try {
-    const currentUserRaw = localStorage.getItem("currentUser")
-    if (currentUserRaw) {
-      const parsed = JSON.parse(currentUserRaw) as { email?: string; name?: string }
-      const fromCurrentUser = String(parsed.email || parsed.name || "").trim().toLowerCase()
-      if (fromCurrentUser) return fromCurrentUser
-    }
-
-    const userEmail = String(localStorage.getItem("userEmail") || "").trim().toLowerCase()
-    if (userEmail) return userEmail
-  } catch {
-    // Fall through to anonymous identifier.
-  }
-
-  return "anonymous"
+async function resolveCurrentUserId(): Promise<string | null> {
+  const supabase = createClient()
+  const { data } = await supabase.auth.getUser()
+  return data.user?.id ?? null
 }
 
 function CategoryBadge({ category }: { category: string }) {
@@ -135,48 +122,52 @@ export default function UserFeedbacksPage() {
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [showSuggestions, setShowSuggestions] = useState(false)
 
-  const loadForms = (reason = "manual") => {
-    const approvedForms = getApprovedForms()
-    const userId = resolveCurrentUserId()
-    const submittedIds = new Set(getSubmittedFormIdsByUser(userId))
-    logFlow("user-page-load-approved", {
-      reason,
-      count: approvedForms.length,
-      userId,
-      submittedCount: submittedIds.size,
-      formIds: approvedForms.map((f) => f.id),
-      companies: approvedForms.map((f) => ({
-        id: f.id,
-        companyId: f.companyId,
-        clientName: f.clientName,
-        approvedAt: f.approvedAt,
-      })),
-    })
-    setForms(approvedForms)
-    setSubmittedFormIds(submittedIds)
+  const loadForms = async (reason = "manual") => {
+    try {
+      const approvedForms = await getApprovedForms()
+      const userId = await resolveCurrentUserId()
+      const submittedIds = new Set(userId ? await getSubmittedFormIdsByUser(userId) : [])
+      logFlow("user-page-load-approved", {
+        reason,
+        count: approvedForms.length,
+        userId,
+        submittedCount: submittedIds.size,
+        formIds: approvedForms.map((f) => f.id),
+        companies: approvedForms.map((f) => ({
+          id: f.id,
+          companyId: f.companyId,
+          clientName: f.clientName,
+          approvedAt: f.approvedAt,
+        })),
+      })
+      setForms(approvedForms)
+      setSubmittedFormIds(submittedIds)
+    } catch (error) {
+      logFlow("user-page-load-approved-error", { reason, error: String(error) })
+    }
   }
 
   useEffect(() => {
-    loadForms("mount")
+    void loadForms("mount")
 
     const unsubscribeForms = subscribeToFormsUpdates(() => {
-      loadForms("forms-updated")
+      void loadForms("forms-updated")
     })
     const unsubscribeCompanies = subscribeToApprovedCompanies(() => {
-      loadForms("companies-updated")
+      void loadForms("companies-updated")
     })
 
-    const handleFocus = () => loadForms("window-focus")
+    const handleFocus = () => void loadForms("window-focus")
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        loadForms("tab-visible")
+        void loadForms("tab-visible")
       }
     }
 
     window.addEventListener("focus", handleFocus)
     document.addEventListener("visibilitychange", handleVisibilityChange)
 
-    const polling = window.setInterval(() => loadForms("polling"), 5000)
+    const polling = window.setInterval(() => void loadForms("polling"), 5000)
 
     return () => {
       unsubscribeForms()

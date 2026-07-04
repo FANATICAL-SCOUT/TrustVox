@@ -30,8 +30,7 @@ export default function NotificationsModal({ isOpen, onClose, onViewNotification
   const [notifications, setNotifications] = useState<UserNotification[]>([])
 
   useEffect(() => {
-    refreshSystemNotifications()
-    setNotifications(getUserNotifications())
+    void refreshSystemNotifications().then(() => setNotifications(getUserNotifications()))
 
     const unsubscribe = subscribeToUserNotifications((items) => {
       setNotifications(items)
@@ -42,8 +41,7 @@ export default function NotificationsModal({ isOpen, onClose, onViewNotification
 
   useEffect(() => {
     if (!isOpen) return
-    refreshSystemNotifications()
-    setNotifications(getUserNotifications())
+    void refreshSystemNotifications().then(() => setNotifications(getUserNotifications()))
   }, [isOpen])
 
   const getNotificationBg = (type: UserNotification["type"]) => {

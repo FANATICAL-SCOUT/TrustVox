@@ -51,20 +51,19 @@ function inferCampaignId(form: FeedbackForm): string {
 }
 
 // Real average of numeric star-rating answers across the campaign's real
-// seeded responses. Returns 0 (rendered as "no ratings yet" by callers) when
+// submitted responses. Returns 0 (rendered as "no ratings yet" by callers) when
 // there's no real data — no formula-derived placeholder score.
-function calculateAverageRating(forms: FeedbackForm[]): number {
+async function calculateAverageRating(forms: FeedbackForm[]): Promise<number> {
   let sum = 0
   let count = 0
 
-  forms.forEach((form) => {
-    getResponsesByFormId(form.id).forEach((response) => {
-      const numeric = Object.values(response.answers || {}).find((value) => typeof value === "number")
-      if (typeof numeric === "number") {
-        sum += numeric
-        count += 1
-      }
-    })
+  const responsesByForm = await Promise.all(forms.map((form) => getResponsesByFormId(form.id)))
+  responsesByForm.flat().forEach((response) => {
+    const numeric = Object.values(response.answers || {}).find((value) => typeof value === "number")
+    if (typeof numeric === "number") {
+      sum += numeric
+      count += 1
+    }
   })
 
   return count > 0 ? Number((sum / count).toFixed(1)) : 0
@@ -90,28 +89,31 @@ export function getCampaignForForm(form: FeedbackForm): ClientCampaign {
   return CAMPAIGNS.find((campaign) => campaign.id === id) || CAMPAIGNS[0]
 }
 
-export function getCampaignSummaries(clientId = "client-1"): CampaignSummary[] {
-  const forms = getClientForms(clientId)
+export async function getCampaignSummaries(clientId?: string): Promise<CampaignSummary[]> {
+  const forms = await getClientForms(clientId)
 
-  return CAMPAIGNS.map((campaign) => {
-    const campaignForms = forms.filter((form) => inferCampaignId(form) === campaign.id)
-    const totalResponses = campaignForms.reduce((sum, form) => sum + form.responseCount, 0)
+  return Promise.all(
+    CAMPAIGNS.map(async (campaign) => {
+      const campaignForms = forms.filter((form) => inferCampaignId(form) === campaign.id)
+      const totalResponses = campaignForms.reduce((sum, form) => sum + form.responseCount, 0)
 
-    return {
-      ...campaign,
-      status: deriveStatus(campaignForms, campaign.defaultStatus),
-      formsCount: campaignForms.length,
-      totalResponses,
-      averageRating: calculateAverageRating(campaignForms),
-    }
-  })
+      return {
+        ...campaign,
+        status: deriveStatus(campaignForms, campaign.defaultStatus),
+        formsCount: campaignForms.length,
+        totalResponses,
+        averageRating: await calculateAverageRating(campaignForms),
+      }
+    }),
+  )
 }
 
-export function getCampaignDetails(campaignId: string, clientId = "client-1") {
+export async function getCampaignDetails(campaignId: string, clientId?: string) {
   const campaign = CAMPAIGNS.find((item) => item.id === campaignId)
   if (!campaign) return null
 
-  const forms = getClientForms(clientId).filter((form) => inferCampaignId(form) === campaignId)
+  const clientForms = await getClientForms(clientId)
+  const forms = clientForms.filter((form) => inferCampaignId(form) === campaignId)
   const totalResponses = forms.reduce((sum, form) => sum + form.responseCount, 0)
 
   return {
@@ -119,7 +121,7 @@ export function getCampaignDetails(campaignId: string, clientId = "client-1") {
     status: deriveStatus(forms, campaign.defaultStatus),
     formsCount: forms.length,
     totalResponses,
-    averageRating: calculateAverageRating(forms),
+    averageRating: await calculateAverageRating(forms),
     forms,
   }
 }

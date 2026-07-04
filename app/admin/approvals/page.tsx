@@ -345,8 +345,8 @@ export default function AdminApprovalsPage() {
   const [changesTarget, setChangesTarget] = useState<FeedbackForm | null>(null)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
 
-  const loadForms = () => {
-    const allForms = getForms()
+  const loadForms = async () => {
+    const allForms = await getForms()
     logFlow("admin-page-load-forms", {
       total: allForms.length,
       pending: allForms.filter((f) => f.status === "pending").length,
@@ -356,8 +356,8 @@ export default function AdminApprovalsPage() {
   }
 
   useEffect(() => {
-    loadForms()
-    const unsubscribe = subscribeToFormsUpdates(loadForms)
+    void loadForms()
+    const unsubscribe = subscribeToFormsUpdates(() => void loadForms())
     return () => unsubscribe()
   }, [])
 
@@ -375,8 +375,8 @@ export default function AdminApprovalsPage() {
     rejected: forms.filter((f) => f.status === "rejected").length,
   }
 
-  function handleApprove(id: string) {
-    const updated = approveForm(id)
+  async function handleApprove(id: string) {
+    const updated = await approveForm(id)
     logFlow("admin-approve-click", {
       formId: id,
       statusAfter: updated?.status,
@@ -385,23 +385,23 @@ export default function AdminApprovalsPage() {
       showToast("Approval blocked: company is inactive or not approved.")
       return
     }
-    loadForms()
+    await loadForms()
     showToast("Form approved and published!")
   }
 
-  function handleReject(reason: string) {
+  async function handleReject(reason: string) {
     if (!rejectTarget) return
-    rejectForm(rejectTarget.id, reason || "No reason provided.")
+    await rejectForm(rejectTarget.id, reason || "No reason provided.")
     setRejectTarget(null)
-    loadForms()
+    await loadForms()
     showToast("Form rejected.")
   }
 
-  function handleRequestChanges(note: string) {
+  async function handleRequestChanges(note: string) {
     if (!changesTarget) return
-    requestChanges(changesTarget.id, note || "Please review and update your form.")
+    await requestChanges(changesTarget.id, note || "Please review and update your form.")
     setChangesTarget(null)
-    loadForms()
+    await loadForms()
     showToast("Change request sent to client.")
   }
 

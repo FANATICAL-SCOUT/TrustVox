@@ -1,7 +1,11 @@
 // ─── TrustVox Feedback Store ───────────────────────────────────────────────
-// Shared localStorage-based store for the feedback builder / distribution system.
-// All functions are client-safe (guard against SSR window access).
-import { getActiveApprovedCompanies } from "@/lib/approved-company-store";
+// Supabase-backed store for the feedback builder / distribution system
+// (migrated in Phase 8.3 — see docs/backend/ARCHITECTURE.md §4, §6, §8).
+// All functions are async and run through the RLS-gated browser client;
+// column names are snake_case in the DB and mapped to the camelCase shape
+// the UI expects at the boundary in this file.
+import { createClient } from "@/lib/supabase/client";
+import type { Json, Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
 import { logFlow } from "@/lib/debug-log";
 
 export type QuestionType =
@@ -86,294 +90,11 @@ export interface FormResponse {
 }
 
 const DEFAULT_FORM_REWARD_TOKENS = 24;
-
-// ── Keys ──────────────────────────────────────────────────────────────────────
-const FORMS_KEY = "trustvox_feedback_forms";
-const RESPONSES_KEY = "trustvox_feedback_responses";
 const FORMS_UPDATED_EVENT = "trustvox:forms-updated";
 
-// ── Seed data ─────────────────────────────────────────────────────────────────
-const SEED_FORMS: FeedbackForm[] = [
-  {
-    id: "form-seed-1",
-    title: "Product Experience Survey",
-    description: "Help us understand your experience with our latest product release.",
-    product: "TrustVox Pro",
-    category: "Software",
-    companyId: "co-software-1",
-    status: "approved",
-    clientId: "client-1",
-    clientName: "Microsoft",
-    createdAt: "2026-03-10T09:00:00Z",
-    submittedAt: "2026-03-11T10:00:00Z",
-    approvedAt: "2026-03-12T14:00:00Z",
-    rewardTokens: 40,
-    responseCount: 47,
-    questions: [
-      {
-        id: "q1",
-        type: "star-rating",
-        title: "How would you rate your overall experience?",
-        required: true,
-        options: [],
-      },
-      {
-        id: "q2",
-        type: "multiple-choice",
-        title: "How did you hear about us?",
-        required: false,
-        options: ["Social Media", "Friend/Colleague", "Search Engine", "Advertisement"],
-      },
-      {
-        id: "q3",
-        type: "tag-selection",
-        title: "What features do you love?",
-        required: false,
-        options: ["Easy to use", "Fast", "Reliable", "Great support", "Good value"],
-      },
-      {
-        id: "q4",
-        type: "text-long",
-        title: "Any additional comments or suggestions?",
-        required: false,
-        options: [],
-      },
-    ],
-  },
-  {
-    id: "form-seed-2",
-    title: "Customer Support Feedback",
-    description: "Rate your recent interaction with our support team.",
-    product: "Support Services",
-    category: "Service",
-    companyId: "co-service-6",
-    status: "pending",
-    clientId: "client-1",
-    clientName: "Unilever",
-    createdAt: "2026-03-14T11:00:00Z",
-    submittedAt: "2026-03-15T09:00:00Z",
-    rewardTokens: 28,
-    responseCount: 0,
-    questions: [
-      {
-        id: "q1",
-        type: "star-rating",
-        title: "Rate the support agent's helpfulness",
-        required: true,
-        options: [],
-      },
-      {
-        id: "q2",
-        type: "text-short",
-        title: "What issue were you contacting us about?",
-        required: true,
-        options: [],
-      },
-    ],
-  },
-  {
-    id: "form-seed-3",
-    title: "Mobile App Usability Check",
-    description: "Quick usability check for our new mobile app.",
-    product: "TrustVox Mobile",
-    category: "Mobile App",
-    companyId: "co-mobile-app-4",
-    status: "draft",
-    clientId: "client-1",
-    clientName: "Samsung",
-    createdAt: "2026-03-16T08:00:00Z",
-    rewardTokens: 24,
-    responseCount: 0,
-    questions: [
-      {
-        id: "q1",
-        type: "star-rating",
-        title: "How easy is the app to navigate?",
-        required: true,
-        options: [],
-      },
-    ],
-  },
-  {
-    id: "form-seed-4",
-    title: "Seller Dashboard Feedback",
-    description: "Help us improve the seller dashboard you use every day.",
-    product: "Flipkart Seller Hub",
-    category: "E-Commerce",
-    companyId: "co-e-commerce-4",
-    status: "approved",
-    clientId: "client-1",
-    clientName: "Flipkart",
-    createdAt: "2026-05-02T09:00:00Z",
-    submittedAt: "2026-05-03T10:00:00Z",
-    approvedAt: "2026-05-04T13:00:00Z",
-    rewardTokens: 32,
-    responseCount: 63,
-    questions: [
-      {
-        id: "q1",
-        type: "star-rating",
-        title: "How would you rate the new seller dashboard?",
-        required: true,
-        options: [],
-      },
-      {
-        id: "q2",
-        type: "multi-select",
-        title: "Which sections do you use most?",
-        required: false,
-        options: ["Orders", "Inventory", "Payments", "Analytics", "Returns"],
-      },
-      {
-        id: "q3",
-        type: "text-short",
-        title: "What's one thing that would make the dashboard faster to use?",
-        required: false,
-        options: [],
-      },
-    ],
-  },
-  {
-    id: "form-seed-5",
-    title: "Rewards App Experience",
-    description: "Share your experience with the redesigned Rewards app.",
-    product: "Starbucks Rewards App",
-    category: "Food & Beverage",
-    companyId: "co-food-beverage-4",
-    status: "approved",
-    clientId: "client-1",
-    clientName: "Starbucks",
-    createdAt: "2026-05-10T09:00:00Z",
-    submittedAt: "2026-05-11T10:00:00Z",
-    approvedAt: "2026-05-12T13:00:00Z",
-    rewardTokens: 20,
-    responseCount: 89,
-    questions: [
-      {
-        id: "q1",
-        type: "star-rating",
-        title: "How satisfied are you with the Rewards app?",
-        required: true,
-        options: [],
-      },
-      {
-        id: "q2",
-        type: "multiple-choice",
-        title: "How often do you redeem rewards?",
-        required: false,
-        options: ["Every visit", "Weekly", "Monthly", "Rarely"],
-      },
-      {
-        id: "q3",
-        type: "voice-feedback",
-        title: "Tell us about your last redemption experience",
-        required: false,
-        options: [],
-      },
-      {
-        id: "q4",
-        type: "text-long",
-        title: "Anything you'd like to see added to the app?",
-        required: false,
-        options: [],
-      },
-    ],
-  },
-];
-
-// Sample submitted responses so History reads as populated in the demo.
-// Tied to distinct seed userIds (never "anonymous") so they never block the
-// live demo user from submitting any approved form themselves.
-const SEED_RESPONSES: FormResponse[] = [
-  {
-    id: "resp-seed-1",
-    formId: "form-seed-1",
-    userId: "seed-user-1",
-    submittedAt: "2026-06-20T14:32:00Z",
-    rewardTokens: 40,
-    answers: {
-      q4: "The dashboard redesign feels a lot snappier than before. Great work on the loading times!",
-      q1: 5,
-      q2: "Search Engine",
-      q3: ["Easy to use", "Reliable"],
-    },
-  },
-  {
-    id: "resp-seed-2",
-    formId: "form-seed-1",
-    userId: "seed-user-2",
-    submittedAt: "2026-06-25T09:10:00Z",
-    rewardTokens: 40,
-    answers: {
-      q4: "Support resolved my billing question within minutes. Would love a dark mode toggle though.",
-      q1: 4,
-      q2: "Friend/Colleague",
-      q3: ["Fast", "Great support"],
-    },
-  },
-  {
-    id: "resp-seed-3",
-    formId: "form-seed-4",
-    userId: "seed-user-3",
-    submittedAt: "2026-06-22T11:05:00Z",
-    rewardTokens: 32,
-    answers: {
-      q1: 4,
-      q2: ["Orders", "Analytics"],
-      q3: "Bulk-editing prices across listings would save me a ton of time.",
-    },
-  },
-  {
-    id: "resp-seed-4",
-    formId: "form-seed-5",
-    userId: "seed-user-4",
-    submittedAt: "2026-06-28T16:45:00Z",
-    rewardTokens: 20,
-    answers: {
-      q4: "Would love seasonal drink previews inside the app before they launch in stores.",
-      q1: 5,
-      q2: "Every visit",
-      q3: "Redeemed a free drink this morning, the scan-to-pay flow was seamless.",
-    },
-  },
-  {
-    id: "resp-seed-5",
-    formId: "form-seed-5",
-    userId: "seed-user-5",
-    submittedAt: "2026-06-30T08:20:00Z",
-    rewardTokens: 20,
-    answers: {
-      q4: "Star balance sometimes takes a day to update after purchase.",
-      q1: 3,
-      q2: "Monthly",
-    },
-  },
-];
-
-// ── Low-level storage helpers ─────────────────────────────────────────────────
-function readForms(): FeedbackForm[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(FORMS_KEY);
-    if (!raw) {
-      const seeded = SEED_FORMS.map((form) => normalizeForm(form));
-      localStorage.setItem(FORMS_KEY, JSON.stringify(seeded));
-      return seeded;
-    }
-    const parsed = JSON.parse(raw) as Array<Partial<FeedbackForm>>;
-    if (!Array.isArray(parsed)) {
-      const seeded = SEED_FORMS.map((form) => normalizeForm(form));
-      localStorage.setItem(FORMS_KEY, JSON.stringify(seeded));
-      return seeded;
-    }
-
-    const normalized = parsed.map((form) => normalizeForm(form));
-    localStorage.setItem(FORMS_KEY, JSON.stringify(normalized));
-    return normalized;
-  } catch {
-    return SEED_FORMS.map((form) => normalizeForm(form));
-  }
-}
+type FormRow = Tables<"forms">;
+type ResponseRow = Tables<"responses">;
+type SupabaseClient = ReturnType<typeof createClient>;
 
 function normalizeRewardTokens(value: unknown): number {
   const parsed = Number(value);
@@ -382,64 +103,42 @@ function normalizeRewardTokens(value: unknown): number {
   return Math.max(1, rounded);
 }
 
-function normalizeForm(form: Partial<FeedbackForm>): FeedbackForm {
-  const parsedResponseLimit = Number(form.responseLimit);
-  const normalizedResponseLimit = Number.isFinite(parsedResponseLimit) && parsedResponseLimit > 0
-    ? Math.floor(parsedResponseLimit)
-    : undefined;
-
-  const normalizedVisibility =
-    form.formVisibility === "public" || form.formVisibility === "link" ? form.formVisibility : "private";
-
+function mapFormRow(row: FormRow, responseCount: number): FeedbackForm {
   return {
-    id: String(form.id || `form-${Date.now()}`),
-    title: String(form.title || ""),
-    description: String(form.description || ""),
-    product: String(form.product || ""),
-    category: String(form.category || ""),
-    categoryDetails: form.categoryDetails,
-    companyId: form.companyId,
-    formVisibility: normalizedVisibility,
-    responseLimit: normalizedResponseLimit,
-    allowAnonymous: typeof form.allowAnonymous === "boolean" ? form.allowAnonymous : true,
-    enableRatings: typeof form.enableRatings === "boolean" ? form.enableRatings : true,
-    autoCloseDate: typeof form.autoCloseDate === "string" ? form.autoCloseDate : undefined,
-    questions: Array.isArray(form.questions) ? form.questions : [],
-    status: (form.status || "draft") as FormStatus,
-    clientId: String(form.clientId || "client-1"),
-    clientName: String(form.clientName || ""),
-    createdAt: String(form.createdAt || new Date().toISOString()),
-    submittedAt: form.submittedAt,
-    approvedAt: form.approvedAt,
-    rejectionReason: form.rejectionReason,
-    requestChangesNote: form.requestChangesNote,
-    rewardTokens: normalizeRewardTokens(form.rewardTokens),
-    responseCount: Number.isFinite(Number(form.responseCount)) ? Math.max(0, Number(form.responseCount)) : 0,
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    product: row.product,
+    category: row.category,
+    categoryDetails: row.category_details ?? undefined,
+    companyId: row.company_id ?? undefined,
+    formVisibility: row.visibility,
+    responseLimit: row.response_limit ?? undefined,
+    allowAnonymous: row.allow_anonymous,
+    enableRatings: row.enable_ratings,
+    autoCloseDate: row.auto_close_date ?? undefined,
+    questions: Array.isArray(row.questions) ? (row.questions as unknown as Question[]) : [],
+    status: row.status,
+    clientId: row.client_id,
+    clientName: row.client_name,
+    createdAt: row.created_at,
+    submittedAt: row.submitted_at ?? undefined,
+    approvedAt: row.approved_at ?? undefined,
+    rejectionReason: row.rejection_reason ?? undefined,
+    requestChangesNote: row.request_changes_note ?? undefined,
+    rewardTokens: row.reward_tokens,
+    responseCount,
   };
 }
 
-function normalizeText(value?: string | null) {
-  return String(value || "")
-    .toLowerCase()
-    .trim();
-}
-
-function findMatchingApprovedCompany(form?: Pick<FeedbackForm, "companyId" | "clientName"> | null) {
-  if (!form) return null;
-
-  const activeCompanies = getActiveApprovedCompanies();
-  const normalizedCompanyId = normalizeText(form.companyId);
-  const normalizedClientName = normalizeText(form.clientName);
-
-  const matchedCompany = activeCompanies.find((company) => {
-    const companyIdMatches = normalizedCompanyId && company.id === normalizedCompanyId;
-    const companyNameMatches = normalizedClientName && normalizeText(company.name) === normalizedClientName;
-    return Boolean(companyIdMatches || companyNameMatches);
-  });
-
+function mapResponseRow(row: ResponseRow): FormResponse {
   return {
-    activeCompanies,
-    matchedCompany: matchedCompany || null,
+    id: row.id,
+    formId: row.form_id,
+    answers: (row.answers as Record<string, unknown>) ?? {},
+    submittedAt: row.submitted_at,
+    userId: row.user_id,
+    rewardTokens: row.reward_tokens ?? undefined,
   };
 }
 
@@ -451,172 +150,221 @@ function sortFormsByLatest(forms: FeedbackForm[]) {
   });
 }
 
-function emitFormsUpdated(eventType: string, form?: FeedbackForm) {
+function emitFormsUpdated(eventType: string, detail?: { formId?: string; status?: string }) {
   if (typeof window === "undefined") return;
-  const detail = {
+  const payload = {
     eventType,
-    formId: form?.id,
-    status: form?.status,
+    formId: detail?.formId,
+    status: detail?.status,
     at: new Date().toISOString(),
   };
-  window.dispatchEvent(new CustomEvent(FORMS_UPDATED_EVENT, { detail }));
-  logFlow("forms-updated", detail);
+  window.dispatchEvent(new CustomEvent(FORMS_UPDATED_EVENT, { detail: payload }));
+  logFlow("forms-updated", payload);
 }
 
-function writeForms(forms: FeedbackForm[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(FORMS_KEY, JSON.stringify(forms));
-  const persisted = localStorage.getItem(FORMS_KEY);
-  logFlow("forms-persisted", { count: forms.length, persisted: Boolean(persisted) });
-}
-
-function readResponses(): FormResponse[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(RESPONSES_KEY);
-    if (!raw) {
-      localStorage.setItem(RESPONSES_KEY, JSON.stringify(SEED_RESPONSES));
-      return SEED_RESPONSES;
-    }
-    return JSON.parse(raw) as FormResponse[];
-  } catch {
-    return SEED_RESPONSES;
+// response_count is derived (form_response_counts view), never stored, so it
+// can't drift from the real number of response rows.
+async function fetchResponseCounts(supabase: SupabaseClient, formIds: string[]): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  if (formIds.length === 0) return map;
+  const { data, error } = await supabase
+    .from("form_response_counts")
+    .select("form_id, response_count")
+    .in("form_id", formIds);
+  if (error) throw error;
+  for (const row of data ?? []) {
+    if (row.form_id) map.set(row.form_id, row.response_count ?? 0);
   }
+  return map;
 }
 
-function writeResponses(responses: FormResponse[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(RESPONSES_KEY, JSON.stringify(responses));
+async function currentUserId(supabase: SupabaseClient): Promise<string | null> {
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
+}
+
+// Bridge for Phase 8.3: the company *directory* (lib/approved-company-store.ts)
+// stays on localStorage until it migrates in 8.5, but forms.company_id is a
+// real FK into the already-seeded `companies` table (8.1). Resolving by name
+// keeps form create/submit/approve working against the real table without
+// pulling the full company-store migration forward.
+async function resolveCompanyIdByName(supabase: SupabaseClient, name?: string): Promise<string | null> {
+  const trimmed = String(name || "").trim();
+  if (!trimmed) return null;
+  const { data, error } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("status", "active")
+    .ilike("name", trimmed)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.id ?? null;
+}
+
+function buildFormInsert(partial: Partial<FeedbackForm>, clientId: string, companyId: string | null): TablesInsert<"forms"> {
+  return {
+    title: partial.title ?? "",
+    description: partial.description ?? "",
+    product: partial.product ?? "",
+    category: partial.category ?? "",
+    category_details: partial.categoryDetails ?? null,
+    company_id: companyId,
+    client_id: clientId,
+    client_name: partial.clientName ?? "",
+    status: partial.status ?? "draft",
+    visibility: partial.formVisibility ?? "private",
+    response_limit: partial.responseLimit ?? null,
+    allow_anonymous: typeof partial.allowAnonymous === "boolean" ? partial.allowAnonymous : true,
+    enable_ratings: typeof partial.enableRatings === "boolean" ? partial.enableRatings : true,
+    auto_close_date: partial.autoCloseDate ?? null,
+    questions: (partial.questions ?? []) as unknown as Json,
+    reward_tokens: normalizeRewardTokens(partial.rewardTokens),
+  };
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
-export function getForms(): FeedbackForm[] {
-  return readForms();
+export async function getForms(): Promise<FeedbackForm[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("forms").select("*").order("created_at", { ascending: false });
+  if (error) throw error;
+  const rows = data ?? [];
+  const counts = await fetchResponseCounts(supabase, rows.map((row) => row.id));
+  return rows.map((row) => mapFormRow(row, counts.get(row.id) ?? 0));
 }
 
-export function getFormById(id: string): FeedbackForm | undefined {
-  return readForms().find((f) => f.id === id);
+export async function getFormById(id: string): Promise<FeedbackForm | undefined> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("forms").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  if (!data) return undefined;
+  const counts = await fetchResponseCounts(supabase, [data.id]);
+  return mapFormRow(data, counts.get(data.id) ?? 0);
 }
 
-export function getApprovedForms(): FeedbackForm[] {
-  const forms = readForms();
-  const approved = forms.filter((form) => normalizeText(form.status) === "approved");
-  const sortedApproved = sortFormsByLatest(approved);
-
-  const unmatchedApproved = sortedApproved
-    .map((form) => {
-      const companyState = findMatchingApprovedCompany(form);
-      return {
-        form,
-        matchedCompany: companyState?.matchedCompany,
-      };
-    })
-    .filter((entry) => !entry.matchedCompany)
-    .map((entry) => ({
-      formId: entry.form.id,
-      companyId: entry.form.companyId,
-      clientName: entry.form.clientName,
-      status: entry.form.status,
-    }));
-
+export async function getApprovedForms(): Promise<FeedbackForm[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("forms").select("*").eq("status", "approved");
+  if (error) throw error;
+  const rows = data ?? [];
+  const counts = await fetchResponseCounts(supabase, rows.map((row) => row.id));
+  const sorted = sortFormsByLatest(rows.map((row) => mapFormRow(row, counts.get(row.id) ?? 0)));
   logFlow("query-approved-forms", {
-    totalForms: forms.length,
-    approvedCount: sortedApproved.length,
-    unmatchedApprovedCount: unmatchedApproved.length,
-    approvedFormIds: sortedApproved.map((form) => form.id),
-    unmatchedApproved,
+    approvedCount: sorted.length,
+    approvedFormIds: sorted.map((form) => form.id),
   });
-  return sortedApproved;
+  return sorted;
 }
 
-export function getClientForms(clientId = "client-1"): FeedbackForm[] {
-  return readForms().filter((f) => f.clientId === clientId);
+export async function getClientForms(clientId?: string): Promise<FeedbackForm[]> {
+  const supabase = createClient();
+  const resolvedClientId = clientId ?? (await currentUserId(supabase));
+  if (!resolvedClientId) return [];
+  const { data, error } = await supabase
+    .from("forms")
+    .select("*")
+    .eq("client_id", resolvedClientId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  const rows = data ?? [];
+  const counts = await fetchResponseCounts(supabase, rows.map((row) => row.id));
+  return rows.map((row) => mapFormRow(row, counts.get(row.id) ?? 0));
 }
 
-export function getPendingForms(): FeedbackForm[] {
-  return readForms().filter((f) => f.status === "pending");
+export async function getPendingForms(): Promise<FeedbackForm[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("forms")
+    .select("*")
+    .eq("status", "pending")
+    .order("submitted_at", { ascending: false });
+  if (error) throw error;
+  const rows = data ?? [];
+  const counts = await fetchResponseCounts(supabase, rows.map((row) => row.id));
+  return rows.map((row) => mapFormRow(row, counts.get(row.id) ?? 0));
 }
 
-export function createForm(partial: Partial<FeedbackForm>): FeedbackForm {
-  const forms = readForms();
-  const activeCompanies = getActiveApprovedCompanies();
-  const defaultCompany = activeCompanies[0];
+export async function createForm(partial: Partial<FeedbackForm>): Promise<FeedbackForm> {
+  const supabase = createClient();
+  const clientId = partial.clientId ?? (await currentUserId(supabase));
+  if (!clientId) throw new Error("A signed-in client account is required to create a form.");
 
-  if (!defaultCompany) {
-    throw new Error("No active approved companies available. Cannot create form.");
+  const resolvedCompanyId = await resolveCompanyIdByName(supabase, partial.clientName);
+  if (!resolvedCompanyId) {
+    logFlow("create-blocked-invalid-company", { clientName: partial.clientName });
+    throw new Error("No active approved company selected. Cannot create form.");
   }
 
-  const form = normalizeForm({
-    id: `form-${Date.now()}`,
-    title: "",
-    description: "",
-    product: "",
-    category: "",
-    formVisibility: "private",
-    responseLimit: undefined,
-    allowAnonymous: true,
-    enableRatings: true,
-    autoCloseDate: undefined,
-    questions: [],
-    status: "draft",
-    clientId: "client-1",
-    companyId: defaultCompany.id,
-    clientName: defaultCompany.name,
-    createdAt: new Date().toISOString(),
-    rewardTokens: DEFAULT_FORM_REWARD_TOKENS,
-    responseCount: 0,
-    ...partial,
-  });
-  writeForms([...forms, form]);
-  emitFormsUpdated("create", form);
-  logFlow("client-created-form", { formId: form.id, status: form.status, title: form.title });
-  return form;
+  const insertRow = buildFormInsert(partial, clientId, resolvedCompanyId);
+  const { data, error } = await supabase.from("forms").insert(insertRow).select("*").single();
+  if (error) throw error;
+
+  const mapped = mapFormRow(data, 0);
+  emitFormsUpdated("create", { formId: mapped.id, status: mapped.status });
+  logFlow("client-created-form", { formId: mapped.id, status: mapped.status, title: mapped.title });
+  return mapped;
 }
 
-export function updateForm(id: string, updates: Partial<FeedbackForm>): FeedbackForm | null {
-  const forms = readForms();
-  const idx = forms.findIndex((f) => f.id === id);
-  if (idx === -1) return null;
-  const before = forms[idx];
-  const updated = normalizeForm({ ...forms[idx], ...updates });
-  forms[idx] = updated;
-  writeForms(forms);
-  emitFormsUpdated("update", updated);
-  logFlow("form-updated", {
-    formId: id,
-    previousStatus: before.status,
-    nextStatus: updated.status,
-  });
-  return updated;
+export async function updateForm(id: string, updates: Partial<FeedbackForm>): Promise<FeedbackForm | null> {
+  const supabase = createClient();
+  const patch: TablesUpdate<"forms"> = {};
+
+  if ("title" in updates) patch.title = updates.title ?? "";
+  if ("description" in updates) patch.description = updates.description ?? "";
+  if ("product" in updates) patch.product = updates.product ?? "";
+  if ("category" in updates) patch.category = updates.category ?? "";
+  if ("categoryDetails" in updates) patch.category_details = updates.categoryDetails ?? null;
+  if ("formVisibility" in updates) patch.visibility = updates.formVisibility ?? "private";
+  if ("responseLimit" in updates) patch.response_limit = updates.responseLimit ?? null;
+  if ("allowAnonymous" in updates) patch.allow_anonymous = updates.allowAnonymous ?? true;
+  if ("enableRatings" in updates) patch.enable_ratings = updates.enableRatings ?? true;
+  if ("autoCloseDate" in updates) patch.auto_close_date = updates.autoCloseDate ?? null;
+  if ("questions" in updates) patch.questions = (updates.questions ?? []) as unknown as Json;
+  if ("rewardTokens" in updates) patch.reward_tokens = normalizeRewardTokens(updates.rewardTokens);
+  if ("status" in updates) patch.status = updates.status ?? "draft";
+  if ("submittedAt" in updates) patch.submitted_at = updates.submittedAt ?? null;
+  if ("approvedAt" in updates) patch.approved_at = updates.approvedAt ?? null;
+  if ("rejectionReason" in updates) patch.rejection_reason = updates.rejectionReason ?? null;
+  if ("requestChangesNote" in updates) patch.request_changes_note = updates.requestChangesNote ?? null;
+  if ("clientName" in updates) {
+    patch.client_name = updates.clientName ?? "";
+    patch.company_id = await resolveCompanyIdByName(supabase, updates.clientName);
+  }
+
+  const { data, error } = await supabase.from("forms").update(patch).eq("id", id).select("*").maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  const counts = await fetchResponseCounts(supabase, [data.id]);
+  const mapped = mapFormRow(data, counts.get(data.id) ?? 0);
+  emitFormsUpdated("update", { formId: mapped.id, status: mapped.status });
+  logFlow("form-updated", { formId: id, nextStatus: mapped.status });
+  return mapped;
 }
 
-export function deleteForm(id: string): boolean {
-  const forms = readForms();
-  const deleted = forms.find((f) => f.id === id);
-  const filtered = forms.filter((f) => f.id !== id);
-  if (filtered.length === forms.length) return false;
-  writeForms(filtered);
-  emitFormsUpdated("delete", deleted);
-  logFlow("form-deleted", { formId: id });
-  return true;
+export async function deleteForm(id: string): Promise<boolean> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("forms").delete().eq("id", id).select("id");
+  if (error) throw error;
+  const deleted = (data?.length ?? 0) > 0;
+  if (deleted) {
+    emitFormsUpdated("delete", { formId: id });
+    logFlow("form-deleted", { formId: id });
+  }
+  return deleted;
 }
 
-export function submitFormForApproval(id: string): FeedbackForm | null {
-  const existing = getFormById(id);
-  const activeCompanies = getActiveApprovedCompanies();
-  const isValidCompany = Boolean(
-    existing &&
-    activeCompanies.some(
-      (company) => company.id === existing.companyId || company.name.toLowerCase() === (existing.clientName || "").toLowerCase()
-    )
-  );
+export async function submitFormForApproval(id: string): Promise<FeedbackForm | null> {
+  const supabase = createClient();
+  const existing = await getFormById(id);
+  if (!existing) return null;
 
-  if (!existing || !isValidCompany) {
+  const resolvedCompanyId = await resolveCompanyIdByName(supabase, existing.clientName);
+  if (!resolvedCompanyId) {
     logFlow("submit-blocked-invalid-company", { formId: id, reason: "Company is not active/approved" });
     return null;
   }
 
-  const updated = updateForm(id, {
+  const updated = await updateForm(id, {
     status: "pending",
     submittedAt: new Date().toISOString(),
     rejectionReason: undefined,
@@ -632,26 +380,24 @@ export function submitFormForApproval(id: string): FeedbackForm | null {
   return updated;
 }
 
-export function approveForm(id: string): FeedbackForm | null {
-  const existing = getFormById(id);
-  const companyState = findMatchingApprovedCompany(existing);
-  const isValidCompany = Boolean(existing && companyState?.matchedCompany);
+export async function approveForm(id: string): Promise<FeedbackForm | null> {
+  const supabase = createClient();
+  const existing = await getFormById(id);
+  if (!existing) return null;
 
-  if (!existing || !isValidCompany) {
+  const resolvedCompanyId = await resolveCompanyIdByName(supabase, existing.clientName);
+  if (!resolvedCompanyId) {
     logFlow("approve-blocked-invalid-company", {
       formId: id,
       reason: "Company is not active/approved",
-      companyId: existing?.companyId,
-      clientName: existing?.clientName,
-      activeCompanyCount: companyState?.activeCompanies.length || 0,
+      clientName: existing.clientName,
     });
     return null;
   }
 
-  const updated = updateForm(id, {
+  const updated = await updateForm(id, {
     status: "approved",
-    companyId: companyState?.matchedCompany?.id,
-    clientName: companyState?.matchedCompany?.name || existing.clientName,
+    clientName: existing.clientName,
     approvedAt: new Date().toISOString(),
     rejectionReason: undefined,
   });
@@ -667,46 +413,41 @@ export function approveForm(id: string): FeedbackForm | null {
   return updated;
 }
 
-export function rejectForm(id: string, reason: string): FeedbackForm | null {
-  const updated = updateForm(id, {
+export async function rejectForm(id: string, reason: string): Promise<FeedbackForm | null> {
+  const updated = await updateForm(id, {
     status: "rejected",
     rejectionReason: reason,
   });
   if (updated) {
-    logFlow("admin-rejected-form", {
-      formId: updated.id,
-      status: updated.status,
-      reason,
-    });
+    logFlow("admin-rejected-form", { formId: updated.id, status: updated.status, reason });
   }
   return updated;
 }
 
-export function requestChanges(id: string, note: string): FeedbackForm | null {
-  const updated = updateForm(id, {
+export async function requestChanges(id: string, note: string): Promise<FeedbackForm | null> {
+  const updated = await updateForm(id, {
     status: "draft",
     requestChangesNote: note,
     rejectionReason: undefined,
   });
   if (updated) {
-    logFlow("admin-requested-changes", {
-      formId: updated.id,
-      status: updated.status,
-      note,
-    });
+    logFlow("admin-requested-changes", { formId: updated.id, status: updated.status, note });
   }
   return updated;
 }
 
-export function addResponse(
+export async function addResponse(
   formId: string,
   answers: Record<string, unknown>,
   options?: { userId?: string; rewardTokens?: number }
-): FormResponse {
-  const responses = readResponses();
-  const forms = readForms();
-  const form = forms.find((entry) => entry.id === formId);
+): Promise<FormResponse> {
+  const supabase = createClient();
   const userId = options?.userId?.trim();
+  if (!userId) {
+    throw new Error("A signed-in account is required to submit feedback.");
+  }
+
+  const form = await getFormById(formId);
 
   if (form?.autoCloseDate) {
     const closeAt = Date.parse(form.autoCloseDate);
@@ -725,66 +466,82 @@ export function addResponse(
     throw new Error("This feedback form reached its response limit.");
   }
 
-  if (userId && responses.some((response) => response.formId === formId && response.userId === userId)) {
-    logFlow("response-blocked-duplicate", {
-      formId,
-      userId,
-      reason: "user-already-submitted",
-    });
+  if (await hasUserSubmittedForm(formId, userId)) {
+    logFlow("response-blocked-duplicate", { formId, userId, reason: "user-already-submitted" });
     throw new Error("Feedback already submitted by this account.");
   }
 
   const rewardTokens = normalizeRewardTokens(options?.rewardTokens);
-  const response: FormResponse = {
-    id: `resp-${Date.now()}`,
-    formId,
-    answers,
-    submittedAt: new Date().toISOString(),
-    userId,
-    rewardTokens,
-  };
-  writeResponses([...responses, response]);
-  // increment response count
-  const idx = forms.findIndex((f) => f.id === formId);
-  if (idx !== -1) {
-    forms[idx] = { ...forms[idx], responseCount: forms[idx].responseCount + 1 };
-    writeForms(forms);
-    emitFormsUpdated("response", forms[idx]);
-    logFlow("user-submitted-response", {
-      formId,
-      responseId: response.id,
-      responseCount: forms[idx].responseCount,
-    });
+  const { data, error } = await supabase
+    .from("responses")
+    .insert({
+      form_id: formId,
+      user_id: userId,
+      answers: answers as unknown as Json,
+      reward_tokens: rewardTokens,
+    })
+    .select("*")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error("Feedback already submitted by this account.");
+    }
+    throw error;
   }
-  return response;
+
+  const mapped = mapResponseRow(data);
+  emitFormsUpdated("response", { formId, status: form?.status });
+  logFlow("user-submitted-response", { formId, responseId: mapped.id });
+  return mapped;
 }
 
-export function getResponsesByFormId(formId: string): FormResponse[] {
-  return readResponses().filter((r) => r.formId === formId);
+export async function getResponsesByFormId(formId: string): Promise<FormResponse[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("responses")
+    .select("*")
+    .eq("form_id", formId)
+    .order("submitted_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(mapResponseRow);
 }
 
-export function getResponsesByUser(userId: string): FormResponse[] {
-  return readResponses().filter((r) => r.userId === userId);
+export async function getResponsesByUser(userId: string): Promise<FormResponse[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("responses")
+    .select("*")
+    .eq("user_id", userId)
+    .order("submitted_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(mapResponseRow);
 }
 
-export function getSubmittedFormIdsByUser(userId: string): string[] {
+export async function getSubmittedFormIdsByUser(userId: string): Promise<string[]> {
   const normalizedUserId = String(userId || "").trim();
   if (!normalizedUserId) return [];
 
-  const uniqueFormIds = new Set(
-    readResponses()
-      .filter((response) => response.userId === normalizedUserId)
-      .map((response) => response.formId)
-  );
+  const supabase = createClient();
+  const { data, error } = await supabase.from("responses").select("form_id").eq("user_id", normalizedUserId);
+  if (error) throw error;
 
-  return Array.from(uniqueFormIds);
+  return Array.from(new Set((data ?? []).map((row) => row.form_id)));
 }
 
-export function hasUserSubmittedForm(formId: string, userId: string): boolean {
+export async function hasUserSubmittedForm(formId: string, userId: string): Promise<boolean> {
   const normalizedUserId = String(userId || "").trim();
   if (!formId || !normalizedUserId) return false;
 
-  return readResponses().some((response) => response.formId === formId && response.userId === normalizedUserId);
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("responses")
+    .select("id")
+    .eq("form_id", formId)
+    .eq("user_id", normalizedUserId)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
 }
 
 // Utility: generate a unique question id
@@ -796,18 +553,10 @@ export function subscribeToFormsUpdates(onUpdate: () => void) {
   if (typeof window === "undefined") return () => {};
 
   const handleLocalUpdate = () => onUpdate();
-  const handleStorage = (event: StorageEvent) => {
-    if (event.key === FORMS_KEY) {
-      onUpdate();
-      logFlow("storage-sync-update", { key: event.key });
-    }
-  };
 
   window.addEventListener(FORMS_UPDATED_EVENT, handleLocalUpdate);
-  window.addEventListener("storage", handleStorage);
 
   return () => {
     window.removeEventListener(FORMS_UPDATED_EVENT, handleLocalUpdate);
-    window.removeEventListener("storage", handleStorage);
   };
 }

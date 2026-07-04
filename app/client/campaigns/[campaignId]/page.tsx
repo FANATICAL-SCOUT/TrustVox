@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, BarChart3, Edit2, Eye, MessageSquare } from "lucide-react"
 import { getCampaignDetails } from "@/lib/client-campaigns"
@@ -22,11 +22,21 @@ const FORM_STATUS_STYLE = {
 export default function CampaignDetailsPage() {
   const params = useParams()
   const router = useRouter()
+  const [campaign, setCampaign] = useState<Awaited<ReturnType<typeof getCampaignDetails>>>(null)
 
-  const campaign = useMemo(() => {
+  useEffect(() => {
     const id = Array.isArray(params?.campaignId) ? params.campaignId[0] : params?.campaignId
-    if (!id) return null
-    return getCampaignDetails(id)
+    if (!id) {
+      setCampaign(null)
+      return
+    }
+    let active = true
+    void getCampaignDetails(id).then((details) => {
+      if (active) setCampaign(details)
+    })
+    return () => {
+      active = false
+    }
   }, [params?.campaignId])
 
   if (!campaign) {

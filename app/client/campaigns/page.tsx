@@ -1,9 +1,9 @@
 "use client"
 
-import { useMemo } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { BarChart3, ClipboardList, FolderKanban, MessageSquare, Star } from "lucide-react"
-import { getCampaignSummaries, type CampaignStatus } from "@/lib/client-campaigns"
+import { getCampaignSummaries, type CampaignStatus, type CampaignSummary } from "@/lib/client-campaigns"
 
 const STATUS_STYLE: Record<CampaignStatus, string> = {
 	active: "border-mint/30 bg-mint/10 text-mint",
@@ -19,7 +19,11 @@ const STATUS_LABEL: Record<CampaignStatus, string> = {
 
 export default function ClientCampaignsPage() {
 	const router = useRouter()
-	const campaigns = useMemo(() => getCampaignSummaries(), [])
+	const [campaigns, setCampaigns] = useState<CampaignSummary[]>([])
+
+	useEffect(() => {
+		void getCampaignSummaries().then(setCampaigns)
+	}, [])
 
 	return (
 		<div className="min-h-screen bg-background">

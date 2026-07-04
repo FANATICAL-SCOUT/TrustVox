@@ -257,8 +257,8 @@ export default function ClientHomePage() {
   useEffect(() => {
     if (!mounted) return
 
-    const loadCampaigns = () => {
-      const summaries = getCampaignSummaries()
+    const loadCampaigns = async () => {
+      const summaries = await getCampaignSummaries()
       const relevantCampaigns = isLive
         ? summaries.filter((campaign) => campaign.status === "active")
         : summaries
@@ -273,8 +273,8 @@ export default function ClientHomePage() {
       })
     }
 
-    loadCampaigns()
-    const unsubscribe = subscribeToFormsUpdates(loadCampaigns)
+    void loadCampaigns()
+    const unsubscribe = subscribeToFormsUpdates(() => void loadCampaigns())
     return () => unsubscribe()
   }, [mounted, isLive])
 
@@ -282,17 +282,37 @@ export default function ClientHomePage() {
     return campaigns.find((campaign) => campaign.id === selectedCampaign) || null
   }, [campaigns, selectedCampaign])
 
-  const campaignDetails = useMemo(() => {
-    if (!selectedCampaign) return null
-    return getCampaignDetails(selectedCampaign)
+  const [campaignDetails, setCampaignDetails] = useState<Awaited<ReturnType<typeof getCampaignDetails>>>(null)
+
+  useEffect(() => {
+    if (!selectedCampaign) {
+      setCampaignDetails(null)
+      return
+    }
+    let active = true
+    void getCampaignDetails(selectedCampaign).then((details) => {
+      if (active) setCampaignDetails(details)
+    })
+    return () => {
+      active = false
+    }
   }, [selectedCampaign])
 
   const selectedForms = useMemo(() => {
     return campaignDetails?.forms || []
   }, [campaignDetails])
 
-  const realResponses = useMemo(() => {
-    return selectedForms.flatMap((form) => getResponsesByFormId(form.id))
+  const [realResponses, setRealResponses] = useState<FormResponse[]>([])
+
+  useEffect(() => {
+    let active = true
+    void (async () => {
+      const responses = await Promise.all(selectedForms.map((form) => getResponsesByFormId(form.id)))
+      if (active) setRealResponses(responses.flat())
+    })()
+    return () => {
+      active = false
+    }
   }, [selectedForms])
 
   const recentForms = useMemo(() => {

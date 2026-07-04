@@ -11,25 +11,12 @@ import CompanyDetailsModal from "@/components/modals/company-details-modal"
 import { getFeedbackQuota, subscribeToFeedbackQuotaUpdates } from "@/lib/feedback-quota"
 import { refreshSystemNotifications, type UserNotification } from "@/lib/user-notifications"
 import { hasUserSubmittedForm, type FeedbackHandoff } from "@/lib/feedback-store"
+import { createClient } from "@/lib/supabase/client"
 
-function resolveCurrentUserId() {
-  if (typeof window === "undefined") return "anonymous"
-
-  try {
-    const currentUserRaw = localStorage.getItem("currentUser")
-    if (currentUserRaw) {
-      const parsed = JSON.parse(currentUserRaw) as { email?: string; name?: string }
-      const fromCurrentUser = String(parsed.email || parsed.name || "").trim().toLowerCase()
-      if (fromCurrentUser) return fromCurrentUser
-    }
-
-    const userEmail = String(localStorage.getItem("userEmail") || "").trim().toLowerCase()
-    if (userEmail) return userEmail
-  } catch {
-    // Fall through to anonymous identifier.
-  }
-
-  return "anonymous"
+async function resolveCurrentUserId(): Promise<string | null> {
+  const supabase = createClient()
+  const { data } = await supabase.auth.getUser()
+  return data.user?.id ?? null
 }
 
 export default function UserDashboard() {
@@ -65,7 +52,7 @@ export default function UserDashboard() {
     setActiveSection("history"); // Route to history page after saving draft
   };
 
-  const handleStartFeedbackFromSuggested = (feedbackData?: FeedbackHandoff | null) => {
+  const handleStartFeedbackFromSuggested = async (feedbackData?: FeedbackHandoff | null) => {
     if (!canSubmitFeedback) {
       setQuotaMessage("Daily limit reached: free users can submit up to 3 feedbacks per day. Please come back tomorrow.")
       return
@@ -80,8 +67,8 @@ export default function UserDashboard() {
 
     const formId = feedbackData.formId || feedbackData.id
     if (typeof formId === "string" && formId.length > 0) {
-      const userId = resolveCurrentUserId()
-      if (hasUserSubmittedForm(formId, userId)) {
+      const userId = await resolveCurrentUserId()
+      if (userId && (await hasUserSubmittedForm(formId, userId))) {
         setQuotaMessage("Blocked: you can fill each feedback form only once per account.")
         return
       }
@@ -139,16 +126,16 @@ export default function UserDashboard() {
       }
     }
 
-    refreshSystemNotifications()
+    void refreshSystemNotifications()
     applyQuota()
     const unsubscribe = subscribeToFeedbackQuotaUpdates(() => {
       applyQuota()
-      refreshSystemNotifications()
+      void refreshSystemNotifications()
     })
 
     const handleFocus = () => {
       applyQuota()
-      refreshSystemNotifications()
+      void refreshSystemNotifications()
     }
 
     window.addEventListener("focus", handleFocus)

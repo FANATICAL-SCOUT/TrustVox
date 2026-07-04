@@ -175,12 +175,12 @@ export default function ClientFormsPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
 
-  const loadForms = () => {
-    setForms(getClientForms())
+  const loadForms = async () => {
+    setForms(await getClientForms())
   }
 
   useEffect(() => {
-    loadForms()
+    void loadForms()
   }, [])
 
   const showToast = (msg: string) => {
@@ -206,21 +206,21 @@ export default function ClientFormsPage() {
     setDeleteTarget(id)
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return
-    deleteForm(deleteTarget)
+    await deleteForm(deleteTarget)
     setDeleteTarget(null)
-    loadForms()
+    await loadForms()
     showToast("Form deleted.")
   }
 
-  function handleSubmit(id: string) {
-    const submitted = submitFormForApproval(id)
+  async function handleSubmit(id: string) {
+    const submitted = await submitFormForApproval(id)
     if (!submitted) {
       showToast("Submission blocked: company is inactive or not approved.")
       return
     }
-    loadForms()
+    await loadForms()
     showToast("Form submitted for admin review!")
   }
 

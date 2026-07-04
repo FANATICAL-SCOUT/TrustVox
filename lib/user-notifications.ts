@@ -182,7 +182,7 @@ export function recordStoreRedemptionNotification(itemTitle: string, cost: numbe
   writeState(next)
 }
 
-export function refreshSystemNotifications() {
+export async function refreshSystemNotifications() {
   let state = readState()
   const nowMs = Date.now()
 
@@ -202,7 +202,7 @@ export function refreshSystemNotifications() {
     }
   }
 
-  const approvedForms = getApprovedForms()
+  const approvedForms = await getApprovedForms()
   const unseenForms = approvedForms.filter((form) => !state.seenOpportunityIds.includes(form.id))
   if (unseenForms.length > 0) {
     unseenForms.forEach((form) => {

@@ -55,43 +55,49 @@ export default function FeedbackHistory({ newFeedbacks, savedFeedbacks, onContin
   const [helpfulMessageId, setHelpfulMessageId] = useState<string | null>(null)
 
   useEffect(() => {
-    const loadLiveHistory = () => {
-      const forms = getForms()
+    let active = true
 
-      const mapped = forms.flatMap((form) => {
-        const responses = getResponsesByFormId(form.id)
+    const loadLiveHistory = async () => {
+      const forms = await getForms()
 
-        return responses.map((response, index) => {
-          const answerValues = Object.values(response.answers || {})
-          const textAnswer = answerValues.find((value) => typeof value === "string" && value.trim().length > 0)
-          const feedbackText = typeof textAnswer === "string" ? textAnswer : `Feedback submitted for ${form.product}.`
+      const perForm = await Promise.all(
+        forms.map(async (form) => {
+          const responses = await getResponsesByFormId(form.id)
+          return responses.map((response, index) => {
+            const answerValues = Object.values(response.answers || {})
+            const textAnswer = answerValues.find((value) => typeof value === "string" && value.trim().length > 0)
+            const feedbackText = typeof textAnswer === "string" ? textAnswer : `Feedback submitted for ${form.product}.`
 
-          return {
-            id: response.id,
-            company: form.clientName,
-            product: form.product,
-            feedback: feedbackText,
-            date: response.submittedAt.slice(0, 10),
-            status: "approved",
-            tokensEarned: response.rewardTokens ?? form.rewardTokens,
-            interactions: 1 + (index % 6),
-            rating: 4.5,
-            category: form.category,
-          }
-        })
-      })
+            return {
+              id: response.id,
+              company: form.clientName,
+              product: form.product,
+              feedback: feedbackText,
+              date: response.submittedAt.slice(0, 10),
+              status: "approved",
+              tokensEarned: response.rewardTokens ?? form.rewardTokens,
+              interactions: 1 + (index % 6),
+              rating: 4.5,
+              category: form.category,
+            }
+          })
+        }),
+      )
 
-      const sorted = mapped.sort((a, b) => Date.parse(String(b.date)) - Date.parse(String(a.date)))
+      if (!active) return
+      const sorted = perForm.flat().sort((a, b) => Date.parse(String(b.date)) - Date.parse(String(a.date)))
       setAllFeedbacks([...newFeedbacks, ...sorted])
     }
 
-    loadLiveHistory()
-    const unsubscribe = subscribeToFormsUpdates(loadLiveHistory)
-    window.addEventListener("focus", loadLiveHistory)
+    void loadLiveHistory()
+    const unsubscribe = subscribeToFormsUpdates(() => void loadLiveHistory())
+    const handleFocus = () => void loadLiveHistory()
+    window.addEventListener("focus", handleFocus)
 
     return () => {
+      active = false
       unsubscribe()
-      window.removeEventListener("focus", loadLiveHistory)
+      window.removeEventListener("focus", handleFocus)
     }
   }, [newFeedbacks])
 

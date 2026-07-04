@@ -94,7 +94,7 @@ export default function LandingSection({
   const [approvedForms, setApprovedForms] = useState<FeedbackForm[]>([])
 
   useEffect(() => {
-    const loadForms = () => setApprovedForms(getApprovedForms())
+    const loadForms = () => void getApprovedForms().then(setApprovedForms)
     loadForms()
     const unsubscribe = subscribeToFormsUpdates(loadForms)
     window.addEventListener("focus", loadForms)

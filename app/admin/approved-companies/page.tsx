@@ -58,16 +58,16 @@ export default function ApprovedCompaniesPage() {
   const [editCompanyName, setEditCompanyName] = useState("")
   const [editCompanyCategory, setEditCompanyCategory] = useState("Software")
 
-  const loadData = () => {
+  const loadData = async () => {
     const allCompanies = getApprovedCompanies()
-    const allForms = getForms()
+    const allForms = await getForms()
     setCompanies(allCompanies)
     setForms(allForms)
   }
 
   useEffect(() => {
-    loadData()
-    const unsub = subscribeToApprovedCompanies(loadData)
+    void loadData()
+    const unsub = subscribeToApprovedCompanies(() => void loadData())
     return () => unsub()
   }, [])
 

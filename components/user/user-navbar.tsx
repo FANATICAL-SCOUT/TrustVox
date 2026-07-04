@@ -55,13 +55,11 @@ export default function UserNavbar({
   }, [])
 
   useEffect(() => {
-    refreshSystemNotifications()
-    setUnreadCount(getUnreadNotificationsCount())
-
     const updateUnread = () => {
-      refreshSystemNotifications()
-      setUnreadCount(getUnreadNotificationsCount())
+      void refreshSystemNotifications().then(() => setUnreadCount(getUnreadNotificationsCount()))
     }
+
+    updateUnread()
 
     window.addEventListener("trustvox:user-notifications-updated", updateUnread)
     window.addEventListener("focus", updateUnread)

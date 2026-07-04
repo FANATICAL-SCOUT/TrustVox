@@ -642,8 +642,8 @@ function deriveResponseScore(response: FormResponse): number {
 // bucketed by calendar day (not a running cumulative counter) so summing
 // `total`/`positive`/`negative` across entries gives the true count instead
 // of double-counting via a cumulative snapshot.
-function buildCampaignResponsesFromForm(form: FeedbackForm): CampaignResponse[] {
-  const responses = [...getResponsesByFormId(form.id)]
+async function buildCampaignResponsesFromForm(form: FeedbackForm): Promise<CampaignResponse[]> {
+  const responses = await getResponsesByFormId(form.id)
 
   const byDate = new Map<string, CampaignResponse>()
 
@@ -664,17 +664,19 @@ function buildCampaignResponsesFromForm(form: FeedbackForm): CampaignResponse[] 
 
 // Real client forms only. No fabricated "Campaign A-E" filler blended in —
 // if there are genuinely zero forms, the page shows an honest empty state.
-function buildAnalyticsCampaigns(): AnalyticsCampaign[] {
-  const forms = getClientForms("client-1")
+async function buildAnalyticsCampaigns(): Promise<AnalyticsCampaign[]> {
+  const forms = await getClientForms()
 
-  return forms
-    .map((form, index) => ({
+  const campaigns = await Promise.all(
+    forms.map(async (form, index) => ({
       id: form.id,
       name: form.title || form.product || `Campaign ${index + 1}`,
       date: form.submittedAt || form.createdAt,
-      responses: buildCampaignResponsesFromForm(form),
-    }))
-    .sort((left, right) => Date.parse(right.date) - Date.parse(left.date))
+      responses: await buildCampaignResponsesFromForm(form),
+    })),
+  )
+
+  return campaigns.sort((left, right) => Date.parse(right.date) - Date.parse(left.date))
 }
 
 function ClientAnalyticsPageContent() {
@@ -699,17 +701,21 @@ function ClientAnalyticsPageContent() {
   const campaignMap = useMemo(() => new Map(campaigns.map((campaign) => [campaign.id, campaign])), [campaigns])
 
   useEffect(() => {
-    const loadCampaigns = () => {
-      setCampaigns(buildAnalyticsCampaigns())
+    let active = true
+    const loadCampaigns = async () => {
+      const built = await buildAnalyticsCampaigns()
+      if (active) setCampaigns(built)
     }
+    const handleUpdate = () => void loadCampaigns()
 
-    loadCampaigns()
-    const unsubscribe = subscribeToFormsUpdates(loadCampaigns)
-    window.addEventListener("focus", loadCampaigns)
+    void loadCampaigns()
+    const unsubscribe = subscribeToFormsUpdates(handleUpdate)
+    window.addEventListener("focus", handleUpdate)
 
     return () => {
+      active = false
       unsubscribe()
-      window.removeEventListener("focus", loadCampaigns)
+      window.removeEventListener("focus", handleUpdate)
     }
   }, [])
 
