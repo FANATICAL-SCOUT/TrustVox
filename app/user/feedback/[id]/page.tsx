@@ -22,7 +22,7 @@ import { logFlow } from "@/lib/debug-log"
 import { subscribeToApprovedCompanies } from "@/lib/approved-company-store"
 import { consumeFeedbackQuota, getFeedbackQuota } from "@/lib/feedback-quota"
 import { recordFeedbackSubmittedNotification } from "@/lib/user-notifications"
-import { addTVXReward } from "@/lib/tvx-wallet"
+import { creditFeedbackReward } from "@/lib/tvx-wallet"
 import { createClient } from "@/lib/supabase/client"
 
 type AnswerValue = string | number | string[]
@@ -476,9 +476,14 @@ export default function FeedbackSubmitPage() {
     }
     consumeFeedbackQuota()
     recordFeedbackSubmittedNotification(rewardTokens)
-    addTVXReward(rewardTokens, `Feedback submitted for "${form.title}"`, {
-      referenceId: `feedback-reward:${response.id}`,
-    })
+    // Reward is credited server-side (amount derived from the form, idempotent
+    // per response). The response is already saved, so a credit hiccup must not
+    // block the success screen — it's safely retriable via the same reference id.
+    try {
+      await creditFeedbackReward(response.id)
+    } catch {
+      // swallow: response persisted; credit can be retried idempotently
+    }
     setSubmitting(false)
     setSubmitted(true)
   }

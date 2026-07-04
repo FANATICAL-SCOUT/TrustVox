@@ -4,52 +4,21 @@ import { useEffect, useMemo, useState } from "react"
 import { CheckCircle2, Sparkles, Store as StoreIcon, Lock, Gift, Tv, Shirt, ArrowRight, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { getTVXWalletState, redeemTVXItem, subscribeToTVXWalletUpdates, type TVXWalletState } from "@/lib/tvx-wallet"
+import {
+  emptyWalletState,
+  getTVXWalletState,
+  redeemTVXItem,
+  subscribeToTVXWalletUpdates,
+  type TVXWalletState,
+} from "@/lib/tvx-wallet"
+import { getStoreItems, type StoreCategory, type StoreItem } from "@/lib/store-catalog"
 import { recordStoreRedemptionNotification } from "@/lib/user-notifications"
-
-type StoreCategory = "vouchers" | "subscriptions" | "merch"
-
-interface StoreItem {
-  id: string
-  title: string
-  description: string
-  cost: number
-  badge: string
-  category: StoreCategory
-}
 
 const CATEGORY_ICON: Record<StoreCategory, LucideIcon> = {
   vouchers: Gift,
   subscriptions: Tv,
   merch: Shirt,
 }
-
-const STORE_ITEMS: StoreItem[] = [
-  {
-    id: "amazon-gift-card",
-    title: "Amazon Gift Card",
-    description: "Redeem your TVX for a digital voucher and shop what you love.",
-    cost: 200,
-    badge: "Popular",
-    category: "vouchers",
-  },
-  {
-    id: "netflix-subscription",
-    title: "Netflix Subscription",
-    description: "Unlock one month of entertainment powered by your TrustVox activity.",
-    cost: 150,
-    badge: "Limited",
-    category: "subscriptions",
-  },
-  {
-    id: "trustvox-tshirt",
-    title: "TrustVox T-Shirt",
-    description: "Premium community merch for your most consistent feedback streaks.",
-    cost: 300,
-    badge: "Premium",
-    category: "merch",
-  },
-]
 
 const FILTER_OPTIONS: { key: "all" | StoreCategory; label: string }[] = [
   { key: "all", label: "All" },
@@ -77,14 +46,16 @@ function StatTile({ label, value, unit, tone }: { label: string; value: number; 
 }
 
 export default function StoreSection() {
-  const [wallet, setWallet] = useState<TVXWalletState>(() => getTVXWalletState())
+  const [wallet, setWallet] = useState<TVXWalletState>(emptyWalletState)
+  const [items, setItems] = useState<StoreItem[]>([])
   const [selectedItem, setSelectedItem] = useState<StoreItem | null>(null)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [isRedeeming, setIsRedeeming] = useState(false)
   const [feedbackMessage, setFeedbackMessage] = useState<FeedbackMessage | null>(null)
   const [activeFilter, setActiveFilter] = useState<"all" | StoreCategory>("all")
 
   useEffect(() => {
-    const syncWallet = () => setWallet(getTVXWalletState())
+    const syncWallet = () => void getTVXWalletState().then(setWallet)
     syncWallet()
     const unsubscribe = subscribeToTVXWalletUpdates(syncWallet)
     window.addEventListener("focus", syncWallet)
@@ -94,14 +65,21 @@ export default function StoreSection() {
     }
   }, [])
 
+  useEffect(() => {
+    void getStoreItems().then(setItems)
+  }, [])
+
   const redeemableCount = useMemo(
-    () => STORE_ITEMS.filter((item) => wallet.balance >= item.cost).length,
-    [wallet.balance],
+    () => items.filter((item) => wallet.balance >= item.cost).length,
+    [items, wallet.balance],
   )
 
-  const lowestCost = useMemo(() => Math.min(...STORE_ITEMS.map((item) => item.cost)), [])
+  const lowestCost = useMemo(
+    () => (items.length ? Math.min(...items.map((item) => item.cost)) : 0),
+    [items],
+  )
   const firstRewardGap = Math.max(0, lowestCost - wallet.balance)
-  const cheapestProgress = Math.min(100, Math.round((wallet.balance / lowestCost) * 100))
+  const cheapestProgress = lowestCost > 0 ? Math.min(100, Math.round((wallet.balance / lowestCost) * 100)) : 0
 
   const motivationMessage =
     firstRewardGap > 0
@@ -109,8 +87,8 @@ export default function StoreSection() {
       : `${redeemableCount} reward${redeemableCount === 1 ? "" : "s"} ready to redeem`
 
   const filteredItems = useMemo(
-    () => (activeFilter === "all" ? STORE_ITEMS : STORE_ITEMS.filter((item) => item.category === activeFilter)),
-    [activeFilter],
+    () => (activeFilter === "all" ? items : items.filter((item) => item.category === activeFilter)),
+    [items, activeFilter],
   )
 
   const openConfirmModal = (item: StoreItem) => {
@@ -119,17 +97,16 @@ export default function StoreSection() {
     setIsConfirmOpen(true)
   }
 
-  const handleRedeemConfirm = () => {
-    if (!selectedItem) return
+  const handleRedeemConfirm = async () => {
+    if (!selectedItem || isRedeeming) return
 
-    const result = redeemTVXItem({
-      id: selectedItem.id,
-      title: selectedItem.title,
-      cost: selectedItem.cost,
-    })
+    setIsRedeeming(true)
+    const result = await redeemTVXItem({ id: selectedItem.id, title: selectedItem.title })
+    setIsRedeeming(false)
+
+    setWallet(result.wallet)
 
     if (result.success) {
-      setWallet(result.wallet)
       recordStoreRedemptionNotification(selectedItem.title, selectedItem.cost, result.wallet.balance)
       setFeedbackMessage({ type: "success", text: result.message })
       setIsConfirmOpen(false)
@@ -335,9 +312,9 @@ export default function StoreSection() {
             <Button
               className="bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105"
               onClick={handleRedeemConfirm}
-              disabled={!selectedItem || wallet.balance < (selectedItem?.cost ?? 0)}
+              disabled={!selectedItem || isRedeeming || wallet.balance < (selectedItem?.cost ?? 0)}
             >
-              Confirm redeem
+              {isRedeeming ? "Redeeming…" : "Confirm redeem"}
             </Button>
           </DialogFooter>
         </DialogContent>

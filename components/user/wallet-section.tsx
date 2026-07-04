@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Wallet, ArrowUpRight, ArrowDownRight } from "lucide-react"
-import { getTVXWalletState, subscribeToTVXWalletUpdates } from "@/lib/tvx-wallet"
+import { emptyWalletState, getTVXWalletState, subscribeToTVXWalletUpdates } from "@/lib/tvx-wallet"
 
 const FIRST_REWARD_TARGET = 150
 
@@ -19,10 +19,10 @@ function StatTile({ label, value, tone }: { label: string; value: number; tone: 
 }
 
 export default function WalletSection() {
-  const [wallet, setWallet] = useState(() => getTVXWalletState())
+  const [wallet, setWallet] = useState(emptyWalletState)
 
   useEffect(() => {
-    const syncWallet = () => setWallet(getTVXWalletState())
+    const syncWallet = () => void getTVXWalletState().then(setWallet)
     syncWallet()
     const unsubscribe = subscribeToTVXWalletUpdates(syncWallet)
     window.addEventListener("focus", syncWallet)

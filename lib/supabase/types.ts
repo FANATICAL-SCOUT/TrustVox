@@ -357,6 +357,42 @@ export type Database = {
           },
         ]
       }
+      store_items: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          cost: number
+          badge: string
+          category: Database["public"]["Enums"]["store_category"]
+          is_active: boolean
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id: string
+          title: string
+          description?: string
+          cost: number
+          badge?: string
+          category: Database["public"]["Enums"]["store_category"]
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          cost?: number
+          badge?: string
+          category?: Database["public"]["Enums"]["store_category"]
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       wallet_balances: {
@@ -393,6 +429,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      credit_feedback_reward: {
+        Args: { p_response_id: string }
+        Returns: number
+      }
+      redeem_reward: {
+        Args: { p_item_id: string }
+        Returns: number
+      }
     }
     Enums: {
       user_role: "user" | "client" | "admin"
@@ -407,6 +451,7 @@ export type Database = {
         | "new_opportunity"
         | "streak_risk"
       campaign_status: "active" | "draft" | "completed"
+      store_category: "vouchers" | "subscriptions" | "merch"
     }
     CompositeTypes: Record<string, never>
   }

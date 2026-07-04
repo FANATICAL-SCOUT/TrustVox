@@ -1,3 +1,18 @@
+// ─── TrustVox TVX Wallet ───────────────────────────────────────────────────
+// Supabase-backed wallet (migrated in Phase 8.4 — see ARCHITECTURE.md §4, §6, §8).
+// Balance/totals are DERIVED (the wallet_balances view = SUM of transactions),
+// never stored, so double-credits and drift are structurally impossible.
+//
+// Both money-moving operations go through trusted SECURITY DEFINER functions
+// (migration 0005), NOT client writes — wallet_transactions has no authenticated
+// INSERT policy, so a user cannot mint or self-discount TVX:
+//   • creditFeedbackReward → credit_feedback_reward(response_id): amount read
+//     from the form, idempotent per response.
+//   • redeemTVXItem        → redeem_reward(item_id): cost read from the catalog,
+//     atomic balance check (no overspend).
+import { createClient } from "@/lib/supabase/client"
+import type { Tables } from "@/lib/supabase/types"
+
 export interface TVXTransaction {
   id: string
   amount: number
@@ -13,64 +28,25 @@ export interface TVXWalletState {
   transactions: TVXTransaction[]
 }
 
+// Redemption only needs the item id (cost is server-authoritative); title is
+// used solely for the client-side success message.
 export interface RedeemItemInput {
   id: string
   title: string
-  cost: number
 }
 
-const STORAGE_KEY = "trustvox:tvx-wallet"
 const UPDATE_EVENT = "trustvox:tvx-wallet-updated"
 
-const defaultWalletState: TVXWalletState = {
-  balance: 1240,
-  totalEarned: 1680,
-  totalSpent: 440,
-  transactions: [
-    {
-      id: "tx-1",
-      amount: 40,
-      reason: 'Feedback submitted for "Product Experience Survey"',
-      createdAt: "2026-03-23T09:15:00.000Z",
-    },
-    {
-      id: "tx-2",
-      amount: -200,
-      reason: "Redeemed Amazon Gift Card",
-      createdAt: "2026-03-22T12:08:00.000Z",
-    },
-    {
-      id: "tx-3",
-      amount: 28,
-      reason: 'Feedback submitted for "Customer Support Feedback"',
-      createdAt: "2026-03-22T08:00:00.000Z",
-    },
-  ],
+// A signed-out or brand-new wallet: empty and honest (no invented balance).
+export const emptyWalletState: TVXWalletState = {
+  balance: 0,
+  totalEarned: 0,
+  totalSpent: 0,
+  transactions: [],
 }
 
 function isBrowser() {
   return typeof window !== "undefined"
-}
-
-function safeParseWallet(raw: string | null): TVXWalletState | null {
-  if (!raw) return null
-
-  try {
-    const parsed = JSON.parse(raw) as Partial<TVXWalletState>
-    if (typeof parsed?.balance !== "number") return null
-    if (typeof parsed?.totalEarned !== "number") return null
-    if (typeof parsed?.totalSpent !== "number") return null
-    if (!Array.isArray(parsed?.transactions)) return null
-
-    return {
-      balance: parsed.balance,
-      totalEarned: parsed.totalEarned,
-      totalSpent: parsed.totalSpent,
-      transactions: parsed.transactions,
-    }
-  } catch {
-    return null
-  }
 }
 
 function emitWalletUpdate() {
@@ -78,106 +54,87 @@ function emitWalletUpdate() {
   window.dispatchEvent(new CustomEvent(UPDATE_EVENT))
 }
 
-export function getTVXWalletState(): TVXWalletState {
-  if (!isBrowser()) {
-    return defaultWalletState
+function mapTransaction(row: Tables<"wallet_transactions">): TVXTransaction {
+  return {
+    id: row.id,
+    amount: row.amount,
+    reason: row.reason,
+    createdAt: row.created_at,
+    referenceId: row.reference_id ?? undefined,
   }
-
-  const saved = safeParseWallet(localStorage.getItem(STORAGE_KEY))
-  if (saved) {
-    return saved
-  }
-
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultWalletState))
-  return defaultWalletState
 }
 
-export function setTVXWalletState(nextState: TVXWalletState) {
-  if (!isBrowser()) return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState))
-  emitWalletUpdate()
-}
-
+// In-tab refresh bus (cross-user realtime lands in 8.7). Kept as a window event
+// so the navbar / wallet / store stay in sync after a credit or redeem.
 export function subscribeToTVXWalletUpdates(callback: () => void) {
   if (!isBrowser()) {
     return () => {}
   }
-
-  const handleStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY) {
-      callback()
-    }
-  }
-
   window.addEventListener(UPDATE_EVENT, callback)
-  window.addEventListener("storage", handleStorage)
   return () => {
     window.removeEventListener(UPDATE_EVENT, callback)
-    window.removeEventListener("storage", handleStorage)
   }
 }
 
-export function addTVXReward(amount: number, reason: string, options?: { referenceId?: string }) {
-  const current = getTVXWalletState()
-  const safeAmount = Math.max(0, Math.floor(amount))
-  const referenceId = options?.referenceId?.trim()
+export async function getTVXWalletState(): Promise<TVXWalletState> {
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return emptyWalletState
 
-  if (referenceId && current.transactions.some((transaction) => transaction.referenceId === referenceId)) {
-    return current
+  const [balances, transactions] = await Promise.all([
+    supabase
+      .from("wallet_balances")
+      .select("balance, total_earned, total_spent")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("wallet_transactions")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false }),
+  ])
+
+  if (balances.error) throw balances.error
+  if (transactions.error) throw transactions.error
+
+  return {
+    balance: balances.data?.balance ?? 0,
+    totalEarned: balances.data?.total_earned ?? 0,
+    totalSpent: balances.data?.total_spent ?? 0,
+    transactions: (transactions.data ?? []).map(mapTransaction),
   }
-
-  const next: TVXWalletState = {
-    ...current,
-    balance: current.balance + safeAmount,
-    totalEarned: current.totalEarned + safeAmount,
-    transactions: [
-      {
-        id: `tx-${Date.now()}`,
-        amount: safeAmount,
-        reason,
-        createdAt: new Date().toISOString(),
-        referenceId,
-      },
-      ...current.transactions,
-    ],
-  }
-
-  setTVXWalletState(next)
-  return next
 }
 
-export function redeemTVXItem(input: RedeemItemInput): { success: boolean; message: string; wallet: TVXWalletState } {
-  const current = getTVXWalletState()
-  const safeCost = Math.max(0, Math.floor(input.cost))
+// Credit the reward for a feedback response the caller owns. The trusted path
+// derives the amount from the form (no self-minting) and is idempotent per
+// response, so calling it twice for the same submission credits at most once.
+export async function creditFeedbackReward(responseId: string): Promise<TVXWalletState> {
+  const supabase = createClient()
+  const { error } = await supabase.rpc("credit_feedback_reward", { p_response_id: responseId })
+  if (error) throw error
+  emitWalletUpdate()
+  return getTVXWalletState()
+}
 
-  if (current.balance < safeCost) {
-    return {
-      success: false,
-      message: "Not enough TVX",
-      wallet: current,
-    }
+export async function redeemTVXItem(
+  input: RedeemItemInput,
+): Promise<{ success: boolean; message: string; wallet: TVXWalletState }> {
+  const supabase = createClient()
+  const { error } = await supabase.rpc("redeem_reward", { p_item_id: input.id })
+
+  if (error) {
+    const message = /insufficient/i.test(error.message)
+      ? "Not enough TVX"
+      : "Redemption failed. Please try again."
+    return { success: false, message, wallet: await getTVXWalletState() }
   }
 
-  const next: TVXWalletState = {
-    ...current,
-    balance: current.balance - safeCost,
-    totalSpent: current.totalSpent + safeCost,
-    transactions: [
-      {
-        id: `tx-${Date.now()}`,
-        amount: -safeCost,
-        reason: `Redeemed ${input.title}`,
-        createdAt: new Date().toISOString(),
-      },
-      ...current.transactions,
-    ],
-  }
-
-  setTVXWalletState(next)
-
+  emitWalletUpdate()
   return {
     success: true,
     message: `${input.title} redeemed successfully`,
-    wallet: next,
+    wallet: await getTVXWalletState(),
   }
 }

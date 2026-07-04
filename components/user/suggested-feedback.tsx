@@ -82,7 +82,7 @@ function Tag({ label }: { label: string }) {
 const SuggestedFeedbacks = ({ handleStartFeedbackFromSuggested, onSaveForLater }: SuggestedFeedbackProps) => {
   const router = useRouter()
   const [approvedForms, setApprovedForms] = useState<FeedbackForm[]>([])
-  const [walletBalance, setWalletBalance] = useState(() => getTVXWalletState().balance)
+  const [walletBalance, setWalletBalance] = useState(0)
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all")
 
   useEffect(() => {
@@ -97,7 +97,7 @@ const SuggestedFeedbacks = ({ handleStartFeedbackFromSuggested, onSaveForLater }
   }, [])
 
   useEffect(() => {
-    const syncWallet = () => setWalletBalance(getTVXWalletState().balance)
+    const syncWallet = () => void getTVXWalletState().then((wallet) => setWalletBalance(wallet.balance))
     syncWallet()
     const unsubscribe = subscribeToTVXWalletUpdates(syncWallet)
     window.addEventListener("focus", syncWallet)

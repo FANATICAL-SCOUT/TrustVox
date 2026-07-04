@@ -72,7 +72,7 @@ export default function UserNavbar({
 
   useEffect(() => {
     const syncWallet = () => {
-      setTvxBalance(getTVXWalletState().balance)
+      void getTVXWalletState().then((wallet) => setTvxBalance(wallet.balance))
     }
 
     syncWallet()
