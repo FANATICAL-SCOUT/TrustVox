@@ -27,9 +27,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# claude code — local, machine-specific settings & secrets (shared commands under
-# .claude/commands/ stay tracked on purpose; only the local overrides are ignored)
-.claude/settings.local.json
+# Local-only working files — NEVER commit or push these (any project).
+# Kept on local disk only: AI/tooling config and internal project docs.
+.claude/
+CLAUDE.md
+/docs/
 .mcp.json
 
 # supabase local dev
