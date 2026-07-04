@@ -16,8 +16,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
+# env files — secrets live here (Supabase URL/anon/service_role keys, etc.). NEVER commit.
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -25,3 +26,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# claude code — local, machine-specific settings & secrets (shared commands under
+# .claude/commands/ stay tracked on purpose; only the local overrides are ignored)
+.claude/settings.local.json
+.mcp.json
+
+# supabase local dev
+/supabase/.branches
+/supabase/.temp
+/supabase/.env

@@ -8,14 +8,14 @@ Live design system: **"Ledger"** — dark, quiet-fintech, one gold accent, mint 
 
 ## Source of truth
 
-This README gives a snapshot for getting the project running. For anything about current status, in-progress work, or design decisions, **the `docs/` folder is authoritative** — start with [`docs/TRACKER.md`](docs/TRACKER.md):
+This README gives a snapshot for getting the project running. For anything about current status, in-progress work, or design decisions, **the `docs/` folder is authoritative** — see [`docs/README.md`](docs/README.md) for the hub. It's split by workstream:
 
-| File | What it's for |
-| --- | --- |
-| [`docs/TRACKER.md`](docs/TRACKER.md) | Live status dashboard: phase %, current focus, design system, run/screenshot steps. |
-| [`docs/TODO.md`](docs/TODO.md) | Phase-by-phase task checklist. |
-| [`docs/LOG.md`](docs/LOG.md) | Dated, append-only changelog with the *why* behind each change. |
-| [`docs/CONSOLIDATION-MAP.md`](docs/CONSOLIDATION-MAP.md) | Keep/merge/delete decisions for routes and components. |
+| Folder | What it covers | Start here |
+| --- | --- | --- |
+| [`docs/frontend/`](docs/frontend/) | The "Ledger" UI rebuild (Phases 1–7, ✅ done). | [`frontend/TRACKER.md`](docs/frontend/TRACKER.md) |
+| [`docs/backend/`](docs/backend/) | The real DB + auth + security rebuild (Phase 8, Supabase). | [`backend/TRACKER.md`](docs/backend/TRACKER.md) + [`backend/ARCHITECTURE.md`](docs/backend/ARCHITECTURE.md) |
+
+Each folder holds its own `TRACKER.md` (status), `TODO.md` (checklist), and `LOG.md` (change history).
 
 [`PROJECT_REBUILD_SPEC.md`](PROJECT_REBUILD_SPEC.md) is an **archived** pre-rebuild planning document — historical only, not maintained.
 
@@ -95,6 +95,6 @@ pnpm dev       # http://localhost:3000
 
 ## Notes
 
-- No real backend/auth yet — most pages fall back to an "anonymous" user with seeded demo state. A light backend (leaning Supabase) is planned post-frontend.
+- Backend rebuild (Phase 8) is underway on **Supabase** (Postgres + Auth + RLS). Until it lands, most pages still fall back to an "anonymous" user with seeded `localStorage` demo state. Design: [`docs/backend/ARCHITECTURE.md`](docs/backend/ARCHITECTURE.md).
 - TypeScript and ESLint run in strict mode with zero tolerance for new errors (`next.config.mjs` has both checks enabled, not suppressed).
-- Keep `docs/LOG.md` / `docs/TODO.md` / `docs/TRACKER.md` / `docs/CONSOLIDATION-MAP.md` in sync with any route, component, or feature change — see [`docs/README.md`](docs/README.md) for the maintenance contract.
+- Keep the docs in sync with any route, component, feature, table, or policy change — frontend changes update `docs/frontend/`, backend changes update `docs/backend/`. See [`docs/README.md`](docs/README.md) for the maintenance contract.
