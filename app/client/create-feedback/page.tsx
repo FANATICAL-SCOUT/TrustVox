@@ -429,7 +429,8 @@ function CreateFeedbackInner() {
     void (async () => {
       const form = await getFormById(editId)
       if (!active || !form) return
-      const activeCompanies = getActiveApprovedCompanies()
+      const activeCompanies = await getActiveApprovedCompanies()
+      if (!active) return
       const matchedCompany = activeCompanies.find((company) => company.id === form.companyId || company.name.toLowerCase() === (form.clientName || "").toLowerCase())
       setFormId(form.id)
       setTitle(form.title)
@@ -452,10 +453,7 @@ function CreateFeedbackInner() {
   }, [editId])
 
   useEffect(() => {
-    const loadCompanies = () => {
-      const activeCompanies = getActiveApprovedCompanies()
-      setApprovedCompanies(activeCompanies)
-    }
+    const loadCompanies = () => void getActiveApprovedCompanies().then(setApprovedCompanies)
 
     loadCompanies()
     const unsubscribe = subscribeToApprovedCompanies(loadCompanies)

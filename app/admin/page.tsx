@@ -70,8 +70,8 @@ export default function AdminCommandCenter() {
 
   useEffect(() => {
     const loadForms = () => void getForms().then(setForms)
-    const loadCompanies = () => setCompanies(getApprovedCompanies())
-    const loadUsers = () => setUsers(getManagedUsers())
+    const loadCompanies = () => void getApprovedCompanies().then(setCompanies)
+    const loadUsers = () => void getManagedUsers().then(setUsers)
 
     loadForms()
     loadCompanies()

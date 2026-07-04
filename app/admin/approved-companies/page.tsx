@@ -59,8 +59,7 @@ export default function ApprovedCompaniesPage() {
   const [editCompanyCategory, setEditCompanyCategory] = useState("Software")
 
   const loadData = async () => {
-    const allCompanies = getApprovedCompanies()
-    const allForms = await getForms()
+    const [allCompanies, allForms] = await Promise.all([getApprovedCompanies(), getForms()])
     setCompanies(allCompanies)
     setForms(allForms)
   }
@@ -123,13 +122,13 @@ export default function ApprovedCompaniesPage() {
     ]
   }, [companies, campaignStatsByCompanyId])
 
-  function handleAddCompany() {
+  async function handleAddCompany() {
     if (!newCompanyName.trim()) return
-    addApprovedCompany({ name: newCompanyName.trim(), category: newCompanyCategory, status: "active" })
+    await addApprovedCompany({ name: newCompanyName.trim(), category: newCompanyCategory, status: "active" })
     setNewCompanyName("")
     setNewCompanyCategory("Software")
     setAddOpen(false)
-    loadData()
+    void loadData()
   }
 
   function handleEditOpen(company: ApprovedCompany) {
@@ -139,20 +138,20 @@ export default function ApprovedCompaniesPage() {
     setEditOpen(true)
   }
 
-  function handleSaveEdit() {
+  async function handleSaveEdit() {
     if (!selectedCompany || !editCompanyName.trim()) return
-    updateApprovedCompany(selectedCompany.id, {
+    await updateApprovedCompany(selectedCompany.id, {
       name: editCompanyName.trim(),
       category: editCompanyCategory,
     })
     setEditOpen(false)
     setSelectedCompany(null)
-    loadData()
+    void loadData()
   }
 
-  function handleToggle(company: ApprovedCompany) {
-    toggleApprovedCompanyStatus(company.id)
-    loadData()
+  async function handleToggle(company: ApprovedCompany) {
+    await toggleApprovedCompanyStatus(company.id)
+    void loadData()
   }
 
   function handleHistory(company: ApprovedCompany) {

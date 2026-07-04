@@ -1,3 +1,11 @@
+// ─── TrustVox Approved-Company & Managed-User Store ────────────────────────
+// Supabase-backed store for the admin company directory + user management
+// (migrated in Phase 8.5 — see docs/backend/ARCHITECTURE.md §4, §6, §8).
+// Companies map to the `companies` table; managed users are the `profiles`
+// table read through the admin lens. All functions are async and run through
+// the RLS-gated browser client.
+import { createClient } from "@/lib/supabase/client";
+import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
 import { logStore } from "@/lib/debug-log";
 
 export type CompanyStatus = "active" | "inactive";
@@ -20,230 +28,174 @@ export interface ManagedUser {
   role: UserRole;
   status: UserStatus;
   feedbackSubmittedCount: number;
-  lastActiveAt: string;
+  joinedAt: string;
 }
 
-const COMPANIES_KEY = "trustvox_approved_companies";
-const USERS_KEY = "trustvox_managed_users";
 const COMPANIES_UPDATED_EVENT = "trustvox:companies-updated";
 const USERS_UPDATED_EVENT = "trustvox:users-updated";
 
-const COMPANY_DATA: Array<{ category: string; names: string[] }> = [
-  { category: "Software", names: ["Microsoft", "Google", "Apple", "Adobe", "Salesforce", "Oracle", "SAP", "IBM", "Atlassian", "Zoom"] },
-  { category: "Service", names: ["Accenture", "Deloitte", "Tata Consultancy Services (TCS)", "Infosys", "Wipro", "Capgemini", "Cognizant", "HCL Technologies", "PwC", "EY"] },
-  { category: "Mobile App", names: ["Meta", "Snap Inc.", "ByteDance", "Spotify", "Uber", "Airbnb", "Netflix", "Amazon", "LinkedIn", "Discord"] },
-  { category: "Hardware", names: ["Intel", "AMD", "NVIDIA", "Samsung", "Sony", "HP", "Dell", "Lenovo", "Asus", "Cisco"] },
-  { category: "E-Commerce", names: ["Amazon", "eBay", "Alibaba", "Flipkart", "Shopify", "Walmart", "Etsy", "Rakuten", "Target", "Best Buy"] },
-  { category: "Food & Beverage", names: ["Nestlé", "Coca-Cola", "PepsiCo", "Starbucks", "McDonald's", "Unilever", "Danone", "Mondelez", "Kraft Heinz", "Red Bull"] },
-  { category: "Healthcare", names: ["Pfizer", "Johnson & Johnson", "Roche", "Novartis", "Merck", "Abbott", "GSK", "Bayer", "Moderna", "Sanofi"] },
-  { category: "Education", names: ["Coursera", "Udemy", "BYJU’S", "Khan Academy", "edX", "Duolingo", "Skillshare", "Chegg", "Unacademy", "FutureLearn"] },
-  { category: "Finance", names: ["JPMorgan Chase", "Goldman Sachs", "Morgan Stanley", "HSBC", "Citi", "Bank of America", "PayPal", "Visa", "Mastercard", "American Express"] },
-];
+type CompanyRow = Tables<"companies">;
+type ProfileRow = Tables<"profiles">;
 
-const SEED_COMPANIES: ApprovedCompany[] = COMPANY_DATA.flatMap((group, groupIndex) =>
-  group.names.map((name, index) => ({
-    id: `co-${group.category.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${index + 1}`,
-    name,
-    category: group.category,
-    status: "active" as CompanyStatus,
-    dateAdded: new Date(Date.UTC(2025, Math.min(groupIndex, 11), Math.max(1, index + 1))).toISOString(),
-  }))
-);
+const ROLE_LABEL: Record<ProfileRow["role"], UserRole> = {
+  user: "User",
+  client: "Client",
+  admin: "Admin",
+};
 
-const SEED_USERS: ManagedUser[] = [
-  { id: "u-1", name: "Aarav Sharma", email: "aarav@trustvox.com", role: "Admin", status: "Active", feedbackSubmittedCount: 0, lastActiveAt: new Date().toISOString() },
-  { id: "u-2", name: "Priya Nair", email: "priya.nair@msft.com", role: "Client", status: "Active", feedbackSubmittedCount: 14, lastActiveAt: new Date().toISOString() },
-  { id: "u-3", name: "Daniel Chen", email: "dchen@gmail.com", role: "User", status: "Active", feedbackSubmittedCount: 27, lastActiveAt: new Date().toISOString() },
-  { id: "u-4", name: "Sophia Williams", email: "sophia@adobe.com", role: "Client", status: "Blocked", feedbackSubmittedCount: 6, lastActiveAt: new Date().toISOString() },
-  { id: "u-5", name: "Miguel Ortiz", email: "miguel.ortiz@yahoo.com", role: "User", status: "Active", feedbackSubmittedCount: 41, lastActiveAt: new Date().toISOString() },
-];
+const STATUS_LABEL: Record<ProfileRow["status"], UserStatus> = {
+  active: "Active",
+  blocked: "Blocked",
+};
 
-function readCompanies(): ApprovedCompany[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(COMPANIES_KEY);
-    if (!raw) {
-      localStorage.setItem(COMPANIES_KEY, JSON.stringify(SEED_COMPANIES));
-      return SEED_COMPANIES;
-    }
-    return JSON.parse(raw) as ApprovedCompany[];
-  } catch {
-    return SEED_COMPANIES;
-  }
+function mapCompanyRow(row: CompanyRow): ApprovedCompany {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    status: row.status,
+    dateAdded: row.date_added,
+  };
 }
 
-function writeCompanies(companies: ApprovedCompany[]) {
+function emitCompaniesUpdated() {
   if (typeof window === "undefined") return;
-  localStorage.setItem(COMPANIES_KEY, JSON.stringify(companies));
   window.dispatchEvent(new CustomEvent(COMPANIES_UPDATED_EVENT));
-  logStore("companies-updated", { count: companies.length });
+  logStore("companies-updated");
 }
 
-function readUsers(): ManagedUser[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(USERS_KEY);
-    if (!raw) {
-      localStorage.setItem(USERS_KEY, JSON.stringify(SEED_USERS));
-      return SEED_USERS;
-    }
-    return JSON.parse(raw) as ManagedUser[];
-  } catch {
-    return SEED_USERS;
-  }
-}
-
-function writeUsers(users: ManagedUser[]) {
+function emitUsersUpdated() {
   if (typeof window === "undefined") return;
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
   window.dispatchEvent(new CustomEvent(USERS_UPDATED_EVENT));
-  logStore("users-updated", { count: users.length });
+  logStore("users-updated");
 }
 
-function normalizeValue(value: string) {
-  return value.trim().toLowerCase();
+// ── Companies (← ApprovedCompany) ───────────────────────────────────────────
+export async function getApprovedCompanies(): Promise<ApprovedCompany[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("companies").select("*").order("name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(mapCompanyRow);
 }
 
-export function getApprovedCompanies(): ApprovedCompany[] {
-  return readCompanies();
+export async function getActiveApprovedCompanies(): Promise<ApprovedCompany[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("companies")
+    .select("*")
+    .eq("status", "active")
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(mapCompanyRow);
 }
 
-export function getActiveApprovedCompanies(): ApprovedCompany[] {
-  return readCompanies().filter((company) => company.status === "active");
+export async function getApprovedCompanyById(id: string): Promise<ApprovedCompany | undefined> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("companies").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data ? mapCompanyRow(data) : undefined;
 }
 
-export function getApprovedCompanyById(id: string): ApprovedCompany | undefined {
-  return readCompanies().find((company) => company.id === id);
-}
-
-export function addApprovedCompany(input: Omit<ApprovedCompany, "id" | "dateAdded">) {
-  const companies = readCompanies();
-  const newCompany: ApprovedCompany = {
-    id: `co-custom-${Date.now()}`,
+export async function addApprovedCompany(input: Omit<ApprovedCompany, "id" | "dateAdded">): Promise<ApprovedCompany> {
+  const supabase = createClient();
+  const insertRow: TablesInsert<"companies"> = {
     name: input.name,
     category: input.category,
     status: input.status,
-    dateAdded: new Date().toISOString(),
   };
-  writeCompanies([...companies, newCompany]);
-  return newCompany;
+  const { data, error } = await supabase.from("companies").insert(insertRow).select("*").single();
+  if (error) throw error;
+  const mapped = mapCompanyRow(data);
+  emitCompaniesUpdated();
+  logStore("company-added", { id: mapped.id, name: mapped.name });
+  return mapped;
 }
 
-export function updateApprovedCompany(id: string, updates: Partial<ApprovedCompany>) {
-  const companies = readCompanies();
-  const index = companies.findIndex((company) => company.id === id);
-  if (index === -1) return null;
-  companies[index] = { ...companies[index], ...updates };
-  writeCompanies(companies);
-  return companies[index];
+export async function updateApprovedCompany(id: string, updates: Partial<ApprovedCompany>): Promise<ApprovedCompany | null> {
+  const supabase = createClient();
+  const patch: TablesUpdate<"companies"> = {};
+  if ("name" in updates) patch.name = updates.name;
+  if ("category" in updates) patch.category = updates.category;
+  if ("status" in updates) patch.status = updates.status;
+
+  const { data, error } = await supabase.from("companies").update(patch).eq("id", id).select("*").maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const mapped = mapCompanyRow(data);
+  emitCompaniesUpdated();
+  logStore("company-updated", { id: mapped.id });
+  return mapped;
 }
 
-export function toggleApprovedCompanyStatus(id: string) {
-  const company = getApprovedCompanyById(id);
+export async function toggleApprovedCompanyStatus(id: string): Promise<ApprovedCompany | null> {
+  const company = await getApprovedCompanyById(id);
   if (!company) return null;
   return updateApprovedCompany(id, { status: company.status === "active" ? "inactive" : "active" });
 }
 
-export function getManagedUsers(): ManagedUser[] {
-  return readUsers();
-}
+// ── Managed users (← ManagedUser, admin view over profiles) ────────────────
+export async function getManagedUsers(): Promise<ManagedUser[]> {
+  const supabase = createClient();
+  const { data: profiles, error } = await supabase
+    .from("profiles")
+    .select("id, email, display_name, role, status, created_at")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  const rows = profiles ?? [];
 
-export function updateManagedUserStatus(id: string, status: UserStatus) {
-  const users = readUsers();
-  const index = users.findIndex((user) => user.id === id);
-  if (index === -1) return null;
-  users[index] = { ...users[index], status, lastActiveAt: new Date().toISOString() };
-  writeUsers(users);
-  return users[index];
-}
-
-export function upsertManagedUserFromRegistration(input: {
-  name: string;
-  email: string;
-  role: Exclude<UserRole, "Admin">;
-}) {
-  const normalizedEmail = normalizeValue(input.email);
-  if (!normalizedEmail) return null;
-
-  const users = readUsers();
-  const existingIndex = users.findIndex((user) => normalizeValue(user.email) === normalizedEmail);
-
-  if (existingIndex >= 0) {
-    const existing = users[existingIndex];
-    const updated: ManagedUser = {
-      ...existing,
-      name: input.name.trim() || existing.name,
-      role: input.role,
-      lastActiveAt: new Date().toISOString(),
-    };
-    users[existingIndex] = updated;
-    writeUsers(users);
-    return updated;
+  // feedbackSubmittedCount is a real derived count (no fabricated demo numbers):
+  // 0 for client/admin rows, and 0 for users until they actually submit.
+  const { data: responseRows, error: responseError } = await supabase.from("responses").select("user_id");
+  if (responseError) throw responseError;
+  const countByUser = new Map<string, number>();
+  for (const row of responseRows ?? []) {
+    countByUser.set(row.user_id, (countByUser.get(row.user_id) ?? 0) + 1);
   }
 
-  const created: ManagedUser = {
-    id: `u-reg-${Date.now()}`,
-    name: input.name.trim() || "New User",
-    email: normalizedEmail,
-    role: input.role,
-    status: "Active",
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.display_name || row.email || "Unknown",
+    email: row.email ?? "",
+    role: ROLE_LABEL[row.role],
+    status: STATUS_LABEL[row.status],
+    feedbackSubmittedCount: countByUser.get(row.id) ?? 0,
+    joinedAt: row.created_at,
+  }));
+}
+
+export async function updateManagedUserStatus(id: string, status: UserStatus): Promise<ManagedUser | null> {
+  const supabase = createClient();
+  const dbStatus: ProfileRow["status"] = status === "Active" ? "active" : "blocked";
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ status: dbStatus })
+    .eq("id", id)
+    .select("id, email, display_name, role, status, created_at")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  emitUsersUpdated();
+  logStore("user-status-updated", { id, status });
+  return {
+    id: data.id,
+    name: data.display_name || data.email || "Unknown",
+    email: data.email ?? "",
+    role: ROLE_LABEL[data.role],
+    status: STATUS_LABEL[data.status],
     feedbackSubmittedCount: 0,
-    lastActiveAt: new Date().toISOString(),
+    joinedAt: data.created_at,
   };
-
-  writeUsers([created, ...users]);
-  return created;
-}
-
-export function upsertApprovedCompanyFromRegistration(input: {
-  companyName: string;
-  category?: string;
-}) {
-  const normalizedName = normalizeValue(input.companyName);
-  if (!normalizedName) return null;
-
-  const companies = readCompanies();
-  const existing = companies.find((company) => normalizeValue(company.name) === normalizedName);
-  if (existing) {
-    return existing;
-  }
-
-  const created: ApprovedCompany = {
-    id: `co-reg-${Date.now()}`,
-    name: input.companyName.trim(),
-    category: input.category?.trim() || "Service",
-    status: "active",
-    dateAdded: new Date().toISOString(),
-  };
-
-  writeCompanies([created, ...companies]);
-  return created;
 }
 
 export function subscribeToApprovedCompanies(onUpdate: () => void) {
   if (typeof window === "undefined") return () => {};
-  const handle = () => onUpdate();
-  const handleStorage = (event: StorageEvent) => {
-    if (event.key === COMPANIES_KEY) onUpdate();
-  };
-  window.addEventListener(COMPANIES_UPDATED_EVENT, handle);
-  window.addEventListener("storage", handleStorage);
-  return () => {
-    window.removeEventListener(COMPANIES_UPDATED_EVENT, handle);
-    window.removeEventListener("storage", handleStorage);
-  };
+  window.addEventListener(COMPANIES_UPDATED_EVENT, onUpdate);
+  return () => window.removeEventListener(COMPANIES_UPDATED_EVENT, onUpdate);
 }
 
 export function subscribeToManagedUsers(onUpdate: () => void) {
   if (typeof window === "undefined") return () => {};
-  const handle = () => onUpdate();
-  const handleStorage = (event: StorageEvent) => {
-    if (event.key === USERS_KEY) onUpdate();
-  };
-  window.addEventListener(USERS_UPDATED_EVENT, handle);
-  window.addEventListener("storage", handleStorage);
-  return () => {
-    window.removeEventListener(USERS_UPDATED_EVENT, handle);
-    window.removeEventListener("storage", handleStorage);
-  };
+  window.addEventListener(USERS_UPDATED_EVENT, onUpdate);
+  return () => window.removeEventListener(USERS_UPDATED_EVENT, onUpdate);
 }

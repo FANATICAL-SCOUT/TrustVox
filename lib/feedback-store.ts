@@ -183,19 +183,18 @@ async function currentUserId(supabase: SupabaseClient): Promise<string | null> {
   return data.user?.id ?? null;
 }
 
-// Bridge for Phase 8.3: the company *directory* (lib/approved-company-store.ts)
-// stays on localStorage until it migrates in 8.5, but forms.company_id is a
-// real FK into the already-seeded `companies` table (8.1). Resolving by name
-// keeps form create/submit/approve working against the real table without
-// pulling the full company-store migration forward.
-async function resolveCompanyIdByName(supabase: SupabaseClient, name?: string): Promise<string | null> {
-  const trimmed = String(name || "").trim();
+// Validates a company id against the real `companies` table. Since 8.5, the
+// picker in lib/approved-company-store.ts returns real DB UUIDs, so
+// forms.company_id is set directly from the caller's selection — this just
+// confirms the company still exists and is active before the write goes in.
+async function resolveActiveCompanyId(supabase: SupabaseClient, companyId?: string): Promise<string | null> {
+  const trimmed = String(companyId || "").trim();
   if (!trimmed) return null;
   const { data, error } = await supabase
     .from("companies")
     .select("id")
+    .eq("id", trimmed)
     .eq("status", "active")
-    .ilike("name", trimmed)
     .maybeSingle();
   if (error) throw error;
   return data?.id ?? null;
@@ -288,9 +287,9 @@ export async function createForm(partial: Partial<FeedbackForm>): Promise<Feedba
   const clientId = partial.clientId ?? (await currentUserId(supabase));
   if (!clientId) throw new Error("A signed-in client account is required to create a form.");
 
-  const resolvedCompanyId = await resolveCompanyIdByName(supabase, partial.clientName);
+  const resolvedCompanyId = await resolveActiveCompanyId(supabase, partial.companyId);
   if (!resolvedCompanyId) {
-    logFlow("create-blocked-invalid-company", { clientName: partial.clientName });
+    logFlow("create-blocked-invalid-company", { companyId: partial.companyId });
     throw new Error("No active approved company selected. Cannot create form.");
   }
 
@@ -325,10 +324,8 @@ export async function updateForm(id: string, updates: Partial<FeedbackForm>): Pr
   if ("approvedAt" in updates) patch.approved_at = updates.approvedAt ?? null;
   if ("rejectionReason" in updates) patch.rejection_reason = updates.rejectionReason ?? null;
   if ("requestChangesNote" in updates) patch.request_changes_note = updates.requestChangesNote ?? null;
-  if ("clientName" in updates) {
-    patch.client_name = updates.clientName ?? "";
-    patch.company_id = await resolveCompanyIdByName(supabase, updates.clientName);
-  }
+  if ("clientName" in updates) patch.client_name = updates.clientName ?? "";
+  if ("companyId" in updates) patch.company_id = await resolveActiveCompanyId(supabase, updates.companyId);
 
   const { data, error } = await supabase.from("forms").update(patch).eq("id", id).select("*").maybeSingle();
   if (error) throw error;
@@ -358,7 +355,7 @@ export async function submitFormForApproval(id: string): Promise<FeedbackForm | 
   const existing = await getFormById(id);
   if (!existing) return null;
 
-  const resolvedCompanyId = await resolveCompanyIdByName(supabase, existing.clientName);
+  const resolvedCompanyId = await resolveActiveCompanyId(supabase, existing.companyId);
   if (!resolvedCompanyId) {
     logFlow("submit-blocked-invalid-company", { formId: id, reason: "Company is not active/approved" });
     return null;
@@ -385,19 +382,18 @@ export async function approveForm(id: string): Promise<FeedbackForm | null> {
   const existing = await getFormById(id);
   if (!existing) return null;
 
-  const resolvedCompanyId = await resolveCompanyIdByName(supabase, existing.clientName);
+  const resolvedCompanyId = await resolveActiveCompanyId(supabase, existing.companyId);
   if (!resolvedCompanyId) {
     logFlow("approve-blocked-invalid-company", {
       formId: id,
       reason: "Company is not active/approved",
-      clientName: existing.clientName,
+      companyId: existing.companyId,
     });
     return null;
   }
 
   const updated = await updateForm(id, {
     status: "approved",
-    clientName: existing.clientName,
     approvedAt: new Date().toISOString(),
     rejectionReason: undefined,
   });

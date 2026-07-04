@@ -43,11 +43,11 @@ export default function UserManagementPage() {
   const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null)
   const [activityOpen, setActivityOpen] = useState(false)
 
-  const loadUsers = () => setUsers(getManagedUsers())
+  const loadUsers = async () => setUsers(await getManagedUsers())
 
   useEffect(() => {
-    loadUsers()
-    const unsub = subscribeToManagedUsers(loadUsers)
+    void loadUsers()
+    const unsub = subscribeToManagedUsers(() => void loadUsers())
     return () => unsub()
   }, [])
 
@@ -96,10 +96,10 @@ export default function UserManagementPage() {
     ]
   }, [users])
 
-  function toggleStatus(user: ManagedUser) {
+  async function toggleStatus(user: ManagedUser) {
     const next: UserStatus = user.status === "Active" ? "Blocked" : "Active"
-    updateManagedUserStatus(user.id, next)
-    loadUsers()
+    await updateManagedUserStatus(user.id, next)
+    void loadUsers()
   }
 
   return (
@@ -155,7 +155,7 @@ export default function UserManagementPage() {
                 <th className="px-4 py-3 text-left text-[12px] font-semibold uppercase tracking-[0.1em]">Role</th>
                 <th className="px-4 py-3 text-left text-[12px] font-semibold uppercase tracking-[0.1em]">Status</th>
                 <th className="px-4 py-3 text-left text-[12px] font-semibold uppercase tracking-[0.1em]">Feedback Submitted</th>
-                <th className="px-4 py-3 text-left text-[12px] font-semibold uppercase tracking-[0.1em]">Last Active</th>
+                <th className="px-4 py-3 text-left text-[12px] font-semibold uppercase tracking-[0.1em]">Joined</th>
                 <th className="px-4 py-3 text-left text-[12px] font-semibold uppercase tracking-[0.1em]">Actions</th>
               </tr>
             </thead>
@@ -169,7 +169,7 @@ export default function UserManagementPage() {
                   <td className="px-4 py-3.5"><RoleBadge role={user.role} /></td>
                   <td className="px-4 py-3.5"><StatusBadge status={user.status} /></td>
                   <td className="px-4 py-3.5 text-ink">{user.feedbackSubmittedCount.toLocaleString()}</td>
-                  <td className="px-4 py-3.5 text-ink-muted">{new Date(user.lastActiveAt).toLocaleString()}</td>
+                  <td className="px-4 py-3.5 text-ink-muted">{new Date(user.joinedAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-2">
                       <Button
@@ -221,7 +221,7 @@ export default function UserManagementPage() {
             <p className="text-ink"><span className="text-ink-dim">Role:</span> {selectedUser?.role}</p>
             <p className="text-ink"><span className="text-ink-dim">Status:</span> {selectedUser?.status}</p>
             <p className="text-ink"><span className="text-ink-dim">Feedback submitted:</span> {selectedUser?.feedbackSubmittedCount}</p>
-            <p className="text-ink"><span className="text-ink-dim">Last active:</span> {selectedUser ? new Date(selectedUser.lastActiveAt).toLocaleString() : "-"}</p>
+            <p className="text-ink"><span className="text-ink-dim">Joined:</span> {selectedUser ? new Date(selectedUser.joinedAt).toLocaleDateString() : "-"}</p>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setActivityOpen(false)} className="text-ink-dim">Close</Button>
