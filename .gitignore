@@ -27,11 +27,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Local-only working files — NEVER commit or push these (any project).
-# Kept on local disk only: AI/tooling config and internal project docs.
-.claude/
-CLAUDE.md
-/docs/
 .mcp.json
 
 # supabase local dev
