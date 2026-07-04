@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Home, Users, LogOut, ClipboardCheck, Building2, Menu } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { clearUserSession } from "@/lib/auth-utils"
+import { createClient } from "@/lib/supabase/client"
 import BrandLogo from "@/components/brand-logo"
 
 const navItems = [
@@ -34,8 +34,9 @@ export default function AdminNavbar() {
   const isItemActive = (item: (typeof navItems)[number]) =>
     item.name === "Dashboard" ? pathname === "/admin" : item.match.some((route) => isRouteActive(route))
 
-  const handleLogout = () => {
-    clearUserSession()
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
     router.push("/")
   }
 

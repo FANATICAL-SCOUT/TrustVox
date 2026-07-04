@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { User, Mail, Calendar, LogOut, Edit, Save, X, Shield, Eye, Copy, Check, Flame, ArrowLeft } from "lucide-react"
 import InterestSelector from "./interest-selector"
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime"
-import { clearUserSession } from "@/lib/auth-utils"
+import { createClient } from "@/lib/supabase/client"
 import type { FeedbackHandoff } from "@/lib/feedback-store"
 
 interface UserProfileProps {
@@ -122,8 +122,9 @@ export default function UserProfile({ router, savedFeedbacks, onContinueEditing 
     localStorage.setItem("currentUser", JSON.stringify({ ...userInfo, userId, walletId }))
   }
 
-  const handleLogout = () => {
-    clearUserSession()
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
     router.push("/")
   }
 

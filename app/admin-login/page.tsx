@@ -5,14 +5,17 @@ import type { FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { ShieldCheck, LogIn } from "lucide-react"
 import AuthShell, { authFieldLabelClass, authInputClass } from "@/components/auth/auth-shell"
+import { createClient } from "@/lib/supabase/client"
+import { ROLE_HOME, GENERIC_AUTH_ERROR } from "@/lib/auth/roles"
 
 export default function AdminLoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError("")
 
@@ -21,8 +24,32 @@ export default function AdminLoginPage() {
       return
     }
 
-    localStorage.setItem("currentAdmin", JSON.stringify({ email, role: "admin" }))
-    router.push("/admin")
+    setIsSubmitting(true)
+    const supabase = createClient()
+
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError || !data.user) {
+      setError(GENERIC_AUTH_ERROR)
+      setIsSubmitting(false)
+      return
+    }
+
+    // Admin door — admins are provisioned by hand and never self-serve, so the
+    // role check here is the same generic gate as every other door.
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, status")
+      .eq("id", data.user.id)
+      .single()
+
+    if (profile?.role !== "admin" || profile?.status === "blocked") {
+      await supabase.auth.signOut()
+      setError(GENERIC_AUTH_ERROR)
+      setIsSubmitting(false)
+      return
+    }
+
+    router.replace(ROLE_HOME.admin)
   }
 
   return (
@@ -32,13 +59,14 @@ export default function AdminLoginPage() {
       subtitle="Secure sign-in for platform administration."
       backHref="/"
       backLabel="Back to home"
-      footerText="Need admin access?"
-      footerLinkHref="/admin-signup"
-      footerLinkLabel="Register admin"
+      footerText="Administrator access only."
+      footerLinkHref="/"
+      footerLinkLabel="Return home"
       error={error}
       onSubmit={handleSubmit}
-      submitLabel="Sign in as admin"
+      submitLabel={isSubmitting ? "Signing in…" : "Sign in as admin"}
       submitIcon={LogIn}
+      isSubmitting={isSubmitting}
     >
       <div>
         <label htmlFor="email" className={authFieldLabelClass}>
@@ -51,6 +79,7 @@ export default function AdminLoginPage() {
           onChange={(e) => setEmail(e.target.value)}
           className={authInputClass}
           placeholder="admin@trustvox.com"
+          disabled={isSubmitting}
         />
       </div>
       <div>
@@ -64,6 +93,7 @@ export default function AdminLoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           className={authInputClass}
           placeholder="Enter password"
+          disabled={isSubmitting}
         />
       </div>
     </AuthShell>

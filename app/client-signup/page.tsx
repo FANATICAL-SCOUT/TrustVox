@@ -5,7 +5,8 @@ import type { FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { Building2, UserPlus } from "lucide-react"
 import AuthShell, { authFieldLabelClass, authInputClass } from "@/components/auth/auth-shell"
-import { upsertApprovedCompanyFromRegistration, upsertManagedUserFromRegistration } from "@/lib/approved-company-store"
+import { createClient } from "@/lib/supabase/client"
+import { ROLE_HOME } from "@/lib/auth/roles"
 
 export default function ClientSignupPage() {
   const router = useRouter()
@@ -14,8 +15,9 @@ export default function ClientSignupPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError("")
 
@@ -24,25 +26,38 @@ export default function ClientSignupPage() {
       return
     }
 
-    const client = {
-      companyName,
-      contactName,
-      contactEmail: email,
-      role: "client",
-      createdAt: new Date().toISOString(),
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.")
+      return
     }
 
-    localStorage.setItem("currentClient", JSON.stringify(client))
-    upsertManagedUserFromRegistration({
-      name: contactName,
-      email,
-      role: "Client",
+    setIsSubmitting(true)
+
+    // Account created + elevated to role='client' server-side (secret key).
+    const response = await fetch("/api/register-client", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ companyName, contactName, email, password }),
     })
-    upsertApprovedCompanyFromRegistration({
-      companyName,
-      category: "Service",
-    })
-    router.push("/client/dashboard")
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null
+      setError(payload?.error ?? "Could not create your account. Please try again.")
+      setIsSubmitting(false)
+      return
+    }
+
+    // Establish the session in the browser.
+    const supabase = createClient()
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) {
+      setError("Account created. Please sign in to continue.")
+      setIsSubmitting(false)
+      router.replace("/client-login")
+      return
+    }
+
+    router.replace(ROLE_HOME.client)
   }
 
   return (
@@ -57,8 +72,9 @@ export default function ClientSignupPage() {
       footerLinkLabel="Client login"
       error={error}
       onSubmit={handleSubmit}
-      submitLabel="Register company"
+      submitLabel={isSubmitting ? "Creating account…" : "Register company"}
       submitIcon={UserPlus}
+      isSubmitting={isSubmitting}
     >
       <div>
         <label htmlFor="company" className={authFieldLabelClass}>
@@ -70,6 +86,7 @@ export default function ClientSignupPage() {
           onChange={(e) => setCompanyName(e.target.value)}
           className={authInputClass}
           placeholder="TrustVox Labs"
+          disabled={isSubmitting}
         />
       </div>
       <div>
@@ -82,6 +99,7 @@ export default function ClientSignupPage() {
           onChange={(e) => setContactName(e.target.value)}
           className={authInputClass}
           placeholder="John Doe"
+          disabled={isSubmitting}
         />
       </div>
       <div>
@@ -95,6 +113,7 @@ export default function ClientSignupPage() {
           onChange={(e) => setEmail(e.target.value)}
           className={authInputClass}
           placeholder="name@company.com"
+          disabled={isSubmitting}
         />
       </div>
       <div>
@@ -107,7 +126,8 @@ export default function ClientSignupPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className={authInputClass}
-          placeholder="Create password"
+          placeholder="Create password (min 8 characters)"
+          disabled={isSubmitting}
         />
       </div>
     </AuthShell>

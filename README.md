@@ -62,7 +62,8 @@ Each folder holds its own `TRACKER.md` (status), `TODO.md` (checklist), and `LOG
 ## Routes
 
 ### Auth (shared shell across all 3 roles)
-`/signin` (role picker) · `/login` · `/signup` · `/client-login` · `/client-signup` · `/admin-login` · `/admin-signup`
+`/signin` (role picker — User + Client) · `/login` · `/signup` · `/client-login` · `/client-signup` · `/admin-login`
+(Admin is sign-in only and unadvertised — no admin signup; admin accounts are provisioned by hand.)
 
 ### User
 `/user/dashboard` · `/user/wallet` · `/user/store` · `/user/feedbacks` · `/user/feedback/[id]`

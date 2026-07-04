@@ -5,14 +5,17 @@ import type { FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { Building2, LogIn } from "lucide-react"
 import AuthShell, { authFieldLabelClass, authInputClass } from "@/components/auth/auth-shell"
+import { createClient } from "@/lib/supabase/client"
+import { ROLE_HOME, GENERIC_AUTH_ERROR } from "@/lib/auth/roles"
 
 export default function ClientLoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError("")
 
@@ -21,28 +24,31 @@ export default function ClientLoginPage() {
       return
     }
 
-    const storedClient = localStorage.getItem("currentClient")
-    if (storedClient) {
-      try {
-        const parsed = JSON.parse(storedClient)
-        if (parsed.contactEmail && parsed.contactEmail !== email) {
-          setError("This email does not match the registered client account.")
-          return
-        }
-      } catch {
-        localStorage.removeItem("currentClient")
-      }
+    setIsSubmitting(true)
+    const supabase = createClient()
+
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError || !data.user) {
+      setError(GENERIC_AUTH_ERROR)
+      setIsSubmitting(false)
+      return
     }
 
-    const companyName = email.split("@")[1]?.split(".")[0] ?? "company"
-    const currentClient = {
-      contactName: "Client Owner",
-      companyName: companyName.charAt(0).toUpperCase() + companyName.slice(1),
-      contactEmail: email,
-      role: "client",
+    // Client door — enforce the real role before letting them in.
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, status")
+      .eq("id", data.user.id)
+      .single()
+
+    if (profile?.role !== "client" || profile?.status === "blocked") {
+      await supabase.auth.signOut()
+      setError(GENERIC_AUTH_ERROR)
+      setIsSubmitting(false)
+      return
     }
-    localStorage.setItem("currentClient", JSON.stringify(currentClient))
-    router.push("/client/dashboard")
+
+    router.replace(ROLE_HOME.client)
   }
 
   return (
@@ -57,8 +63,9 @@ export default function ClientLoginPage() {
       footerLinkLabel="Register company"
       error={error}
       onSubmit={handleSubmit}
-      submitLabel="Sign in as client"
+      submitLabel={isSubmitting ? "Signing in…" : "Sign in as client"}
       submitIcon={LogIn}
+      isSubmitting={isSubmitting}
     >
       <div>
         <label htmlFor="email" className={authFieldLabelClass}>
@@ -71,6 +78,7 @@ export default function ClientLoginPage() {
           onChange={(e) => setEmail(e.target.value)}
           className={authInputClass}
           placeholder="name@company.com"
+          disabled={isSubmitting}
         />
       </div>
       <div>
@@ -84,6 +92,7 @@ export default function ClientLoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           className={authInputClass}
           placeholder="Enter password"
+          disabled={isSubmitting}
         />
       </div>
     </AuthShell>

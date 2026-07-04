@@ -5,14 +5,17 @@ import type { FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { UserRound, LogIn } from "lucide-react"
 import AuthShell, { authFieldLabelClass, authInputClass } from "@/components/auth/auth-shell"
+import { createClient } from "@/lib/supabase/client"
+import { ROLE_HOME, GENERIC_AUTH_ERROR } from "@/lib/auth/roles"
 
 export default function UserLoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError("")
 
@@ -21,16 +24,31 @@ export default function UserLoginPage() {
       return
     }
 
-    const nameFromEmail = email.split("@")[0] || "User"
-    const user = {
-      name: nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1),
-      email,
-      joinDate: new Date().toISOString().split("T")[0],
-      role: "user",
+    setIsSubmitting(true)
+    const supabase = createClient()
+
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError || !data.user) {
+      setError(GENERIC_AUTH_ERROR)
+      setIsSubmitting(false)
+      return
     }
 
-    localStorage.setItem("currentUser", JSON.stringify(user))
-    router.push("/user/dashboard")
+    // This door is for users only — verify the real role, don't trust the email.
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, status")
+      .eq("id", data.user.id)
+      .single()
+
+    if (profile?.role !== "user" || profile?.status === "blocked") {
+      await supabase.auth.signOut()
+      setError(GENERIC_AUTH_ERROR)
+      setIsSubmitting(false)
+      return
+    }
+
+    router.replace(ROLE_HOME.user)
   }
 
   return (
@@ -45,8 +63,9 @@ export default function UserLoginPage() {
       footerLinkLabel="Create user account"
       error={error}
       onSubmit={handleSubmit}
-      submitLabel="Sign in as user"
+      submitLabel={isSubmitting ? "Signing in…" : "Sign in as user"}
       submitIcon={LogIn}
+      isSubmitting={isSubmitting}
     >
       <div>
         <label htmlFor="email" className={authFieldLabelClass}>
@@ -59,6 +78,7 @@ export default function UserLoginPage() {
           onChange={(e) => setEmail(e.target.value)}
           className={authInputClass}
           placeholder="you@example.com"
+          disabled={isSubmitting}
         />
       </div>
       <div>
@@ -72,6 +92,7 @@ export default function UserLoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           className={authInputClass}
           placeholder="Enter password"
+          disabled={isSubmitting}
         />
       </div>
     </AuthShell>

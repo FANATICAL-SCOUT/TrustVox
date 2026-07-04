@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { LayoutDashboard, Rocket, LogOut, FileText, Plus, User, ChevronDown, BarChart3, History, Menu } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
-import { clearUserSession, getStoredClientData } from "@/lib/auth-utils"
+import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import BrandLogo from "@/components/brand-logo"
 import {
@@ -36,16 +36,31 @@ export default function ClientNavbar() {
   })
 
   useEffect(() => {
-    const stored = getStoredClientData()
-    const email = stored?.contactEmail || "client@trustvox.com"
-    const company = stored?.companyName || "Client"
-    setProfile({ email, company })
+    let active = true
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data } = await supabase
+        .from("profiles")
+        .select("email, company_name")
+        .eq("id", user.id)
+        .single()
+      if (!active) return
+      setProfile({
+        email: data?.email || user.email || "client@trustvox.com",
+        company: data?.company_name || "Client",
+      })
+    })
+    return () => {
+      active = false
+    }
   }, [pathname])
 
   const initials = (profile.company || "C").slice(0, 1).toUpperCase()
 
-  const handleLogout = () => {
-    clearUserSession()
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
     router.push("/")
   }
 

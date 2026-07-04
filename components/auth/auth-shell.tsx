@@ -1,7 +1,7 @@
 import type { FormEvent, ReactNode } from "react"
 import Link from "next/link"
 import type { LucideIcon } from "lucide-react"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Loader2 } from "lucide-react"
 import BrandLogo from "@/components/brand-logo"
 
 export const authInputClass =
@@ -10,7 +10,7 @@ export const authInputClass =
 export const authFieldLabelClass = "mb-2 block text-sm text-ink-dim"
 
 const authSubmitClass =
-  "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-3 font-semibold text-[#241a06] shadow-[0_10px_26px_-12px_rgba(235,188,107,0.5)] transition-all hover:-translate-y-0.5 hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+  "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-3 font-semibold text-[#241a06] shadow-[0_10px_26px_-12px_rgba(235,188,107,0.5)] transition-all hover:-translate-y-0.5 hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:brightness-100"
 
 interface AuthShellProps {
   icon: LucideIcon
@@ -25,6 +25,7 @@ interface AuthShellProps {
   onSubmit: (e: FormEvent<HTMLFormElement>) => void
   submitLabel: string
   submitIcon: LucideIcon
+  isSubmitting?: boolean
   children: ReactNode
 }
 
@@ -41,6 +42,7 @@ export default function AuthShell({
   onSubmit,
   submitLabel,
   submitIcon: SubmitIcon,
+  isSubmitting = false,
   children,
 }: AuthShellProps) {
   return (
@@ -79,8 +81,17 @@ export default function AuthShell({
 
               {error ? <p className="text-sm text-rose">{error}</p> : null}
 
-              <button type="submit" className={authSubmitClass}>
-                <SubmitIcon className="h-4 w-4" />
+              <button
+                type="submit"
+                className={authSubmitClass}
+                disabled={isSubmitting}
+                aria-busy={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <SubmitIcon className="h-4 w-4" />
+                )}
                 {submitLabel}
               </button>
             </form>

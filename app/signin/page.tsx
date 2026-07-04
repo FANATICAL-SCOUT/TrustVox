@@ -1,7 +1,9 @@
 import Link from "next/link"
-import { Building2, ShieldCheck, UserRound } from "lucide-react"
+import { Building2, UserRound } from "lucide-react"
 import BrandLogo from "@/components/brand-logo"
 
+// Only User and Client self-serve. Admin is sign-in only and unadvertised —
+// there is no admin card here and no admin signup anywhere (ARCHITECTURE §5.1/§5.3).
 const roles = [
   {
     title: "User",
@@ -18,14 +20,6 @@ const roles = [
     loginHref: "/client-login",
     registerHref: "/client-signup",
     icon: Building2,
-  },
-  {
-    title: "Admin",
-    description: "Moderate quality, manage approvals, and control platform operations.",
-    highlight: "Manage platform and ensure quality",
-    loginHref: "/admin-login",
-    registerHref: "/admin-signup",
-    icon: ShieldCheck,
   },
 ]
 
@@ -61,12 +55,12 @@ export default function SignInPage() {
             Sign in to the right workspace
           </h1>
           <p className="mx-auto mt-4 max-w-[46ch] text-lg text-ink-dim">
-            Separate login and registration for User, Client, and Admin. Same clean experience, role-specific
+            Separate login and registration for User and Client. Same clean experience, role-specific
             routing.
           </p>
         </div>
 
-        <div className="mt-12 grid gap-4 md:grid-cols-3">
+        <div className="mx-auto mt-12 grid w-full max-w-3xl gap-4 md:grid-cols-2">
           {roles.map((role) => {
             const Icon = role.icon
             return (
