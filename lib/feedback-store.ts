@@ -91,6 +91,11 @@ export interface FormResponse {
 }
 
 const DEFAULT_FORM_REWARD_TOKENS = 24;
+// Upper bound on a form's per-response reward. Mirrors the `reward_tokens
+// between 1 and 1000` CHECK in migration 0008 — the DB is authoritative, this
+// keeps the app from ever sending a value the insert would reject. See the 8.8
+// self-mint remediation in docs/backend/ARCHITECTURE.md §4.
+const MAX_FORM_REWARD_TOKENS = 1000;
 
 type FormRow = Tables<"forms">;
 type ResponseRow = Tables<"responses">;
@@ -100,7 +105,7 @@ function normalizeRewardTokens(value: unknown): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return DEFAULT_FORM_REWARD_TOKENS;
   const rounded = Math.floor(parsed);
-  return Math.max(1, rounded);
+  return Math.min(MAX_FORM_REWARD_TOKENS, Math.max(1, rounded));
 }
 
 function mapFormRow(row: FormRow, responseCount: number): FeedbackForm {

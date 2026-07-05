@@ -43,6 +43,11 @@ type TemplateSuggestion = {
 }
 type ToastState = { msg: string; type: "success" | "error" }
 
+// Upper bound on the per-response TVX reward. Mirrors the DB `reward_tokens
+// between 1 and 1000` CHECK (migration 0008) so the form can't submit a value
+// the insert would reject — part of the 8.8 self-mint remediation.
+const MAX_REWARD_TOKENS = 1000
+
 const QUESTION_TYPES = [
   { value: "star-rating",      label: "Star Rating",       icon: Star },
   { value: "text-short",       label: "Short Text",        icon: Type },
@@ -626,7 +631,7 @@ function CreateFeedbackInner() {
 
   // ── Save / Submit ───────────────────────────────────────────────────────────
   function buildPayload() {
-    const normalizedRewardTokens = Math.max(1, Math.floor(Number(rewardTokens) || 0))
+    const normalizedRewardTokens = Math.min(MAX_REWARD_TOKENS, Math.max(1, Math.floor(Number(rewardTokens) || 0)))
     const parsedResponseLimit = Number(responseLimit)
     const normalizedResponseLimit = Number.isFinite(parsedResponseLimit) && parsedResponseLimit > 0
       ? Math.floor(parsedResponseLimit)
@@ -659,6 +664,9 @@ function CreateFeedbackInner() {
     const parsedRewardTokens = Number(rewardTokens)
     if (!Number.isFinite(parsedRewardTokens) || parsedRewardTokens < 1) {
       return "Reward tokens must be a number greater than or equal to 1."
+    }
+    if (parsedRewardTokens > MAX_REWARD_TOKENS) {
+      return `Reward tokens can be at most ${MAX_REWARD_TOKENS}.`
     }
     if (responseLimit.trim()) {
       const parsedLimit = Number(responseLimit)
@@ -1010,6 +1018,7 @@ function CreateFeedbackInner() {
                     <Input
                       type="number"
                       min={1}
+                      max={MAX_REWARD_TOKENS}
                       step={1}
                       value={rewardTokens}
                       onChange={(e) => setRewardTokens(e.target.value)}
