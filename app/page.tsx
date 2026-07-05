@@ -168,8 +168,8 @@ export default function HomePage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-sm text-ink-muted sm:flex-row">
           <div>&copy; 2026 TrustVox. All rights reserved.</div>
           <div className="flex gap-5">
-            <Link href="/" className="transition-colors hover:text-ink">Privacy</Link>
-            <Link href="/" className="transition-colors hover:text-ink">Terms</Link>
+            <Link href="/legal#privacy" className="transition-colors hover:text-ink">Privacy</Link>
+            <Link href="/legal#terms" className="transition-colors hover:text-ink">Terms</Link>
             <Link href="/contact" className="transition-colors hover:text-ink">Contact</Link>
           </div>
         </div>

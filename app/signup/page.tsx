@@ -5,13 +5,32 @@ import type { FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { UserRound, UserPlus } from "lucide-react"
 import AuthShell, { authFieldLabelClass, authInputClass } from "@/components/auth/auth-shell"
+import PasswordField from "@/components/auth/password-field"
 import { createClient } from "@/lib/supabase/client"
 import { ROLE_HOME } from "@/lib/auth/roles"
+import {
+  isPasswordValid,
+  isOldEnough,
+  ageFromDob,
+  PASSWORD_POLICY_MESSAGE,
+  UNDERAGE_MESSAGE,
+  INVALID_DOB_MESSAGE,
+  GENDER_OPTIONS,
+} from "@/lib/auth/validation"
+
+// Latest date that still satisfies the 16+ gate — caps the native date picker.
+const MAX_DOB = (() => {
+  const d = new Date()
+  d.setFullYear(d.getFullYear() - 16)
+  return d.toISOString().slice(0, 10)
+})()
 
 export default function UserSignupPage() {
   const router = useRouter()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
+  const [dob, setDob] = useState("")
+  const [gender, setGender] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
@@ -21,13 +40,23 @@ export default function UserSignupPage() {
     event.preventDefault()
     setError("")
 
-    if (!name || !email || !password || !confirmPassword) {
+    if (!name || !email || !dob || !gender || !password || !confirmPassword) {
       setError("Please complete all fields.")
       return
     }
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.")
+    if (ageFromDob(dob) === null) {
+      setError(INVALID_DOB_MESSAGE)
+      return
+    }
+
+    if (!isOldEnough(dob)) {
+      setError(UNDERAGE_MESSAGE)
+      return
+    }
+
+    if (!isPasswordValid(password)) {
+      setError(PASSWORD_POLICY_MESSAGE)
       return
     }
 
@@ -42,7 +71,7 @@ export default function UserSignupPage() {
     const response = await fetch("/api/register-user", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, dob, gender }),
     })
 
     if (!response.ok) {
@@ -93,6 +122,7 @@ export default function UserSignupPage() {
           className={authInputClass}
           placeholder="Jane Doe"
           disabled={isSubmitting}
+          autoComplete="name"
         />
       </div>
       <div>
@@ -107,36 +137,67 @@ export default function UserSignupPage() {
           className={authInputClass}
           placeholder="you@example.com"
           disabled={isSubmitting}
+          autoComplete="email"
         />
       </div>
-      <div>
-        <label htmlFor="password" className={authFieldLabelClass}>
-          Password
-        </label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className={authInputClass}
-          placeholder="Create password (min 8 characters)"
-          disabled={isSubmitting}
-        />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="dob" className={authFieldLabelClass}>
+            Date of birth
+          </label>
+          <input
+            id="dob"
+            type="date"
+            value={dob}
+            max={MAX_DOB}
+            onChange={(e) => setDob(e.target.value)}
+            className={`${authInputClass} [color-scheme:dark]`}
+            disabled={isSubmitting}
+            autoComplete="bday"
+          />
+          <p className="mt-1.5 text-xs text-ink-muted">You must be 16 or older.</p>
+        </div>
+        <div>
+          <label htmlFor="gender" className={authFieldLabelClass}>
+            Gender
+          </label>
+          <select
+            id="gender"
+            value={gender}
+            onChange={(e) => setGender(e.target.value)}
+            className={`${authInputClass} [color-scheme:dark]`}
+            disabled={isSubmitting}
+          >
+            <option value="" disabled>
+              Select…
+            </option>
+            {GENDER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
-      <div>
-        <label htmlFor="confirmPassword" className={authFieldLabelClass}>
-          Confirm password
-        </label>
-        <input
-          id="confirmPassword"
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          className={authInputClass}
-          placeholder="Confirm password"
-          disabled={isSubmitting}
-        />
-      </div>
+      <PasswordField
+        id="password"
+        label="Password"
+        value={password}
+        onChange={setPassword}
+        placeholder="Create a password"
+        disabled={isSubmitting}
+        autoComplete="new-password"
+        showStrength
+      />
+      <PasswordField
+        id="confirmPassword"
+        label="Confirm password"
+        value={confirmPassword}
+        onChange={setConfirmPassword}
+        placeholder="Confirm password"
+        disabled={isSubmitting}
+        autoComplete="new-password"
+      />
     </AuthShell>
   )
 }

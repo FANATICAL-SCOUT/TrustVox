@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { isPasswordValid, PASSWORD_POLICY_MESSAGE } from "@/lib/auth/validation"
 
 /**
  * POST /api/register-client — trusted, server-side client signup (ARCHITECTURE §5.2).
@@ -16,7 +17,7 @@ const schema = z.object({
   companyName: z.string().trim().min(1, "Please enter your company name.").max(160),
   contactName: z.string().trim().min(1, "Please enter a contact name.").max(120),
   email: z.string().trim().email("Please enter a valid business email."),
-  password: z.string().min(8, "Password must be at least 8 characters."),
+  password: z.string().refine(isPasswordValid, PASSWORD_POLICY_MESSAGE),
 })
 
 export async function POST(request: Request) {

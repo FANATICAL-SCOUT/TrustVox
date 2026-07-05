@@ -5,8 +5,15 @@ import type { FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { ShieldCheck, LogIn } from "lucide-react"
 import AuthShell, { authFieldLabelClass, authInputClass } from "@/components/auth/auth-shell"
+import PasswordField from "@/components/auth/password-field"
 import { createClient } from "@/lib/supabase/client"
 import { ROLE_HOME, GENERIC_AUTH_ERROR } from "@/lib/auth/roles"
+import {
+  checkLockout,
+  recordFailedLogin,
+  clearLoginAttempts,
+  lockoutMessage,
+} from "@/lib/auth/login-guard-client"
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -25,11 +32,22 @@ export default function AdminLoginPage() {
     }
 
     setIsSubmitting(true)
+
+    // Brute-force guard: the admin door is the highest-value target, so protect
+    // it the same way as the user/client doors.
+    const gate = await checkLockout(email)
+    if (gate.locked) {
+      setError(lockoutMessage(gate.minutesLeft))
+      setIsSubmitting(false)
+      return
+    }
+
     const supabase = createClient()
 
     const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
     if (signInError || !data.user) {
-      setError(GENERIC_AUTH_ERROR)
+      const after = await recordFailedLogin(email)
+      setError(after.locked ? lockoutMessage(after.minutesLeft) : GENERIC_AUTH_ERROR)
       setIsSubmitting(false)
       return
     }
@@ -44,11 +62,14 @@ export default function AdminLoginPage() {
 
     if (profile?.role !== "admin" || profile?.status === "blocked") {
       await supabase.auth.signOut()
-      setError(GENERIC_AUTH_ERROR)
+      const after = await recordFailedLogin(email)
+      setError(after.locked ? lockoutMessage(after.minutesLeft) : GENERIC_AUTH_ERROR)
       setIsSubmitting(false)
       return
     }
 
+    // Clean login — clear the failed-attempt slate for this email.
+    await clearLoginAttempts(email)
     router.replace(ROLE_HOME.admin)
   }
 
@@ -82,20 +103,15 @@ export default function AdminLoginPage() {
           disabled={isSubmitting}
         />
       </div>
-      <div>
-        <label htmlFor="password" className={authFieldLabelClass}>
-          Password
-        </label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className={authInputClass}
-          placeholder="Enter password"
-          disabled={isSubmitting}
-        />
-      </div>
+      <PasswordField
+        id="password"
+        label="Password"
+        value={password}
+        onChange={setPassword}
+        placeholder="Enter password"
+        disabled={isSubmitting}
+        autoComplete="current-password"
+      />
     </AuthShell>
   )
 }

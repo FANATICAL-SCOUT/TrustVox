@@ -26,6 +26,8 @@ export type Database = {
           display_name: string | null
           email: string | null
           status: Database["public"]["Enums"]["account_status"]
+          dob: string | null
+          gender: string | null
           company_name: string | null
           industry: string | null
           company_size: string | null
@@ -46,6 +48,8 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           status?: Database["public"]["Enums"]["account_status"]
+          dob?: string | null
+          gender?: string | null
           company_name?: string | null
           industry?: string | null
           company_size?: string | null
@@ -66,6 +70,8 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           status?: Database["public"]["Enums"]["account_status"]
+          dob?: string | null
+          gender?: string | null
           company_name?: string | null
           industry?: string | null
           company_size?: string | null
@@ -89,6 +95,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      login_attempts: {
+        Row: {
+          id: string
+          email: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          email: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          created_at?: string
+        }
+        Relationships: []
       }
       companies: {
         Row: {

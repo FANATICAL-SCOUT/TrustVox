@@ -5,8 +5,15 @@ import type { FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { Building2, LogIn } from "lucide-react"
 import AuthShell, { authFieldLabelClass, authInputClass } from "@/components/auth/auth-shell"
+import PasswordField from "@/components/auth/password-field"
 import { createClient } from "@/lib/supabase/client"
 import { ROLE_HOME, GENERIC_AUTH_ERROR } from "@/lib/auth/roles"
+import {
+  checkLockout,
+  recordFailedLogin,
+  clearLoginAttempts,
+  lockoutMessage,
+} from "@/lib/auth/login-guard-client"
 
 export default function ClientLoginPage() {
   const router = useRouter()
@@ -25,11 +32,21 @@ export default function ClientLoginPage() {
     }
 
     setIsSubmitting(true)
+
+    // Brute-force guard: refuse before even trying if this email is locked out.
+    const gate = await checkLockout(email)
+    if (gate.locked) {
+      setError(lockoutMessage(gate.minutesLeft))
+      setIsSubmitting(false)
+      return
+    }
+
     const supabase = createClient()
 
     const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
     if (signInError || !data.user) {
-      setError(GENERIC_AUTH_ERROR)
+      const after = await recordFailedLogin(email)
+      setError(after.locked ? lockoutMessage(after.minutesLeft) : GENERIC_AUTH_ERROR)
       setIsSubmitting(false)
       return
     }
@@ -42,12 +59,16 @@ export default function ClientLoginPage() {
       .single()
 
     if (profile?.role !== "client" || profile?.status === "blocked") {
+      // Wrong door / blocked also counts as a failed attempt for this email.
       await supabase.auth.signOut()
-      setError(GENERIC_AUTH_ERROR)
+      const after = await recordFailedLogin(email)
+      setError(after.locked ? lockoutMessage(after.minutesLeft) : GENERIC_AUTH_ERROR)
       setIsSubmitting(false)
       return
     }
 
+    // Clean login — clear the failed-attempt slate for this email.
+    await clearLoginAttempts(email)
     router.replace(ROLE_HOME.client)
   }
 
@@ -81,20 +102,15 @@ export default function ClientLoginPage() {
           disabled={isSubmitting}
         />
       </div>
-      <div>
-        <label htmlFor="password" className={authFieldLabelClass}>
-          Password
-        </label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className={authInputClass}
-          placeholder="Enter password"
-          disabled={isSubmitting}
-        />
-      </div>
+      <PasswordField
+        id="password"
+        label="Password"
+        value={password}
+        onChange={setPassword}
+        placeholder="Enter password"
+        disabled={isSubmitting}
+        autoComplete="current-password"
+      />
     </AuthShell>
   )
 }

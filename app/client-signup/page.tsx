@@ -5,8 +5,10 @@ import type { FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { Building2, UserPlus } from "lucide-react"
 import AuthShell, { authFieldLabelClass, authInputClass } from "@/components/auth/auth-shell"
+import PasswordField from "@/components/auth/password-field"
 import { createClient } from "@/lib/supabase/client"
 import { ROLE_HOME } from "@/lib/auth/roles"
+import { isPasswordValid, PASSWORD_POLICY_MESSAGE } from "@/lib/auth/validation"
 
 export default function ClientSignupPage() {
   const router = useRouter()
@@ -26,8 +28,8 @@ export default function ClientSignupPage() {
       return
     }
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.")
+    if (!isPasswordValid(password)) {
+      setError(PASSWORD_POLICY_MESSAGE)
       return
     }
 
@@ -116,20 +118,16 @@ export default function ClientSignupPage() {
           disabled={isSubmitting}
         />
       </div>
-      <div>
-        <label htmlFor="password" className={authFieldLabelClass}>
-          Password
-        </label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className={authInputClass}
-          placeholder="Create password (min 8 characters)"
-          disabled={isSubmitting}
-        />
-      </div>
+      <PasswordField
+        id="password"
+        label="Password"
+        value={password}
+        onChange={setPassword}
+        placeholder="Create a password"
+        disabled={isSubmitting}
+        autoComplete="new-password"
+        showStrength
+      />
     </AuthShell>
   )
 }
