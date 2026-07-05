@@ -9,18 +9,18 @@ import { refreshSystemNotifications, type UserNotification } from "@/lib/user-no
 
 export default function WalletPage() {
   const router = useRouter()
-  const [dailyFeedbackCount, setDailyFeedbackCount] = useState(getFeedbackQuota().remaining)
+  const [dailyFeedbackCount, setDailyFeedbackCount] = useState(0)
 
   useEffect(() => {
     const syncQuota = () => {
-      setDailyFeedbackCount(getFeedbackQuota().remaining)
+      void getFeedbackQuota().then((quota) => setDailyFeedbackCount(quota.remaining))
     }
 
     void refreshSystemNotifications()
     syncQuota()
 
-    const unsubscribeQuota = subscribeToFeedbackQuotaUpdates(() => {
-      syncQuota()
+    const unsubscribeQuota = subscribeToFeedbackQuotaUpdates((quota) => {
+      setDailyFeedbackCount(quota.remaining)
       void refreshSystemNotifications()
     })
 

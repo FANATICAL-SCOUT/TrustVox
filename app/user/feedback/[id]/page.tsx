@@ -455,7 +455,7 @@ export default function FeedbackSubmitPage() {
       return
     }
 
-    const quota = getFeedbackQuota()
+    const quota = await getFeedbackQuota()
     if (!quota.canSubmit) {
       setQuotaError("You have reached your daily feedback limit (3). Please try again tomorrow.")
       return
@@ -474,13 +474,15 @@ export default function FeedbackSubmitPage() {
       setQuotaError("Blocked: you can submit each feedback form only once per account.")
       return
     }
-    consumeFeedbackQuota()
-    recordFeedbackSubmittedNotification(rewardTokens)
+    await consumeFeedbackQuota()
     // Reward is credited server-side (amount derived from the form, idempotent
     // per response). The response is already saved, so a credit hiccup must not
     // block the success screen — it's safely retriable via the same reference id.
+    // The "reward credited" notification only fires once the credit actually
+    // succeeds, so it never claims something that didn't really happen.
     try {
       await creditFeedbackReward(response.id)
+      await recordFeedbackSubmittedNotification(rewardTokens)
     } catch {
       // swallow: response persisted; credit can be retried idempotently
     }

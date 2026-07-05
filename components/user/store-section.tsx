@@ -107,7 +107,7 @@ export default function StoreSection() {
     setWallet(result.wallet)
 
     if (result.success) {
-      recordStoreRedemptionNotification(selectedItem.title, selectedItem.cost, result.wallet.balance)
+      await recordStoreRedemptionNotification(selectedItem.title, selectedItem.cost, result.wallet.balance)
       setFeedbackMessage({ type: "success", text: result.message })
       setIsConfirmOpen(false)
       setSelectedItem(null)

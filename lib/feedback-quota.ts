@@ -1,17 +1,15 @@
+// ─── TrustVox Feedback Quota ────────────────────────────────────────────────
+// Supabase-backed daily submission quota (migrated in Phase 8.6 — see
+// ARCHITECTURE.md §4, §8). Every field is DERIVED from the user's own
+// `responses` rows on every call — there is no separate quota table and
+// nothing is cached locally, so the numbers can never drift from what was
+// actually submitted.
+import { createClient } from "@/lib/supabase/client"
+
 const FREE_USER_DAILY_LIMIT = 3
-const QUOTA_STORAGE_PREFIX = "trustvox:feedback-quota:v1:"
 const QUOTA_UPDATED_EVENT = "trustvox:feedback-quota-updated"
 
-type FeedbackQuotaState = {
-  date: string
-  remaining: number
-  completedToday: number
-  completedTotal: number
-  streakCount: number
-  lastSubmittedDate: string | null
-}
-
-type FeedbackQuotaResult = {
+export type FeedbackQuotaResult = {
   dailyLimit: number
   remaining: number
   completedToday: number
@@ -21,186 +19,110 @@ type FeedbackQuotaResult = {
   canSubmit: boolean
 }
 
-function yesterdayKey() {
-  const yesterday = new Date()
-  yesterday.setDate(yesterday.getDate() - 1)
-  const year = yesterday.getFullYear()
-  const month = String(yesterday.getMonth() + 1).padStart(2, "0")
-  const day = String(yesterday.getDate()).padStart(2, "0")
+const EMPTY_QUOTA: FeedbackQuotaResult = {
+  dailyLimit: FREE_USER_DAILY_LIMIT,
+  remaining: FREE_USER_DAILY_LIMIT,
+  completedToday: 0,
+  completedTotal: 0,
+  streakCount: 0,
+  lastSubmittedDate: null,
+  canSubmit: true,
+}
+
+function formatDateKey(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
   return `${year}-${month}-${day}`
 }
 
 function todayKey() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, "0")
-  const day = String(now.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
+  return formatDateKey(new Date())
 }
 
-function safeParse<T>(raw: string | null): T | null {
-  if (!raw) return null
-  try {
-    return JSON.parse(raw) as T
-  } catch {
-    return null
+function shiftDateKey(key: string, deltaDays: number) {
+  const [year, month, day] = key.split("-").map(Number)
+  const date = new Date(year, month - 1, day)
+  date.setDate(date.getDate() + deltaDays)
+  return formatDateKey(date)
+}
+
+// Consecutive-day streak ending at today or yesterday. If the most recent
+// submission is older than yesterday the streak is honestly broken (0), not
+// a stale number carried forward from a previous session.
+function computeStreak(dateSet: Set<string>, today: string): number {
+  if (dateSet.size === 0) return 0
+
+  const mostRecent = [...dateSet].sort().at(-1)!
+  const yesterday = shiftDateKey(today, -1)
+  if (mostRecent !== today && mostRecent !== yesterday) return 0
+
+  let streak = 0
+  let cursor = mostRecent
+  while (dateSet.has(cursor)) {
+    streak += 1
+    cursor = shiftDateKey(cursor, -1)
   }
+  return streak
 }
 
-function getUserQuotaStorageKey() {
-  if (typeof window === "undefined") return `${QUOTA_STORAGE_PREFIX}anonymous`
-
-  const userRaw = localStorage.getItem("currentUser")
-  const parsed = safeParse<Record<string, unknown>>(userRaw)
-  const identity = String(parsed?.email || parsed?.name || "anonymous").trim().toLowerCase()
-  return `${QUOTA_STORAGE_PREFIX}${identity || "anonymous"}`
+function emitQuotaUpdate(quota: FeedbackQuotaResult) {
+  if (typeof window === "undefined") return
+  window.dispatchEvent(new CustomEvent<FeedbackQuotaResult>(QUOTA_UPDATED_EVENT, { detail: quota }))
 }
 
-function normalizeState(state: FeedbackQuotaState | null): FeedbackQuotaState {
+export async function getFeedbackQuota(): Promise<FeedbackQuotaResult> {
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return EMPTY_QUOTA
+
+  const { data, error } = await supabase.from("responses").select("submitted_at").eq("user_id", user.id)
+  if (error) throw error
+
+  const dateKeys = (data ?? []).map((row) => formatDateKey(new Date(row.submitted_at)))
+  const dateSet = new Set(dateKeys)
   const today = todayKey()
 
-  if (!state) {
-    return {
-      date: today,
-      remaining: FREE_USER_DAILY_LIMIT,
-      completedToday: 0,
-      completedTotal: 0,
-      streakCount: 0,
-      lastSubmittedDate: null,
-    }
-  }
-
-  if (state.date !== today) {
-    return {
-      date: today,
-      remaining: FREE_USER_DAILY_LIMIT,
-      completedToday: 0,
-      completedTotal: Number.isFinite(state.completedTotal) ? state.completedTotal : 0,
-      streakCount: Math.max(0, Number(state.streakCount) || 0),
-      lastSubmittedDate: typeof state.lastSubmittedDate === "string" ? state.lastSubmittedDate : null,
-    }
-  }
-
-  const remaining = Math.max(0, Math.min(FREE_USER_DAILY_LIMIT, Number(state.remaining) || 0))
-  const completedToday = Math.max(0, Number(state.completedToday) || 0)
-  const completedTotal = Math.max(0, Number(state.completedTotal) || 0)
-  const streakCount = Math.max(0, Number(state.streakCount) || 0)
-  const lastSubmittedDate = typeof state.lastSubmittedDate === "string" ? state.lastSubmittedDate : null
+  const completedToday = dateKeys.filter((key) => key === today).length
+  const completedTotal = dateKeys.length
+  const lastSubmittedDate = dateSet.size > 0 ? [...dateSet].sort().at(-1)! : null
+  const streakCount = computeStreak(dateSet, today)
+  const remaining = Math.max(0, FREE_USER_DAILY_LIMIT - completedToday)
 
   return {
-    date: today,
+    dailyLimit: FREE_USER_DAILY_LIMIT,
     remaining,
     completedToday,
     completedTotal,
     streakCount,
     lastSubmittedDate,
+    canSubmit: remaining > 0,
   }
 }
 
-function writeState(state: FeedbackQuotaState) {
-  if (typeof window === "undefined") return
-
-  const key = getUserQuotaStorageKey()
-  localStorage.setItem(key, JSON.stringify(state))
-
-  window.dispatchEvent(
-    new CustomEvent(QUOTA_UPDATED_EVENT, {
-      detail: {
-        remaining: state.remaining,
-        completedToday: state.completedToday,
-        completedTotal: state.completedTotal,
-        streakCount: state.streakCount,
-        lastSubmittedDate: state.lastSubmittedDate,
-      },
-    })
-  )
-}
-
-function readState() {
-  if (typeof window === "undefined") {
-    return normalizeState(null)
-  }
-
-  const key = getUserQuotaStorageKey()
-  const raw = localStorage.getItem(key)
-  const parsed = safeParse<FeedbackQuotaState>(raw)
-  const normalized = normalizeState(parsed)
-
-  if (!parsed || JSON.stringify(parsed) !== JSON.stringify(normalized)) {
-    writeState(normalized)
-  }
-
-  return normalized
-}
-
-export function getFeedbackQuota(): FeedbackQuotaResult {
-  const state = readState()
-  return {
-    dailyLimit: FREE_USER_DAILY_LIMIT,
-    remaining: state.remaining,
-    completedToday: state.completedToday,
-    completedTotal: state.completedTotal,
-    streakCount: state.streakCount,
-    lastSubmittedDate: state.lastSubmittedDate,
-    canSubmit: state.remaining > 0,
-  }
-}
-
-export function consumeFeedbackQuota() {
-  const current = readState()
-
-  if (current.remaining <= 0) {
-    return {
-      ok: false,
-      quota: getFeedbackQuota(),
-    }
-  }
-
-  const today = todayKey()
-  const yesterday = yesterdayKey()
-
-  let nextStreak = current.streakCount
-  if (current.lastSubmittedDate !== today) {
-    if (current.lastSubmittedDate === yesterday) {
-      nextStreak = Math.max(1, current.streakCount + 1)
-    } else {
-      nextStreak = 1
-    }
-  }
-
-  const nextState: FeedbackQuotaState = {
-    ...current,
-    remaining: current.remaining - 1,
-    completedToday: current.completedToday + 1,
-    completedTotal: current.completedTotal + 1,
-    streakCount: nextStreak,
-    lastSubmittedDate: today,
-  }
-
-  writeState(nextState)
-
-  return {
-    ok: true,
-    quota: getFeedbackQuota(),
-  }
+// The real write already happened via addResponse — this just recomputes the
+// derived quota and notifies subscribers (navbar counters, dashboard, etc.).
+// `ok` is kept for call-site parity with the pre-migration API; nothing reads
+// it today since the actual submit gate is the `canSubmit` check before
+// addResponse runs.
+export async function consumeFeedbackQuota(): Promise<{ ok: boolean; quota: FeedbackQuotaResult }> {
+  const quota = await getFeedbackQuota()
+  emitQuotaUpdate(quota)
+  return { ok: quota.canSubmit, quota }
 }
 
 export function subscribeToFeedbackQuotaUpdates(onUpdate: (quota: FeedbackQuotaResult) => void) {
   if (typeof window === "undefined") return () => {}
 
-  const handleQuotaUpdate = () => onUpdate(getFeedbackQuota())
-
-  const handleStorage = (event: StorageEvent) => {
-    if (event.key && event.key.startsWith(QUOTA_STORAGE_PREFIX)) {
-      onUpdate(getFeedbackQuota())
-    }
+  const handleQuotaUpdate = (event: Event) => {
+    const detail = (event as CustomEvent<FeedbackQuotaResult>).detail
+    if (detail) onUpdate(detail)
   }
 
   window.addEventListener(QUOTA_UPDATED_EVENT, handleQuotaUpdate)
-  window.addEventListener("storage", handleStorage)
-
   return () => {
     window.removeEventListener(QUOTA_UPDATED_EVENT, handleQuotaUpdate)
-    window.removeEventListener("storage", handleStorage)
   }
 }

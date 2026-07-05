@@ -1,3 +1,17 @@
+// ─── TrustVox User Notifications ────────────────────────────────────────────
+// Supabase-backed notifications (migrated in Phase 8.6 — see
+// ARCHITECTURE.md §4, §6, §8). Rows map straight to the `notifications` table;
+// dedup for system-generated notices (which forms already got a
+// "new opportunity" notice, whether today's streak warning already fired) is
+// derived by reading the user's own existing rows instead of separate local
+// bookkeeping.
+//
+// Reward timing note: the TVX credit for a submitted response happens
+// immediately via the trusted `credit_feedback_reward` path (Phase 8.4), so
+// this fires a single honest "reward credited" notification right after
+// submission — there is no simulated pending/24h-delay step anymore.
+import { createClient } from "@/lib/supabase/client"
+import type { Tables } from "@/lib/supabase/types"
 import { getApprovedForms } from "@/lib/feedback-store"
 import { getFeedbackQuota } from "@/lib/feedback-quota"
 
@@ -21,21 +35,12 @@ export type UserNotification = {
   }
 }
 
-type PendingReward = {
-  rewardId: string
-  tokens: number
-  releaseAt: string
-}
-
-type NotificationState = {
-  notifications: UserNotification[]
-  pendingRewards: PendingReward[]
-  seenOpportunityIds: string[]
-  lastStreakRiskDate: string | null
-}
-
-const NOTIFICATION_KEY_PREFIX = "trustvox:user-notifications:v1:"
 const NOTIFICATION_UPDATED_EVENT = "trustvox:user-notifications-updated"
+
+function emitNotificationsUpdate() {
+  if (typeof window === "undefined") return
+  window.dispatchEvent(new CustomEvent(NOTIFICATION_UPDATED_EVENT))
+}
 
 function todayKey() {
   const now = new Date()
@@ -45,224 +50,195 @@ function todayKey() {
   return `${year}-${month}-${day}`
 }
 
-function safeParse<T>(raw: string | null): T | null {
-  if (!raw) return null
-  try {
-    return JSON.parse(raw) as T
-  } catch {
-    return null
-  }
+function dateKeyFromIso(iso: string) {
+  const date = new Date(iso)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
 }
 
-function getStorageKey() {
-  if (typeof window === "undefined") return `${NOTIFICATION_KEY_PREFIX}anonymous`
-
-  const userRaw = localStorage.getItem("currentUser")
-  const user = safeParse<Record<string, unknown>>(userRaw)
-  const identity = String(user?.email || user?.name || "anonymous").trim().toLowerCase()
-  return `${NOTIFICATION_KEY_PREFIX}${identity || "anonymous"}`
+async function getCurrentUserId(): Promise<string | null> {
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  return user?.id ?? null
 }
 
-function normalizeState(state: NotificationState | null): NotificationState {
-  if (!state) {
-    return {
-      notifications: [],
-      pendingRewards: [],
-      seenOpportunityIds: [],
-      lastStreakRiskDate: null,
-    }
-  }
-
+function mapNotification(row: Tables<"notifications">): UserNotification {
+  const action = row.action as { route?: string; formId?: string } | null
   return {
-    notifications: Array.isArray(state.notifications) ? state.notifications : [],
-    pendingRewards: Array.isArray(state.pendingRewards) ? state.pendingRewards : [],
-    seenOpportunityIds: Array.isArray(state.seenOpportunityIds) ? state.seenOpportunityIds : [],
-    lastStreakRiskDate: typeof state.lastStreakRiskDate === "string" ? state.lastStreakRiskDate : null,
+    id: row.id,
+    type: row.type,
+    title: row.title,
+    message: row.message,
+    createdAt: row.created_at,
+    isRead: row.is_read,
+    action: action ?? undefined,
   }
 }
 
-function writeState(state: NotificationState) {
-  if (typeof window === "undefined") return
+export async function getUserNotifications(): Promise<UserNotification[]> {
+  const userId = await getCurrentUserId()
+  if (!userId) return []
 
-  localStorage.setItem(getStorageKey(), JSON.stringify(state))
-  window.dispatchEvent(new CustomEvent(NOTIFICATION_UPDATED_EVENT))
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+
+  if (error) throw error
+  return (data ?? []).map(mapNotification)
 }
 
-function readState() {
-  if (typeof window === "undefined") return normalizeState(null)
-
-  const raw = localStorage.getItem(getStorageKey())
-  const parsed = safeParse<NotificationState>(raw)
-  const normalized = normalizeState(parsed)
-
-  if (!parsed || JSON.stringify(parsed) !== JSON.stringify(normalized)) {
-    writeState(normalized)
-  }
-
-  return normalized
+export async function getUnreadNotificationsCount(): Promise<number> {
+  const notifications = await getUserNotifications()
+  return notifications.filter((item) => !item.isRead).length
 }
 
-function pushNotification(
-  state: NotificationState,
-  notification: Omit<UserNotification, "id" | "createdAt" | "isRead">
-) {
-  const entry: UserNotification = {
-    id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    createdAt: new Date().toISOString(),
-    isRead: false,
-    ...notification,
-  }
-
-  return {
-    ...state,
-    notifications: [entry, ...state.notifications],
-  }
+export async function markNotificationAsRead(notificationId: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.from("notifications").update({ is_read: true }).eq("id", notificationId)
+  if (error) throw error
+  emitNotificationsUpdate()
 }
 
-export function getUserNotifications() {
-  const state = readState()
-  return [...state.notifications].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+export async function markAllNotificationsAsRead(): Promise<void> {
+  const userId = await getCurrentUserId()
+  if (!userId) return
+
+  const supabase = createClient()
+  const { error } = await supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("user_id", userId)
+    .eq("is_read", false)
+
+  if (error) throw error
+  emitNotificationsUpdate()
 }
 
-export function getUnreadNotificationsCount() {
-  return getUserNotifications().filter((item) => !item.isRead).length
-}
+export async function recordFeedbackSubmittedNotification(tokens = 24): Promise<void> {
+  const userId = await getCurrentUserId()
+  if (!userId) return
 
-export function markNotificationAsRead(notificationId: string) {
-  const state = readState()
-  const next = {
-    ...state,
-    notifications: state.notifications.map((item) =>
-      item.id === notificationId ? { ...item, isRead: true } : item
-    ),
-  }
-  writeState(next)
-}
-
-export function markAllNotificationsAsRead() {
-  const state = readState()
-  const next = {
-    ...state,
-    notifications: state.notifications.map((item) => ({ ...item, isRead: true })),
-  }
-  writeState(next)
-}
-
-export function recordFeedbackSubmittedNotification(tokens = 24) {
-  const state = readState()
-  const rewardId = `reward-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-  const releaseAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-
-  const withCongrats = pushNotification(state, {
-    type: "reward_pending",
-    title: "Survey Completed 🎉",
-    message: `Congratulations on completing the survey! You've earned ${tokens} TVX token${tokens !== 1 ? "s" : ""}. Your reward will be released in 24 hours.`,
+  const supabase = createClient()
+  const { error } = await supabase.from("notifications").insert({
+    user_id: userId,
+    type: "reward_credited",
+    title: "Reward Credited ✅",
+    message: `Your ${tokens} TVX token${tokens !== 1 ? "s" : ""} have been credited to your wallet!`,
   })
 
-  const next = {
-    ...withCongrats,
-    pendingRewards: [...withCongrats.pendingRewards, { rewardId, tokens, releaseAt }],
-  }
-
-  writeState(next)
+  if (error) throw error
+  emitNotificationsUpdate()
 }
 
-export function recordStoreRedemptionNotification(itemTitle: string, cost: number, remainingBalance: number) {
-  const state = readState()
+export async function recordStoreRedemptionNotification(
+  itemTitle: string,
+  cost: number,
+  remainingBalance: number,
+): Promise<void> {
+  const userId = await getCurrentUserId()
+  if (!userId) return
 
-  const next = pushNotification(state, {
+  const supabase = createClient()
+  const { error } = await supabase.from("notifications").insert({
+    user_id: userId,
     type: "reward_redeemed",
     title: "Reward Redeemed",
     message: `You redeemed ${itemTitle} for ${cost} TVX. Remaining balance: ${remainingBalance} TVX.`,
-    action: {
-      route: "/user/store",
-    },
+    action: { route: "/user/store" },
   })
 
-  writeState(next)
+  if (error) throw error
+  emitNotificationsUpdate()
 }
 
-export async function refreshSystemNotifications() {
-  let state = readState()
-  const nowMs = Date.now()
+// The page and UserNavbar both call this independently on mount, so without
+// this guard two concurrent calls read the same "existing" snapshot before
+// either has inserted anything and both generate the same system
+// notifications — real DB inserts (unlike the old single-blob localStorage
+// write) turn that race into visible duplicates. Coalescing concurrent calls
+// into one in-flight request closes the common same-tab race; the residual
+// cross-tab race is rarer and left to the Realtime rework in 8.7.
+let refreshInFlight: Promise<UserNotification[]> | null = null
 
-  const dueRewards = state.pendingRewards.filter((reward) => Date.parse(reward.releaseAt) <= nowMs)
-  if (dueRewards.length > 0) {
-    dueRewards.forEach((reward) => {
-      state = pushNotification(state, {
-        type: "reward_credited",
-        title: "Reward Credited ✅",
-        message: `Your ${reward.tokens} TVX token${reward.tokens !== 1 ? "s" : ""} have been credited to your wallet!`,
-      })
-    })
+export function refreshSystemNotifications(): Promise<UserNotification[]> {
+  if (refreshInFlight) return refreshInFlight
+  refreshInFlight = doRefreshSystemNotifications().finally(() => {
+    refreshInFlight = null
+  })
+  return refreshInFlight
+}
 
-    state = {
-      ...state,
-      pendingRewards: state.pendingRewards.filter((reward) => Date.parse(reward.releaseAt) > nowMs),
-    }
-  }
+async function doRefreshSystemNotifications(): Promise<UserNotification[]> {
+  const userId = await getCurrentUserId()
+  if (!userId) return []
 
+  const existing = await getUserNotifications()
+
+  const notifiedFormIds = new Set(
+    existing
+      .filter((item) => item.type === "new_opportunity")
+      .map((item) => item.action?.formId)
+      .filter((formId): formId is string => Boolean(formId)),
+  )
   const approvedForms = await getApprovedForms()
-  const unseenForms = approvedForms.filter((form) => !state.seenOpportunityIds.includes(form.id))
+  const unseenForms = approvedForms.filter((form) => !notifiedFormIds.has(form.id))
+
+  const supabase = createClient()
+
   if (unseenForms.length > 0) {
-    unseenForms.forEach((form) => {
-      state = pushNotification(state, {
-        type: "new_opportunity",
+    const { error } = await supabase.from("notifications").insert(
+      unseenForms.map((form) => ({
+        user_id: userId,
+        type: "new_opportunity" as const,
         title: "New Feedback Opportunity",
         message: `${form.clientName} published a new survey for ${form.product}. Give feedback and earn rewards.`,
-        action: {
-          route: `/user/feedback/${form.id}`,
-          formId: form.id,
-        },
-      })
-    })
-
-    state = {
-      ...state,
-      seenOpportunityIds: Array.from(new Set([...state.seenOpportunityIds, ...unseenForms.map((form) => form.id)])),
-    }
+        action: { route: `/user/feedback/${form.id}`, formId: form.id },
+      })),
+    )
+    if (error) throw error
   }
 
-  const quota = getFeedbackQuota()
   const today = todayKey()
-  const shouldWarnForStreak =
-    quota.streakCount > 0 && quota.lastSubmittedDate !== today && state.lastStreakRiskDate !== today
+  const warnedToday = existing.some(
+    (item) => item.type === "streak_risk" && dateKeyFromIso(item.createdAt) === today,
+  )
+
+  const quota = await getFeedbackQuota()
+  const shouldWarnForStreak = quota.streakCount > 0 && quota.lastSubmittedDate !== today && !warnedToday
 
   if (shouldWarnForStreak) {
-    state = pushNotification(state, {
+    const { error } = await supabase.from("notifications").insert({
+      user_id: userId,
       type: "streak_risk",
       title: "Streak At Risk",
       message: `You are on a ${quota.streakCount}-day streak. Submit feedback today to keep it alive.`,
-      action: {
-        route: "/user/feedbacks",
-      },
+      action: { route: "/user/feedbacks" },
     })
-    state = {
-      ...state,
-      lastStreakRiskDate: today,
-    }
+    if (error) throw error
   }
 
-  writeState(state)
-  return getUserNotifications()
+  if (unseenForms.length > 0 || shouldWarnForStreak) {
+    emitNotificationsUpdate()
+    return getUserNotifications()
+  }
+
+  return existing
 }
 
 export function subscribeToUserNotifications(onUpdate: (notifications: UserNotification[]) => void) {
   if (typeof window === "undefined") return () => {}
 
-  const emit = () => onUpdate(getUserNotifications())
-
-  const handleStorage = (event: StorageEvent) => {
-    if (event.key && event.key.startsWith(NOTIFICATION_KEY_PREFIX)) {
-      emit()
-    }
-  }
+  const emit = () => void getUserNotifications().then(onUpdate)
 
   window.addEventListener(NOTIFICATION_UPDATED_EVENT, emit)
-  window.addEventListener("storage", handleStorage)
-
   return () => {
     window.removeEventListener(NOTIFICATION_UPDATED_EVENT, emit)
-    window.removeEventListener("storage", handleStorage)
   }
 }

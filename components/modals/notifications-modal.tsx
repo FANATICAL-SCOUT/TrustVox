@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Bell, Sparkles, CheckCircle2, Clock, AlertTriangle, BellRing } from "lucide-react"
 import {
-  getUserNotifications,
   markAllNotificationsAsRead,
   markNotificationAsRead,
   refreshSystemNotifications,
@@ -30,7 +29,7 @@ export default function NotificationsModal({ isOpen, onClose, onViewNotification
   const [notifications, setNotifications] = useState<UserNotification[]>([])
 
   useEffect(() => {
-    void refreshSystemNotifications().then(() => setNotifications(getUserNotifications()))
+    void refreshSystemNotifications().then(setNotifications)
 
     const unsubscribe = subscribeToUserNotifications((items) => {
       setNotifications(items)
@@ -41,7 +40,7 @@ export default function NotificationsModal({ isOpen, onClose, onViewNotification
 
   useEffect(() => {
     if (!isOpen) return
-    void refreshSystemNotifications().then(() => setNotifications(getUserNotifications()))
+    void refreshSystemNotifications().then(setNotifications)
   }, [isOpen])
 
   const getNotificationBg = (type: UserNotification["type"]) => {
@@ -84,11 +83,11 @@ export default function NotificationsModal({ isOpen, onClose, onViewNotification
   }
 
   const handleMarkAsRead = (id: string) => {
-    markNotificationAsRead(id)
+    void markNotificationAsRead(id)
   }
 
   const handleMarkAllAsRead = () => {
-    markAllNotificationsAsRead()
+    void markAllNotificationsAsRead()
   }
 
   const handleViewClick = (notification: UserNotification) => {

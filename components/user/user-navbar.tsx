@@ -56,7 +56,7 @@ export default function UserNavbar({
 
   useEffect(() => {
     const updateUnread = () => {
-      void refreshSystemNotifications().then(() => setUnreadCount(getUnreadNotificationsCount()))
+      void refreshSystemNotifications().then((items) => setUnreadCount(items.filter((item) => !item.isRead).length))
     }
 
     updateUnread()
@@ -227,11 +227,11 @@ export default function UserNavbar({
         isOpen={isNotificationsOpen}
         onClose={() => {
           setIsNotificationsOpen(false)
-          setUnreadCount(getUnreadNotificationsCount())
+          void getUnreadNotificationsCount().then(setUnreadCount)
         }}
         onViewNotification={(notification) => {
           onViewNotification(notification)
-          setUnreadCount(getUnreadNotificationsCount())
+          void getUnreadNotificationsCount().then(setUnreadCount)
         }}
       />
     </header>

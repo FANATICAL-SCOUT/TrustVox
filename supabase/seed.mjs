@@ -183,6 +183,27 @@ const SEED_FORMS = [
   },
 ]
 
+// ── Seed campaigns (← client-campaigns.ts DEFAULT_CAMPAIGN_TEMPLATES) ────────
+// Every client gets these 3 fixed template campaigns (also auto-provisioned
+// lazily for any future client signup — see lib/client-campaigns.ts).
+const SEED_CAMPAIGNS = [
+  {
+    name: "Product Launch 2026",
+    description: "Collect launch readiness and product quality feedback across flagship offerings.",
+    status: "active",
+  },
+  {
+    name: "Customer Experience Q2",
+    description: "Track service quality, support satisfaction, and customer journey friction points.",
+    status: "draft",
+  },
+  {
+    name: "Mobile UX Revamp",
+    description: "Measure usability gains and adoption patterns for the latest mobile redesign.",
+    status: "completed",
+  },
+]
+
 // ── Seed responses (← feedback-store.ts SEED_RESPONSES) ──────────────────────
 const SEED_RESPONSES = [
   { formSeedId: "form-seed-1", responderKey: "seed-user-1", submittedAt: "2026-06-20T14:32:00Z", rewardTokens: 40,
@@ -321,6 +342,15 @@ async function main() {
   {
     const { error } = await admin.from("responses").insert(responseRows)
     if (error) die("insert responses", error)
+  }
+
+  // 6. Campaigns (owned by the demo client)
+  console.log(`· inserting ${SEED_CAMPAIGNS.length} campaigns…`)
+  {
+    const { error } = await admin.from("campaigns").insert(
+      SEED_CAMPAIGNS.map((c) => ({ ...c, client_id: client_.id })),
+    )
+    if (error) die("insert campaigns", error)
   }
 
   console.log("\n✓ Seed complete.\n")

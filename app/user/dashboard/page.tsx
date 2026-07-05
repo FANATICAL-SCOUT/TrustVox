@@ -23,10 +23,10 @@ export default function UserDashboard() {
   const router = useRouter();
   const searchParams = useSearchParams()
   const [activeSection, setActiveSection] = useState("home");
-  const [dailyFeedbackCount, setDailyFeedbackCount] = useState(getFeedbackQuota().remaining);
-  const [dailyLimit, setDailyLimit] = useState(getFeedbackQuota().dailyLimit);
-  const [completedToday, setCompletedToday] = useState(getFeedbackQuota().completedToday);
-  const [canSubmitFeedback, setCanSubmitFeedback] = useState(getFeedbackQuota().canSubmit);
+  const [dailyFeedbackCount, setDailyFeedbackCount] = useState(3);
+  const [dailyLimit, setDailyLimit] = useState(3);
+  const [completedToday, setCompletedToday] = useState(0);
+  const [canSubmitFeedback, setCanSubmitFeedback] = useState(true);
   const [quotaMessage, setQuotaMessage] = useState("");
   const [savedFeedbacks, setSavedFeedbacks] = useState<FeedbackHandoff[]>([]); // State for saved feedbacks (drafts)
   const [selectedCompanyForModal, setSelectedCompanyForModal] = useState<FeedbackHandoff | null>(null);
@@ -115,8 +115,7 @@ export default function UserDashboard() {
   };
 
   useEffect(() => {
-    const applyQuota = () => {
-      const quota = getFeedbackQuota()
+    const applyQuota = (quota: Awaited<ReturnType<typeof getFeedbackQuota>>) => {
       setDailyFeedbackCount(quota.remaining)
       setDailyLimit(quota.dailyLimit)
       setCompletedToday(quota.completedToday)
@@ -126,15 +125,17 @@ export default function UserDashboard() {
       }
     }
 
+    const loadQuota = () => void getFeedbackQuota().then(applyQuota)
+
     void refreshSystemNotifications()
-    applyQuota()
-    const unsubscribe = subscribeToFeedbackQuotaUpdates(() => {
-      applyQuota()
+    loadQuota()
+    const unsubscribe = subscribeToFeedbackQuotaUpdates((quota) => {
+      applyQuota(quota)
       void refreshSystemNotifications()
     })
 
     const handleFocus = () => {
-      applyQuota()
+      loadQuota()
       void refreshSystemNotifications()
     }
 
