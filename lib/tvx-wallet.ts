@@ -10,7 +10,7 @@
 //     from the form, idempotent per response.
 //   • redeemTVXItem        → redeem_reward(item_id): cost read from the catalog,
 //     atomic balance check (no overspend).
-import { createClient } from "@/lib/supabase/client"
+import { createClient, nextChannelId } from "@/lib/supabase/client"
 import type { Tables } from "@/lib/supabase/types"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 
@@ -76,7 +76,8 @@ export function subscribeToTVXWalletUpdates(callback: () => void) {
   supabase.auth.getUser().then(({ data: { user } }) => {
     if (cancelled || !user) return
     channel = supabase
-      .channel(`tvx-wallet-updates-${user.id}`)
+      // Unique per subscription (see nextChannelId) — never reuse a channel name.
+      .channel(`tvx-wallet-updates-${user.id}-${nextChannelId()}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "wallet_transactions", filter: `user_id=eq.${user.id}` },

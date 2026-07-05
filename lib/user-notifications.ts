@@ -10,7 +10,7 @@
 // immediately via the trusted `credit_feedback_reward` path (Phase 8.4), so
 // this fires a single honest "reward credited" notification right after
 // submission — there is no simulated pending/24h-delay step anymore.
-import { createClient } from "@/lib/supabase/client"
+import { createClient, nextChannelId } from "@/lib/supabase/client"
 import type { Tables } from "@/lib/supabase/types"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 import { getApprovedForms } from "@/lib/feedback-store"
@@ -238,7 +238,8 @@ export function subscribeToUserNotifications(onUpdate: (notifications: UserNotif
   supabase.auth.getUser().then(({ data: { user } }) => {
     if (cancelled || !user) return
     channel = supabase
-      .channel(`user-notifications-updates-${user.id}`)
+      // Unique per subscription (see nextChannelId) — never reuse a channel name.
+      .channel(`user-notifications-updates-${user.id}-${nextChannelId()}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },

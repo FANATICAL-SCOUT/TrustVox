@@ -4,7 +4,7 @@
 // All functions are async and run through the RLS-gated browser client;
 // column names are snake_case in the DB and mapped to the camelCase shape
 // the UI expects at the boundary in this file.
-import { createClient } from "@/lib/supabase/client";
+import { createClient, nextChannelId } from "@/lib/supabase/client";
 import type { Json, Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
 import { logFlow } from "@/lib/debug-log";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -545,7 +545,8 @@ export function subscribeToFormsUpdates(onUpdate: () => void) {
 
   const supabase = createClient();
   const channel: RealtimeChannel = supabase
-    .channel("forms-updates")
+    // Unique per subscription (see nextChannelId) — never reuse a channel name.
+    .channel(`forms-updates-${nextChannelId()}`)
     .on("postgres_changes", { event: "*", schema: "public", table: "forms" }, () => onUpdate())
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "responses" }, () => onUpdate())
     .subscribe();

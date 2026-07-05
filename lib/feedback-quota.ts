@@ -4,7 +4,7 @@
 // `responses` rows on every call — there is no separate quota table and
 // nothing is cached locally, so the numbers can never drift from what was
 // actually submitted.
-import { createClient } from "@/lib/supabase/client"
+import { createClient, nextChannelId } from "@/lib/supabase/client"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 
 const FREE_USER_DAILY_LIMIT = 3
@@ -122,7 +122,8 @@ export function subscribeToFeedbackQuotaUpdates(onUpdate: (quota: FeedbackQuotaR
   supabase.auth.getUser().then(({ data: { user } }) => {
     if (cancelled || !user) return
     channel = supabase
-      .channel(`feedback-quota-updates-${user.id}`)
+      // Unique per subscription (see nextChannelId) — never reuse a channel name.
+      .channel(`feedback-quota-updates-${user.id}-${nextChannelId()}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "responses", filter: `user_id=eq.${user.id}` },

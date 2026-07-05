@@ -4,7 +4,7 @@
 // Companies map to the `companies` table; managed users are the `profiles`
 // table read through the admin lens. All functions are async and run through
 // the RLS-gated browser client.
-import { createClient } from "@/lib/supabase/client";
+import { createClient, nextChannelId } from "@/lib/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { logStore } from "@/lib/debug-log";
@@ -179,7 +179,8 @@ export function subscribeToApprovedCompanies(onUpdate: () => void) {
 
   const supabase = createClient();
   const channel: RealtimeChannel = supabase
-    .channel("approved-companies-updates")
+    // Unique per subscription (see nextChannelId) — never reuse a channel name.
+    .channel(`approved-companies-updates-${nextChannelId()}`)
     .on("postgres_changes", { event: "*", schema: "public", table: "companies" }, () => onUpdate())
     .subscribe();
 
@@ -197,7 +198,8 @@ export function subscribeToManagedUsers(onUpdate: () => void) {
 
   const supabase = createClient();
   const channel: RealtimeChannel = supabase
-    .channel("managed-users-updates")
+    // Unique per subscription (see nextChannelId) — never reuse a channel name.
+    .channel(`managed-users-updates-${nextChannelId()}`)
     .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => onUpdate())
     .subscribe();
 
