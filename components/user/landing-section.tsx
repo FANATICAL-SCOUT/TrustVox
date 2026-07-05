@@ -3,9 +3,12 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { MessageSquare, Star, Save, Coins, Trophy, Flame, Clock3, ArrowRight, ShieldCheck } from "lucide-react"
+import { MessageSquare, Star, Save, Coins, Flame, Clock3, ArrowRight, ShieldCheck } from "lucide-react"
 import SearchWithAutocomplete from "./search-with-autocomplete"
 import { getApprovedForms, subscribeToFormsUpdates, type FeedbackForm, type FeedbackHandoff } from "@/lib/feedback-store"
+import { getFeedbackQuota, subscribeToFeedbackQuotaUpdates } from "@/lib/feedback-quota"
+import { getTVXWalletState, subscribeToTVXWalletUpdates } from "@/lib/tvx-wallet"
+import { createClient } from "@/lib/supabase/client"
 
 interface LandingSectionProps {
   handleStartFeedbackFromSuggested: (feedbackData: FeedbackHandoff) => void
@@ -65,12 +68,6 @@ function mergeWithForms(seed: FeedbackOpportunity[], forms: FeedbackForm[], offs
   })
 }
 
-const STATS = [
-  { label: "Feedbacks given", value: "18", icon: MessageSquare },
-  { label: "Tokens earned", value: "1,240", suffix: "TVX", icon: Coins },
-  { label: "User rank", value: "Top 12%", icon: Trophy },
-  { label: "Activity streak", value: "7", suffix: "days", icon: Flame },
-]
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
@@ -92,6 +89,9 @@ export default function LandingSection({
   const router = useRouter()
   const [userName, setUserName] = useState("there")
   const [approvedForms, setApprovedForms] = useState<FeedbackForm[]>([])
+  const [feedbacksGiven, setFeedbacksGiven] = useState(0)
+  const [tokensEarned, setTokensEarned] = useState(0)
+  const [streakDays, setStreakDays] = useState(0)
 
   useEffect(() => {
     const loadForms = () => void getApprovedForms().then(setApprovedForms)
@@ -105,14 +105,38 @@ export default function LandingSection({
   }, [])
 
   useEffect(() => {
-    try {
-      const currentUserRaw = localStorage.getItem("currentUser")
-      if (!currentUserRaw) return
-      const currentUser = JSON.parse(currentUserRaw)
-      const resolvedName = (currentUser?.name || "there").toString().trim()
+    let active = true
+    const supabase = createClient()
+
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user || !active) return
+      const { data } = await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
+      if (!active) return
+      const resolvedName = (data?.display_name || user.email || "there").toString().trim()
       if (resolvedName) setUserName(resolvedName)
-    } catch {
-      // keep default
+    })
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    const loadStats = () => {
+      void getFeedbackQuota().then((quota) => {
+        setFeedbacksGiven(quota.completedTotal)
+        setStreakDays(quota.streakCount)
+      })
+      void getTVXWalletState().then((wallet) => setTokensEarned(wallet.totalEarned))
+    }
+
+    loadStats()
+    const unsubscribeQuota = subscribeToFeedbackQuotaUpdates(() => loadStats())
+    const unsubscribeWallet = subscribeToTVXWalletUpdates(() => loadStats())
+
+    return () => {
+      unsubscribeQuota()
+      unsubscribeWallet()
     }
   }, [])
 
@@ -179,8 +203,12 @@ export default function LandingSection({
         </div>
 
         {/* Stats */}
-        <div className="mb-14 grid grid-cols-2 gap-3 xl:grid-cols-4">
-          {STATS.map((stat) => (
+        <div className="mb-14 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {[
+            { label: "Feedbacks given", value: String(feedbacksGiven), suffix: undefined, icon: MessageSquare },
+            { label: "Tokens earned", value: tokensEarned.toLocaleString(), suffix: "TVX", icon: Coins },
+            { label: "Activity streak", value: String(streakDays), suffix: "days", icon: Flame },
+          ].map((stat) => (
             <div key={stat.label} data-reveal-card className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 transition-all duration-200 hover:-translate-y-1 hover:border-white/15">
               <div className="flex items-start justify-between">
                 <div>

@@ -12,6 +12,7 @@
 // submission — there is no simulated pending/24h-delay step anymore.
 import { createClient } from "@/lib/supabase/client"
 import type { Tables } from "@/lib/supabase/types"
+import type { RealtimeChannel } from "@supabase/supabase-js"
 import { getApprovedForms } from "@/lib/feedback-store"
 import { getFeedbackQuota } from "@/lib/feedback-quota"
 
@@ -33,13 +34,6 @@ export type UserNotification = {
     route?: string
     formId?: string
   }
-}
-
-const NOTIFICATION_UPDATED_EVENT = "trustvox:user-notifications-updated"
-
-function emitNotificationsUpdate() {
-  if (typeof window === "undefined") return
-  window.dispatchEvent(new CustomEvent(NOTIFICATION_UPDATED_EVENT))
 }
 
 function todayKey() {
@@ -103,7 +97,6 @@ export async function markNotificationAsRead(notificationId: string): Promise<vo
   const supabase = createClient()
   const { error } = await supabase.from("notifications").update({ is_read: true }).eq("id", notificationId)
   if (error) throw error
-  emitNotificationsUpdate()
 }
 
 export async function markAllNotificationsAsRead(): Promise<void> {
@@ -118,7 +111,6 @@ export async function markAllNotificationsAsRead(): Promise<void> {
     .eq("is_read", false)
 
   if (error) throw error
-  emitNotificationsUpdate()
 }
 
 export async function recordFeedbackSubmittedNotification(tokens = 24): Promise<void> {
@@ -134,7 +126,6 @@ export async function recordFeedbackSubmittedNotification(tokens = 24): Promise<
   })
 
   if (error) throw error
-  emitNotificationsUpdate()
 }
 
 export async function recordStoreRedemptionNotification(
@@ -155,7 +146,6 @@ export async function recordStoreRedemptionNotification(
   })
 
   if (error) throw error
-  emitNotificationsUpdate()
 }
 
 // The page and UserNavbar both call this independently on mount, so without
@@ -163,8 +153,9 @@ export async function recordStoreRedemptionNotification(
 // either has inserted anything and both generate the same system
 // notifications — real DB inserts (unlike the old single-blob localStorage
 // write) turn that race into visible duplicates. Coalescing concurrent calls
-// into one in-flight request closes the common same-tab race; the residual
-// cross-tab race is rarer and left to the Realtime rework in 8.7.
+// into one in-flight request closes the common same-tab race; a cross-tab race
+// remains possible (two tabs both insert before either sees the other's row
+// via Realtime) but is rare and not user-visible beyond a duplicate notice.
 let refreshInFlight: Promise<UserNotification[]> | null = null
 
 export function refreshSystemNotifications(): Promise<UserNotification[]> {
@@ -225,20 +216,39 @@ async function doRefreshSystemNotifications(): Promise<UserNotification[]> {
   }
 
   if (unseenForms.length > 0 || shouldWarnForStreak) {
-    emitNotificationsUpdate()
     return getUserNotifications()
   }
 
   return existing
 }
 
+// Realtime replaces the old same-tab CustomEvent bus (Phase 8.7): any insert
+// or update on the caller's own `notifications` rows notifies every
+// subscriber, across tabs. RLS already scopes reads to `auth.uid()`; the
+// `user_id=eq.<uid>` filter here just avoids subscribing to a broader stream.
 export function subscribeToUserNotifications(onUpdate: (notifications: UserNotification[]) => void) {
   if (typeof window === "undefined") return () => {}
 
+  const supabase = createClient()
+  let channel: RealtimeChannel | null = null
+  let cancelled = false
+
   const emit = () => void getUserNotifications().then(onUpdate)
 
-  window.addEventListener(NOTIFICATION_UPDATED_EVENT, emit)
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    if (cancelled || !user) return
+    channel = supabase
+      .channel(`user-notifications-updates-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        emit,
+      )
+      .subscribe()
+  })
+
   return () => {
-    window.removeEventListener(NOTIFICATION_UPDATED_EVENT, emit)
+    cancelled = true
+    if (channel) void supabase.removeChannel(channel)
   }
 }

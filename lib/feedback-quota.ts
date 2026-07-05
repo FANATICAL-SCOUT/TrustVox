@@ -5,9 +5,9 @@
 // nothing is cached locally, so the numbers can never drift from what was
 // actually submitted.
 import { createClient } from "@/lib/supabase/client"
+import type { RealtimeChannel } from "@supabase/supabase-js"
 
 const FREE_USER_DAILY_LIMIT = 3
-const QUOTA_UPDATED_EVENT = "trustvox:feedback-quota-updated"
 
 export type FeedbackQuotaResult = {
   dailyLimit: number
@@ -66,11 +66,6 @@ function computeStreak(dateSet: Set<string>, today: string): number {
   return streak
 }
 
-function emitQuotaUpdate(quota: FeedbackQuotaResult) {
-  if (typeof window === "undefined") return
-  window.dispatchEvent(new CustomEvent<FeedbackQuotaResult>(QUOTA_UPDATED_EVENT, { detail: quota }))
-}
-
 export async function getFeedbackQuota(): Promise<FeedbackQuotaResult> {
   const supabase = createClient()
   const {
@@ -103,26 +98,41 @@ export async function getFeedbackQuota(): Promise<FeedbackQuotaResult> {
 }
 
 // The real write already happened via addResponse — this just recomputes the
-// derived quota and notifies subscribers (navbar counters, dashboard, etc.).
-// `ok` is kept for call-site parity with the pre-migration API; nothing reads
-// it today since the actual submit gate is the `canSubmit` check before
-// addResponse runs.
+// derived quota. `ok` is kept for call-site parity with the pre-migration
+// API; nothing reads it today since the actual submit gate is the
+// `canSubmit` check before addResponse runs.
 export async function consumeFeedbackQuota(): Promise<{ ok: boolean; quota: FeedbackQuotaResult }> {
   const quota = await getFeedbackQuota()
-  emitQuotaUpdate(quota)
   return { ok: quota.canSubmit, quota }
 }
 
+// Realtime replaces the old same-tab CustomEvent bus (Phase 8.7). Quota has no
+// table of its own — it's derived from `responses` — so a new response row
+// for the signed-in user triggers a fresh `getFeedbackQuota()` recompute,
+// across tabs. RLS already scopes reads to the caller's own rows.
 export function subscribeToFeedbackQuotaUpdates(onUpdate: (quota: FeedbackQuotaResult) => void) {
   if (typeof window === "undefined") return () => {}
 
-  const handleQuotaUpdate = (event: Event) => {
-    const detail = (event as CustomEvent<FeedbackQuotaResult>).detail
-    if (detail) onUpdate(detail)
-  }
+  const supabase = createClient()
+  let channel: RealtimeChannel | null = null
+  let cancelled = false
 
-  window.addEventListener(QUOTA_UPDATED_EVENT, handleQuotaUpdate)
+  const emit = () => void getFeedbackQuota().then(onUpdate)
+
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    if (cancelled || !user) return
+    channel = supabase
+      .channel(`feedback-quota-updates-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "responses", filter: `user_id=eq.${user.id}` },
+        emit,
+      )
+      .subscribe()
+  })
+
   return () => {
-    window.removeEventListener(QUOTA_UPDATED_EVENT, handleQuotaUpdate)
+    cancelled = true
+    if (channel) void supabase.removeChannel(channel)
   }
 }

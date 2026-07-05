@@ -12,6 +12,7 @@
 //     atomic balance check (no overspend).
 import { createClient } from "@/lib/supabase/client"
 import type { Tables } from "@/lib/supabase/types"
+import type { RealtimeChannel } from "@supabase/supabase-js"
 
 export interface TVXTransaction {
   id: string
@@ -35,8 +36,6 @@ export interface RedeemItemInput {
   title: string
 }
 
-const UPDATE_EVENT = "trustvox:tvx-wallet-updated"
-
 // A signed-out or brand-new wallet: empty and honest (no invented balance).
 export const emptyWalletState: TVXWalletState = {
   balance: 0,
@@ -49,11 +48,6 @@ function isBrowser() {
   return typeof window !== "undefined"
 }
 
-function emitWalletUpdate() {
-  if (!isBrowser()) return
-  window.dispatchEvent(new CustomEvent(UPDATE_EVENT))
-}
-
 function mapTransaction(row: Tables<"wallet_transactions">): TVXTransaction {
   return {
     id: row.id,
@@ -64,15 +58,36 @@ function mapTransaction(row: Tables<"wallet_transactions">): TVXTransaction {
   }
 }
 
-// In-tab refresh bus (cross-user realtime lands in 8.7). Kept as a window event
-// so the navbar / wallet / store stay in sync after a credit or redeem.
+// Realtime replaces the old same-tab CustomEvent bus (Phase 8.7). New rows on
+// `wallet_transactions` for the signed-in user (the only writes possible —
+// there's no authenticated INSERT policy, only the trusted SECURITY DEFINER
+// functions) notify every subscriber, across tabs. RLS already scopes reads to
+// the caller's own rows; the `user_id=eq.<uid>` filter here just avoids
+// subscribing to a broader stream than needed.
 export function subscribeToTVXWalletUpdates(callback: () => void) {
   if (!isBrowser()) {
     return () => {}
   }
-  window.addEventListener(UPDATE_EVENT, callback)
+
+  const supabase = createClient()
+  let channel: RealtimeChannel | null = null
+  let cancelled = false
+
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    if (cancelled || !user) return
+    channel = supabase
+      .channel(`tvx-wallet-updates-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "wallet_transactions", filter: `user_id=eq.${user.id}` },
+        () => callback(),
+      )
+      .subscribe()
+  })
+
   return () => {
-    window.removeEventListener(UPDATE_EVENT, callback)
+    cancelled = true
+    if (channel) void supabase.removeChannel(channel)
   }
 }
 
@@ -114,7 +129,6 @@ export async function creditFeedbackReward(responseId: string): Promise<TVXWalle
   const supabase = createClient()
   const { error } = await supabase.rpc("credit_feedback_reward", { p_response_id: responseId })
   if (error) throw error
-  emitWalletUpdate()
   return getTVXWalletState()
 }
 
@@ -131,7 +145,6 @@ export async function redeemTVXItem(
     return { success: false, message, wallet: await getTVXWalletState() }
   }
 
-  emitWalletUpdate()
   return {
     success: true,
     message: `${input.title} redeemed successfully`,

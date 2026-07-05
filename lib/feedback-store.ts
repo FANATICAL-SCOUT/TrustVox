@@ -7,6 +7,7 @@
 import { createClient } from "@/lib/supabase/client";
 import type { Json, Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
 import { logFlow } from "@/lib/debug-log";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export type QuestionType =
   | "star-rating"
@@ -90,7 +91,6 @@ export interface FormResponse {
 }
 
 const DEFAULT_FORM_REWARD_TOKENS = 24;
-const FORMS_UPDATED_EVENT = "trustvox:forms-updated";
 
 type FormRow = Tables<"forms">;
 type ResponseRow = Tables<"responses">;
@@ -148,18 +148,6 @@ function sortFormsByLatest(forms: FeedbackForm[]) {
     const rightTime = Date.parse(right.approvedAt || right.submittedAt || right.createdAt || "") || 0;
     return rightTime - leftTime;
   });
-}
-
-function emitFormsUpdated(eventType: string, detail?: { formId?: string; status?: string }) {
-  if (typeof window === "undefined") return;
-  const payload = {
-    eventType,
-    formId: detail?.formId,
-    status: detail?.status,
-    at: new Date().toISOString(),
-  };
-  window.dispatchEvent(new CustomEvent(FORMS_UPDATED_EVENT, { detail: payload }));
-  logFlow("forms-updated", payload);
 }
 
 // response_count is derived (form_response_counts view), never stored, so it
@@ -298,7 +286,6 @@ export async function createForm(partial: Partial<FeedbackForm>): Promise<Feedba
   if (error) throw error;
 
   const mapped = mapFormRow(data, 0);
-  emitFormsUpdated("create", { formId: mapped.id, status: mapped.status });
   logFlow("client-created-form", { formId: mapped.id, status: mapped.status, title: mapped.title });
   return mapped;
 }
@@ -333,7 +320,6 @@ export async function updateForm(id: string, updates: Partial<FeedbackForm>): Pr
 
   const counts = await fetchResponseCounts(supabase, [data.id]);
   const mapped = mapFormRow(data, counts.get(data.id) ?? 0);
-  emitFormsUpdated("update", { formId: mapped.id, status: mapped.status });
   logFlow("form-updated", { formId: id, nextStatus: mapped.status });
   return mapped;
 }
@@ -344,7 +330,6 @@ export async function deleteForm(id: string): Promise<boolean> {
   if (error) throw error;
   const deleted = (data?.length ?? 0) > 0;
   if (deleted) {
-    emitFormsUpdated("delete", { formId: id });
     logFlow("form-deleted", { formId: id });
   }
   return deleted;
@@ -487,7 +472,6 @@ export async function addResponse(
   }
 
   const mapped = mapResponseRow(data);
-  emitFormsUpdated("response", { formId, status: form?.status });
   logFlow("user-submitted-response", { formId, responseId: mapped.id });
   return mapped;
 }
@@ -545,14 +529,23 @@ export function newQuestionId() {
   return `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
+// Realtime replaces the old same-tab CustomEvent bus (Phase 8.7): any insert/
+// update/delete on `forms`, or new rows on `responses` (which move the derived
+// response_count), notifies every subscriber — across tabs and users, gated by
+// the same RLS policies that already scope reads (§6). `postgres_changes`
+// requires these tables to be added to the `supabase_realtime` publication in
+// the dashboard (see docs/backend/TRACKER.md).
 export function subscribeToFormsUpdates(onUpdate: () => void) {
   if (typeof window === "undefined") return () => {};
 
-  const handleLocalUpdate = () => onUpdate();
-
-  window.addEventListener(FORMS_UPDATED_EVENT, handleLocalUpdate);
+  const supabase = createClient();
+  const channel: RealtimeChannel = supabase
+    .channel("forms-updates")
+    .on("postgres_changes", { event: "*", schema: "public", table: "forms" }, () => onUpdate())
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "responses" }, () => onUpdate())
+    .subscribe();
 
   return () => {
-    window.removeEventListener(FORMS_UPDATED_EVENT, handleLocalUpdate);
+    void supabase.removeChannel(channel);
   };
 }

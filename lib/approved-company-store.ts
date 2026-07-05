@@ -6,6 +6,7 @@
 // the RLS-gated browser client.
 import { createClient } from "@/lib/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { logStore } from "@/lib/debug-log";
 
 export type CompanyStatus = "active" | "inactive";
@@ -31,9 +32,6 @@ export interface ManagedUser {
   joinedAt: string;
 }
 
-const COMPANIES_UPDATED_EVENT = "trustvox:companies-updated";
-const USERS_UPDATED_EVENT = "trustvox:users-updated";
-
 type CompanyRow = Tables<"companies">;
 type ProfileRow = Tables<"profiles">;
 
@@ -56,18 +54,6 @@ function mapCompanyRow(row: CompanyRow): ApprovedCompany {
     status: row.status,
     dateAdded: row.date_added,
   };
-}
-
-function emitCompaniesUpdated() {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(COMPANIES_UPDATED_EVENT));
-  logStore("companies-updated");
-}
-
-function emitUsersUpdated() {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(USERS_UPDATED_EVENT));
-  logStore("users-updated");
 }
 
 // ── Companies (← ApprovedCompany) ───────────────────────────────────────────
@@ -106,7 +92,6 @@ export async function addApprovedCompany(input: Omit<ApprovedCompany, "id" | "da
   const { data, error } = await supabase.from("companies").insert(insertRow).select("*").single();
   if (error) throw error;
   const mapped = mapCompanyRow(data);
-  emitCompaniesUpdated();
   logStore("company-added", { id: mapped.id, name: mapped.name });
   return mapped;
 }
@@ -122,7 +107,6 @@ export async function updateApprovedCompany(id: string, updates: Partial<Approve
   if (error) throw error;
   if (!data) return null;
   const mapped = mapCompanyRow(data);
-  emitCompaniesUpdated();
   logStore("company-updated", { id: mapped.id });
   return mapped;
 }
@@ -175,7 +159,6 @@ export async function updateManagedUserStatus(id: string, status: UserStatus): P
   if (error) throw error;
   if (!data) return null;
 
-  emitUsersUpdated();
   logStore("user-status-updated", { id, status });
   return {
     id: data.id,
@@ -188,14 +171,37 @@ export async function updateManagedUserStatus(id: string, status: UserStatus): P
   };
 }
 
+// Realtime replaces the old same-tab CustomEvent bus (Phase 8.7): any
+// insert/update/delete on `companies` notifies every subscriber, across
+// tabs and users. RLS already scopes reads (active-only for non-admins).
 export function subscribeToApprovedCompanies(onUpdate: () => void) {
   if (typeof window === "undefined") return () => {};
-  window.addEventListener(COMPANIES_UPDATED_EVENT, onUpdate);
-  return () => window.removeEventListener(COMPANIES_UPDATED_EVENT, onUpdate);
+
+  const supabase = createClient();
+  const channel: RealtimeChannel = supabase
+    .channel("approved-companies-updates")
+    .on("postgres_changes", { event: "*", schema: "public", table: "companies" }, () => onUpdate())
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
 }
 
+// Admin-only surface: consumers of this subscription (admin dashboard, user
+// management) already sit behind the admin role gate, so an unfiltered
+// `profiles` subscription is fine — RLS still only lets an admin session
+// actually receive rows (self-or-admin read policy, §6).
 export function subscribeToManagedUsers(onUpdate: () => void) {
   if (typeof window === "undefined") return () => {};
-  window.addEventListener(USERS_UPDATED_EVENT, onUpdate);
-  return () => window.removeEventListener(USERS_UPDATED_EVENT, onUpdate);
+
+  const supabase = createClient();
+  const channel: RealtimeChannel = supabase
+    .channel("managed-users-updates")
+    .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => onUpdate())
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
 }

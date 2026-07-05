@@ -1,42 +1,53 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Camera, Save, UserCircle2 } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { UserCircle2, Save } from "lucide-react"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { createClient } from "@/lib/supabase/client"
 
-const DEFAULT_PROFILE = {
+type ProfileFields = {
+  contactName: string
+  companyName: string
+  email: string
+}
+
+const DEFAULT_PROFILE: ProfileFields = {
   contactName: "Client User",
   companyName: "Trustvox Client",
-  contactEmail: "client@trustvox.com",
-  role: "Client",
-  avatarUrl: "",
+  email: "",
 }
 
 export default function ClientProfilePage() {
   const [profile, setProfile] = useState(DEFAULT_PROFILE)
   const [draft, setDraft] = useState(DEFAULT_PROFILE)
   const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [savedMessage, setSavedMessage] = useState("")
 
   useEffect(() => {
-    if (typeof window === "undefined") return
-    const raw = localStorage.getItem("currentClient")
-    if (!raw) return
+    let active = true
+    const supabase = createClient()
 
-    try {
-      const parsed = JSON.parse(raw)
-      const merged = {
-        contactName: parsed.contactName || parsed.name || DEFAULT_PROFILE.contactName,
-        companyName: parsed.companyName || DEFAULT_PROFILE.companyName,
-        contactEmail: parsed.contactEmail || parsed.email || DEFAULT_PROFILE.contactEmail,
-        role: parsed.role || "Client",
-        avatarUrl: parsed.avatarUrl || "",
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user || !active) return
+      const { data } = await supabase
+        .from("profiles")
+        .select("contact_name, company_name, email")
+        .eq("id", user.id)
+        .maybeSingle()
+      if (!active) return
+
+      const loaded: ProfileFields = {
+        contactName: data?.contact_name || DEFAULT_PROFILE.contactName,
+        companyName: data?.company_name || DEFAULT_PROFILE.companyName,
+        email: data?.email || user.email || "",
       }
-      setProfile(merged)
-      setDraft(merged)
-    } catch {
-      setProfile(DEFAULT_PROFILE)
-      setDraft(DEFAULT_PROFILE)
+      setProfile(loaded)
+      setDraft(loaded)
+    })
+
+    return () => {
+      active = false
     }
   }, [])
 
@@ -50,37 +61,39 @@ export default function ClientProfilePage() {
       .join("")
   }, [draft.companyName, draft.contactName])
 
-  const onChange = (field: keyof typeof DEFAULT_PROFILE, value: string) => {
+  const onChange = (field: keyof ProfileFields, value: string) => {
     setDraft((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSave = () => {
-    const nextProfile = {
-      ...draft,
-      role: "Client",
+  const handleSave = async () => {
+    setSaving(true)
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      setSaving(false)
+      return
     }
 
-    setProfile(nextProfile)
-    setDraft(nextProfile)
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        contact_name: draft.contactName,
+        company_name: draft.companyName,
+      })
+      .eq("id", user.id)
+
+    setSaving(false)
+    if (error) {
+      setSavedMessage("Could not save changes. Please try again.")
+      window.setTimeout(() => setSavedMessage(""), 2500)
+      return
+    }
+
+    setProfile(draft)
     setEditing(false)
-
-    if (typeof window !== "undefined") {
-      const existingRaw = localStorage.getItem("currentClient")
-      const existing = existingRaw ? JSON.parse(existingRaw) : {}
-      localStorage.setItem(
-        "currentClient",
-        JSON.stringify({
-          ...existing,
-          contactName: nextProfile.contactName,
-          companyName: nextProfile.companyName,
-          contactEmail: nextProfile.contactEmail,
-          email: nextProfile.contactEmail,
-          role: "Client",
-          avatarUrl: nextProfile.avatarUrl || "",
-        }),
-      )
-    }
-
     setSavedMessage("Profile updated successfully.")
     window.setTimeout(() => setSavedMessage(""), 2500)
   }
@@ -103,7 +116,6 @@ export default function ClientProfilePage() {
           <div className="mt-6 space-y-6">
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16 border border-white/10">
-                {draft.avatarUrl ? <AvatarImage src={draft.avatarUrl} alt={draft.contactName} /> : null}
                 <AvatarFallback className="bg-surface-raised text-ink">{initials || "C"}</AvatarFallback>
               </Avatar>
               <div>
@@ -133,29 +145,11 @@ export default function ClientProfilePage() {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-ink-muted">Email ID</label>
-                <input
-                  type="email"
-                  value={draft.contactEmail}
-                  onChange={(e) => onChange("contactEmail", e.target.value)}
-                  disabled={!editing}
-                  className={inputClass}
-                />
+                <input type="email" value={draft.email} disabled className={inputClass} />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-ink-muted">Role</label>
                 <input value="Client" disabled className={inputClass} />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <label className="flex items-center gap-2 text-xs font-medium text-ink-muted">
-                  <Camera size={14} /> Profile Picture URL
-                </label>
-                <input
-                  value={draft.avatarUrl || ""}
-                  onChange={(e) => onChange("avatarUrl", e.target.value)}
-                  disabled={!editing}
-                  placeholder="https://..."
-                  className={inputClass}
-                />
               </div>
             </div>
 
@@ -173,12 +167,14 @@ export default function ClientProfilePage() {
                 <>
                   <button
                     onClick={handleSave}
-                    className="inline-flex items-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105"
+                    disabled={saving}
+                    className="inline-flex items-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105 disabled:opacity-60"
                   >
-                    <Save className="w-4 h-4 mr-2" /> Save/Update
+                    <Save className="w-4 h-4 mr-2" /> {saving ? "Saving…" : "Save/Update"}
                   </button>
                   <button
                     onClick={handleCancel}
+                    disabled={saving}
                     className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium text-ink-dim transition hover:bg-white/[0.06] hover:text-ink"
                   >
                     Cancel

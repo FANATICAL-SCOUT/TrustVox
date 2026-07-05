@@ -9,7 +9,12 @@ import { Home, Lightbulb, History, User, Bell, Wallet, Store, Menu } from "lucid
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import BrandLogo from "@/components/brand-logo"
 import NotificationsModal from "@/components/modals/notifications-modal"
-import { getUnreadNotificationsCount, refreshSystemNotifications, type UserNotification } from "@/lib/user-notifications"
+import {
+  getUnreadNotificationsCount,
+  refreshSystemNotifications,
+  subscribeToUserNotifications,
+  type UserNotification,
+} from "@/lib/user-notifications"
 import { getTVXWalletState, subscribeToTVXWalletUpdates } from "@/lib/tvx-wallet"
 
 interface UserNavbarProps {
@@ -61,11 +66,13 @@ export default function UserNavbar({
 
     updateUnread()
 
-    window.addEventListener("trustvox:user-notifications-updated", updateUnread)
+    const unsubscribe = subscribeToUserNotifications((items) =>
+      setUnreadCount(items.filter((item) => !item.isRead).length),
+    )
     window.addEventListener("focus", updateUnread)
 
     return () => {
-      window.removeEventListener("trustvox:user-notifications-updated", updateUnread)
+      unsubscribe()
       window.removeEventListener("focus", updateUnread)
     }
   }, [])
