@@ -90,7 +90,7 @@ export default function UserDashboard() {
         return
       }
       setQuotaMessage("")
-      router.push(actionRoute || "/user/feedbacks")
+      router.push(actionRoute || "/user/dashboard?section=suggested")
       return
     }
 
@@ -100,7 +100,7 @@ export default function UserDashboard() {
         return
       }
       setQuotaMessage("")
-      router.push(actionRoute || "/user/feedbacks")
+      router.push(actionRoute || "/user/dashboard?section=suggested")
       return
     }
 

@@ -501,7 +501,7 @@ export default function FeedbackSubmitPage() {
           <h2 className="mb-2 text-lg font-semibold text-ink-dim">Form not found</h2>
           <p className="mb-6 text-sm text-ink-muted">This feedback form doesn&apos;t exist or is no longer active.</p>
           <Button
-            onClick={() => router.push("/user/feedbacks")}
+            onClick={() => router.push("/user/dashboard?section=suggested")}
             className="bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105"
           >
             Browse Forms
@@ -523,7 +523,7 @@ export default function FeedbackSubmitPage() {
           <p className="mb-6 text-xs text-ink-muted">Rule: one feedback submission per form per account.</p>
           <div className="flex flex-col gap-3">
             <Button
-              onClick={() => router.push("/user/feedbacks")}
+              onClick={() => router.push("/user/dashboard?section=suggested")}
               className="bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105"
             >
               Browse Other Feedbacks
@@ -574,7 +574,7 @@ export default function FeedbackSubmitPage() {
           <div className="flex flex-col gap-3">
             <Button
               className="bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105"
-              onClick={() => router.push("/user/feedbacks")}
+              onClick={() => router.push("/user/dashboard?section=suggested")}
             >
               Give More Feedback
             </Button>
@@ -597,7 +597,7 @@ export default function FeedbackSubmitPage() {
       <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
           <button
-            onClick={() => router.push("/user/feedbacks")}
+            onClick={() => router.push("/user/dashboard?section=suggested")}
             className="flex items-center gap-2 text-sm text-ink-dim transition-colors hover:text-gold"
           >
             <ArrowLeft size={16} />

@@ -210,7 +210,7 @@ async function doRefreshSystemNotifications(): Promise<UserNotification[]> {
       type: "streak_risk",
       title: "Streak At Risk",
       message: `You are on a ${quota.streakCount}-day streak. Submit feedback today to keep it alive.`,
-      action: { route: "/user/feedbacks" },
+      action: { route: "/user/dashboard?section=suggested" },
     })
     if (error) throw error
   }

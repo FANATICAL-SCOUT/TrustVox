@@ -66,7 +66,7 @@ Each folder holds its own `TRACKER.md` (status), `TODO.md` (checklist), and `LOG
 (Admin is sign-in only and unadvertised — no admin signup; admin accounts are provisioned by hand.)
 
 ### User
-`/user/dashboard` · `/user/wallet` · `/user/store` · `/user/feedbacks` · `/user/feedback/[id]`
+`/user/dashboard` (home · `?section=suggested` browse-all · `?section=history` · `?section=profile`) · `/user/wallet` · `/user/store` · `/user/feedback/[id]`
 (`/dashboard`, `/wallet`, `/store`, `/suggested`, `/history`, `/profile` are legacy redirects to the routes above.)
 
 ### Client
