@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { CheckCircle2, Sparkles, Store as StoreIcon, Lock, Gift, Tv, Shirt, ArrowRight, type LucideIcon } from "lucide-react"
+import { CheckCircle2, Sparkles, Lock, Gift, Tv, Shirt, ArrowRight, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
@@ -121,10 +121,7 @@ export default function StoreSection() {
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       {/* Header */}
       <div data-reveal-block className="text-center">
-        <p className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-gold/[0.08] px-4 py-1.5 text-sm font-semibold text-gold">
-          <StoreIcon className="h-4 w-4" /> TrustVox rewards
-        </p>
-        <h1 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.03em] text-ink">Redemption store</h1>
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] text-ink">Redemption <span className="tvx-text-gold">store</span></h1>
         <p className="mx-auto mt-3 max-w-xl text-ink-dim">Spend your TVX tokens on vouchers, subscriptions, and community merch.</p>
       </div>
 

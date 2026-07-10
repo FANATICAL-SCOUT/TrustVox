@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { MessageSquare, Coins, Flame, Clock3, ArrowRight, Eye, CheckCircle2 } from "lucide-react"
+import { MessageSquare, Coins, Flame, ArrowRight, Eye, CheckCircle2 } from "lucide-react"
 import SearchWithAutocomplete from "./search-with-autocomplete"
 import {
   getApprovedForms,
@@ -197,11 +197,7 @@ export default function LandingSection({
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         {/* Hero */}
         <div data-reveal-block className="py-8 text-center">
-          <p className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-gold/[0.08] px-4 py-1.5 text-sm text-gold">
-            <Clock3 className="h-4 w-4" />
-            {recommended.length} {recommended.length === 1 ? "opportunity" : "opportunities"} waiting
-          </p>
-          <h1 className="mx-auto mt-5 max-w-3xl text-balance font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">
+          <h1 className="mx-auto max-w-3xl text-balance font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">
             Welcome back, <span className="tvx-text-gold">{userName}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-ink-dim">

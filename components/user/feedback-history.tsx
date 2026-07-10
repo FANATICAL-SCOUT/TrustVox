@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
-  History, Coins, MessageSquare, Eye, Bookmark, ArrowRight, CheckCircle2, Trash2, Clock,
+  Coins, MessageSquare, Eye, Bookmark, ArrowRight, CheckCircle2, Trash2, Clock,
 } from "lucide-react"
 import {
   getForms,
@@ -148,11 +148,8 @@ export default function FeedbackHistory() {
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       {/* Header */}
       <div data-reveal-block className="text-center">
-        <p className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-gold/[0.08] px-4 py-1.5 text-sm font-semibold text-gold">
-          <History className="h-4 w-4" /> Activity
-        </p>
-        <h1 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.03em] text-ink">
-          Your feedback history
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] text-ink">
+          Your feedback <span className="tvx-text-gold">history</span>
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-ink-dim">
           What you&apos;ve saved for later, and every feedback you&apos;ve completed.

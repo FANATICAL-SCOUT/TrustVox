@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Wallet, ArrowUpRight, ArrowDownRight } from "lucide-react"
+import { ArrowUpRight, ArrowDownRight } from "lucide-react"
 import { emptyWalletState, getTVXWalletState, subscribeToTVXWalletUpdates } from "@/lib/tvx-wallet"
 
 const FIRST_REWARD_TARGET = 150
@@ -40,10 +40,7 @@ export default function WalletSection() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
       <div data-reveal-block className="text-center">
-        <p className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-gold/[0.08] px-4 py-1.5 text-sm font-semibold text-gold">
-          <Wallet className="h-4 w-4" /> Token wallet
-        </p>
-        <h1 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.03em] text-ink">Your TVX wallet</h1>
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] text-ink">Your TVX <span className="tvx-text-gold">wallet</span></h1>
         <p className="mx-auto mt-3 max-w-xl text-ink-dim">Track your balance and every credit and debit in one place.</p>
       </div>
 

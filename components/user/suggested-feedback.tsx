@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
-  MessageSquare, Search, Bookmark, BookmarkCheck, Ban, Eye, CheckCircle2, Coins,
-  SlidersHorizontal, ChevronDown, Clock, X,
+  MessageSquare, Search, Bookmark, BookmarkCheck, Ban, Eye, CheckCircle2,
+  SlidersHorizontal, ChevronDown, Clock, X, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react"
 import {
   getApprovedForms,
@@ -17,7 +17,6 @@ import {
   type FeedbackForm,
   type FeedbackHandoff,
 } from "@/lib/feedback-store"
-import { getTVXWalletState, subscribeToTVXWalletUpdates } from "@/lib/tvx-wallet"
 import {
   getBookmarkedFormIds,
   toggleBookmark,
@@ -44,8 +43,6 @@ const REWARD_TIERS: { key: string; label: string; min: number }[] = [
   { key: "r250", label: "250+ TVX", min: 250 },
   { key: "r500", label: "500+ TVX", min: 500 },
 ]
-
-const REWARD_GOALS = [100, 200, 300, 500]
 
 // A form is "ending soon" if it has an auto-close date within the next 7 days.
 const ENDING_SOON_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
@@ -139,7 +136,6 @@ const SuggestedFeedbacks = ({ handleStartFeedbackFromSuggested }: SuggestedFeedb
   const [approvedForms, setApprovedForms] = useState<FeedbackForm[]>([])
   const [submittedIds, setSubmittedIds] = useState<Set<string>>(new Set())
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set())
-  const [walletBalance, setWalletBalance] = useState(0)
   const [search, setSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
 
@@ -150,6 +146,9 @@ const SuggestedFeedbacks = ({ handleStartFeedbackFromSuggested }: SuggestedFeedb
   const [availabilityFilters, setAvailabilityFilters] = useState<Set<string>>(new Set())
   const [sortKey, setSortKey] = useState<SortKey>("newest")
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  // Desktop-only: retract the filter rail to hand its width back to the results
+  // grid, which then goes up to 4-per-row (item 1). Mobile uses the drawer above.
+  const [desktopFiltersOpen, setDesktopFiltersOpen] = useState(true)
 
   const loadForms = useCallback(async () => {
     const forms = await getApprovedForms()
@@ -175,17 +174,6 @@ const SuggestedFeedbacks = ({ handleStartFeedbackFromSuggested }: SuggestedFeedb
       window.removeEventListener("focus", handleFocus)
     }
   }, [loadForms])
-
-  useEffect(() => {
-    const syncWallet = () => void getTVXWalletState().then((wallet) => setWalletBalance(wallet.balance))
-    syncWallet()
-    const unsubscribe = subscribeToTVXWalletUpdates(syncWallet)
-    window.addEventListener("focus", syncWallet)
-    return () => {
-      unsubscribe()
-      window.removeEventListener("focus", syncWallet)
-    }
-  }, [])
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search), 200)
@@ -257,11 +245,6 @@ const SuggestedFeedbacks = ({ handleStartFeedbackFromSuggested }: SuggestedFeedb
     // Completed surveys sink to the bottom so open opportunities lead.
     return sorted.sort((a, b) => Number(submittedIds.has(a.id)) - Number(submittedIds.has(b.id)))
   }, [approvedForms, normalizedSearch, categoryFilters, rewardFilters, availabilityFilters, sortKey, submittedIds])
-
-  const nextGoal = REWARD_GOALS.find((goal) => goal > walletBalance)
-  const progressMessage = nextGoal
-    ? `${(nextGoal - walletBalance).toLocaleString()} TVX to your next reward`
-    : "You have enough TVX to redeem now"
 
   const openForm = (formId: string) => router.push(`/user/feedback/${formId}`)
 
@@ -375,9 +358,6 @@ const SuggestedFeedbacks = ({ handleStartFeedbackFromSuggested }: SuggestedFeedb
         <p className="mx-auto mt-4 max-w-xl text-lg text-ink-dim">
           Every live opportunity on TrustVox — pick one, share your honest take, and grow your balance.
         </p>
-        <span className="mt-5 inline-flex items-center gap-1.5 rounded-full border border-mint/25 bg-mint/10 px-3 py-1 text-xs font-semibold text-mint">
-          <Coins className="h-3.5 w-3.5" /> {progressMessage}
-        </span>
       </div>
 
       {/* Search */}
@@ -416,15 +396,29 @@ const SuggestedFeedbacks = ({ handleStartFeedbackFromSuggested }: SuggestedFeedb
         </Button>
       </div>
 
-      {/* Two-column layout: filter sidebar (left) + results (right) */}
+      {/* Two-column layout: filter sidebar (left) + results (right).
+          The sidebar retracts on desktop (item 1) so results reclaim its width
+          and grow to 4-per-row; when it's shown they stay capped at 3. */}
       <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start">
-        {/* Sidebar — persistent on desktop, collapsible on mobile */}
+        {/* Sidebar — collapsible on mobile (drawer) and on desktop (retract) */}
         <aside
-          className={`${mobileFiltersOpen ? "block" : "hidden"} lg:block lg:w-64 lg:flex-none`}
+          className={`${mobileFiltersOpen ? "block" : "hidden"} ${
+            desktopFiltersOpen ? "lg:block" : "lg:hidden"
+          } lg:w-64 lg:flex-none`}
         >
           <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 lg:sticky lg:top-20">
-            <div className="mb-1 flex items-center gap-2 text-sm font-bold text-ink">
-              <SlidersHorizontal size={15} className="text-gold" /> Filters
+            <div className="mb-1 flex items-center justify-between gap-2 text-sm font-bold text-ink">
+              <span className="flex items-center gap-2">
+                <SlidersHorizontal size={15} className="text-gold" /> Filters
+              </span>
+              {/* Desktop-only retract control */}
+              <button
+                onClick={() => setDesktopFiltersOpen(false)}
+                aria-label="Hide filters"
+                className="hidden rounded-md p-1 text-ink-muted transition-colors hover:bg-white/5 hover:text-ink lg:inline-flex"
+              >
+                <PanelLeftClose size={16} />
+              </button>
             </div>
             {filterRail}
           </div>
@@ -432,10 +426,26 @@ const SuggestedFeedbacks = ({ handleStartFeedbackFromSuggested }: SuggestedFeedb
 
         {/* Results */}
         <div className="min-w-0 flex-1">
-          <div className="mb-4 text-sm text-ink-muted">
-            <span className="font-semibold text-ink">{visible.length}</span> opportunit
-            {visible.length === 1 ? "y" : "ies"}
-            {activeFilterCount > 0 || normalizedSearch ? " match your filters" : ""}
+          <div className="mb-4 flex items-center gap-3 text-sm text-ink-muted">
+            {/* Desktop-only "show filters" button, visible only while retracted */}
+            {!desktopFiltersOpen && (
+              <button
+                onClick={() => setDesktopFiltersOpen(true)}
+                className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-ink-dim transition-colors hover:bg-white/[0.06] hover:text-ink lg:inline-flex"
+              >
+                <PanelLeftOpen size={14} /> Filters
+                {activeFilterCount > 0 && (
+                  <span className="tvx-num rounded-full bg-gold/15 px-1.5 text-[10px] font-bold text-gold">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+            )}
+            <span>
+              <span className="font-semibold text-ink">{visible.length}</span> opportunit
+              {visible.length === 1 ? "y" : "ies"}
+              {activeFilterCount > 0 || normalizedSearch ? " match your filters" : ""}
+            </span>
           </div>
 
           {visible.length === 0 ? (
@@ -459,7 +469,11 @@ const SuggestedFeedbacks = ({ handleStartFeedbackFromSuggested }: SuggestedFeedb
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div
+              className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${
+                desktopFiltersOpen ? "xl:grid-cols-3" : "lg:grid-cols-3 xl:grid-cols-4"
+              }`}
+            >
               {visible.map((form) => {
                 const isSubmitted = submittedIds.has(form.id)
                 const isBookmarked = bookmarkedIds.has(form.id)
