@@ -29,6 +29,28 @@ export interface TVXWalletState {
   transactions: TVXTransaction[]
 }
 
+// A single earn event, shown in the profile's "TVX earned" breakdown
+// (Phase 9 · Session 3): which feedback earned it and when.
+export interface TVXEarnEntry {
+  id: string
+  amount: number
+  feedbackTitle: string
+  createdAt: string
+}
+
+// A redeemed coupon with its lifecycle state (Phase 9 · Session 3). Backed by
+// the redemptions table (migration 0010) — the single source of truth for a
+// user's coupon history.
+export interface Redemption {
+  id: string
+  itemTitle: string
+  cost: number
+  couponCode: string
+  redeemedAt: string
+  expiresAt: string
+  isExpired: boolean
+}
+
 // Redemption only needs the item id (cost is server-authoritative); title is
 // used solely for the client-side success message.
 export interface RedeemItemInput {
@@ -151,4 +173,54 @@ export async function redeemTVXItem(
     message: `${input.title} redeemed successfully`,
     wallet: await getTVXWalletState(),
   }
+}
+
+// Reason text written by credit_feedback_reward: Feedback submitted for "<title>".
+const FEEDBACK_EARN_REASON = /^Feedback submitted for "(.*)"$/
+
+// Per-feedback earn breakdown for the profile (Session 3, item 4). Derived from
+// the wallet's own earn transactions (positive amount) — no new data needed.
+// Titles are recovered from the transaction reason; anything that doesn't match
+// the feedback-earn shape falls back to a generic label so nothing is dropped.
+export function deriveEarnHistory(transactions: TVXTransaction[]): TVXEarnEntry[] {
+  return transactions
+    .filter((t) => t.amount > 0)
+    .map((t) => {
+      const match = FEEDBACK_EARN_REASON.exec(t.reason)
+      return {
+        id: t.id,
+        amount: t.amount,
+        feedbackTitle: match?.[1]?.trim() || t.reason,
+        createdAt: t.createdAt,
+      }
+    })
+}
+
+// The user's redeemed-coupon history (Session 3, items 5–6). RLS scopes this to
+// the caller's own rows; expiry is computed against expires_at so the profile
+// shows an honest active/expired state, not a meaningless countdown.
+export async function getRedemptions(): Promise<Redemption[]> {
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data, error } = await supabase
+    .from("redemptions")
+    .select("id, item_title, cost, coupon_code, redeemed_at, expires_at")
+    .eq("user_id", user.id)
+    .order("redeemed_at", { ascending: false })
+  if (error) throw error
+
+  const now = Date.now()
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    itemTitle: row.item_title,
+    cost: row.cost,
+    couponCode: row.coupon_code,
+    redeemedAt: row.redeemed_at,
+    expiresAt: row.expires_at,
+    isExpired: new Date(row.expires_at).getTime() < now,
+  }))
 }

@@ -28,6 +28,9 @@ export type Database = {
           status: Database["public"]["Enums"]["account_status"]
           dob: string | null
           gender: string | null
+          bio: string | null
+          interests: string[]
+          last_name_change_at: string | null
           company_name: string | null
           industry: string | null
           company_size: string | null
@@ -50,6 +53,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["account_status"]
           dob?: string | null
           gender?: string | null
+          bio?: string | null
+          interests?: string[]
+          last_name_change_at?: string | null
           company_name?: string | null
           industry?: string | null
           company_size?: string | null
@@ -72,6 +78,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["account_status"]
           dob?: string | null
           gender?: string | null
+          bio?: string | null
+          interests?: string[]
+          last_name_change_at?: string | null
           company_name?: string | null
           industry?: string | null
           company_size?: string | null
@@ -113,6 +122,47 @@ export type Database = {
           created_at?: string
         }
         Relationships: []
+      }
+      redemptions: {
+        Row: {
+          id: string
+          user_id: string
+          store_item_id: string
+          item_title: string
+          cost: number
+          coupon_code: string
+          redeemed_at: string
+          expires_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          store_item_id: string
+          item_title: string
+          cost: number
+          coupon_code: string
+          redeemed_at?: string
+          expires_at: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          store_item_id?: string
+          item_title?: string
+          cost?: number
+          coupon_code?: string
+          redeemed_at?: string
+          expires_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "redemptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       companies: {
         Row: {

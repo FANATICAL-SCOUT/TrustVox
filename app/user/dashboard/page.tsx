@@ -179,13 +179,7 @@ export default function UserDashboard() {
           />
         );
       case "profile":
-        return (
-          <UserProfile
-            router={router}
-            savedFeedbacks={savedFeedbacks}
-            onContinueEditing={handleStartFeedbackFromSuggested}
-          />
-        );
+        return <UserProfile router={router} />;
       default:
         return (
           <LandingSection
