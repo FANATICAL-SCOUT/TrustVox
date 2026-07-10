@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Bricolage_Grotesque, DM_Sans, JetBrains_Mono } from "next/font/google"
 import { Providers } from "./providers"
 import GlobalScrollEffects from "@/components/global-scroll-effects"
+import EmberTrailBackground from "@/components/ember-trail-background"
 import RootLayoutWrapper from "./root-layout-wrapper"
 import "./globals.css"
 
@@ -41,6 +42,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${bricolage.variable} ${dmSans.variable} ${jetbrainsMono.variable}`}>
         <Providers>
+          <EmberTrailBackground />
           <RootLayoutWrapper>{children}</RootLayoutWrapper>
           <GlobalScrollEffects />
         </Providers>
