@@ -157,7 +157,7 @@ export async function creditFeedbackReward(responseId: string): Promise<TVXWalle
 
 export async function redeemTVXItem(
   input: RedeemItemInput,
-): Promise<{ success: boolean; message: string; wallet: TVXWalletState }> {
+): Promise<{ success: boolean; message: string; wallet: TVXWalletState; coupon?: Redemption }> {
   const supabase = createClient()
   const { error } = await supabase.rpc("redeem_reward", { p_item_id: input.id })
 
@@ -168,10 +168,17 @@ export async function redeemTVXItem(
     return { success: false, message, wallet: await getTVXWalletState() }
   }
 
+  // Read back the coupon the trusted path just created (RLS scopes this to the
+  // caller) so the store can show the real code + point to the profile. The
+  // code is the single source of truth in `redemptions` — never client-invented.
+  const [wallet, redemptions] = await Promise.all([getTVXWalletState(), getRedemptions()])
+  const coupon = redemptions.find((r) => r.itemTitle === input.title) ?? redemptions[0]
+
   return {
     success: true,
     message: `${input.title} redeemed successfully`,
-    wallet: await getTVXWalletState(),
+    wallet,
+    coupon,
   }
 }
 

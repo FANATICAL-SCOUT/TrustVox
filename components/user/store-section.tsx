@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { CheckCircle2, Sparkles, Lock, Gift, Tv, Shirt, ArrowRight, type LucideIcon } from "lucide-react"
+import Link from "next/link"
+import { CheckCircle2, Sparkles, Lock, Gift, Tv, Shirt, ArrowRight, Copy, Check, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
@@ -9,6 +10,7 @@ import {
   getTVXWalletState,
   redeemTVXItem,
   subscribeToTVXWalletUpdates,
+  type Redemption,
   type TVXWalletState,
 } from "@/lib/tvx-wallet"
 import { getStoreItems, type StoreCategory, type StoreItem } from "@/lib/store-catalog"
@@ -52,6 +54,8 @@ export default function StoreSection() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [isRedeeming, setIsRedeeming] = useState(false)
   const [feedbackMessage, setFeedbackMessage] = useState<FeedbackMessage | null>(null)
+  const [redeemedCoupon, setRedeemedCoupon] = useState<{ item: string; coupon: Redemption } | null>(null)
+  const [copied, setCopied] = useState(false)
   const [activeFilter, setActiveFilter] = useState<"all" | StoreCategory>("all")
 
   useEffect(() => {
@@ -94,27 +98,48 @@ export default function StoreSection() {
   const openConfirmModal = (item: StoreItem) => {
     setSelectedItem(item)
     setFeedbackMessage(null)
+    setRedeemedCoupon(null)
+    setCopied(false)
     setIsConfirmOpen(true)
   }
 
   const handleRedeemConfirm = async () => {
     if (!selectedItem || isRedeeming) return
 
+    const item = selectedItem
     setIsRedeeming(true)
-    const result = await redeemTVXItem({ id: selectedItem.id, title: selectedItem.title })
+    const result = await redeemTVXItem({ id: item.id, title: item.title })
     setIsRedeeming(false)
 
     setWallet(result.wallet)
 
     if (result.success) {
-      await recordStoreRedemptionNotification(selectedItem.title, selectedItem.cost, result.wallet.balance)
-      setFeedbackMessage({ type: "success", text: result.message })
+      await recordStoreRedemptionNotification(item.title, item.cost, result.wallet.balance)
+      setFeedbackMessage(null)
+      // Surface the real coupon the server just created (code + profile pointer),
+      // instead of a bare "redeemed" line — the coupon is the point of redeeming.
+      if (result.coupon) {
+        setRedeemedCoupon({ item: item.title, coupon: result.coupon })
+      } else {
+        setFeedbackMessage({ type: "success", text: result.message })
+      }
       setIsConfirmOpen(false)
       setSelectedItem(null)
       return
     }
 
     setFeedbackMessage({ type: "error", text: result.message })
+  }
+
+  const handleCopyCoupon = async () => {
+    if (!redeemedCoupon) return
+    try {
+      await navigator.clipboard.writeText(redeemedCoupon.coupon.couponCode)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // clipboard blocked (e.g. insecure context) — the code stays visible to copy manually
+    }
   }
 
   return (
@@ -154,8 +179,47 @@ export default function StoreSection() {
         <StatTile label="Total spent" value={wallet.totalSpent} unit="TVX" tone="gold" />
       </div>
 
-      {/* Redemption result banner */}
-      {feedbackMessage ? (
+      {/* Coupon reveal — the real code the server just issued, plus where it lives */}
+      {redeemedCoupon ? (
+        <div
+          role="status"
+          className="tvx-card-gold mt-6 rounded-xl border border-mint/25 bg-mint/[0.06] p-5"
+        >
+          <div className="flex items-start gap-3">
+            <span className="grid h-9 w-9 flex-none place-items-center rounded-lg border border-mint/25 bg-mint/10 text-mint">
+              <CheckCircle2 className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-ink">
+                <span className="text-mint">{redeemedCoupon.item}</span> redeemed
+              </p>
+              <p className="mt-0.5 text-xs text-ink-muted">
+                Here&apos;s your coupon code — it&apos;s saved in your profile and valid for 30 days.
+              </p>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <code className="tvx-num rounded-lg border border-gold/25 bg-gold/[0.08] px-3 py-1.5 text-sm font-bold tracking-wider text-gold">
+                  {redeemedCoupon.coupon.couponCode}
+                </code>
+                <button
+                  type="button"
+                  onClick={handleCopyCoupon}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs font-medium text-ink-dim transition-colors hover:border-white/20 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/50"
+                >
+                  {copied ? <Check className="h-3.5 w-3.5 text-mint" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? "Copied" : "Copy"}
+                </button>
+                <Link
+                  href="/user/dashboard?section=profile"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-gold hover:underline"
+                >
+                  View in profile <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : feedbackMessage ? (
         <div
           role="status"
           className={`mt-6 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${
