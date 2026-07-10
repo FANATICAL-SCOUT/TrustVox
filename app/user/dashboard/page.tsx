@@ -11,6 +11,7 @@ import CompanyDetailsModal from "@/components/modals/company-details-modal"
 import { getFeedbackQuota, subscribeToFeedbackQuotaUpdates } from "@/lib/feedback-quota"
 import { refreshSystemNotifications, type UserNotification } from "@/lib/user-notifications"
 import { hasUserSubmittedForm, type FeedbackHandoff } from "@/lib/feedback-store"
+import { addBookmark } from "@/lib/bookmark-store"
 import { createClient } from "@/lib/supabase/client"
 
 async function resolveCurrentUserId(): Promise<string | null> {
@@ -28,7 +29,6 @@ export default function UserDashboard() {
   const [completedToday, setCompletedToday] = useState(0);
   const [canSubmitFeedback, setCanSubmitFeedback] = useState(true);
   const [quotaMessage, setQuotaMessage] = useState("");
-  const [savedFeedbacks, setSavedFeedbacks] = useState<FeedbackHandoff[]>([]); // State for saved feedbacks (drafts)
   const [selectedCompanyForModal, setSelectedCompanyForModal] = useState<FeedbackHandoff | null>(null);
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
 
@@ -39,17 +39,18 @@ export default function UserDashboard() {
     }
   }, [searchParams])
 
-  const addOrUpdateSavedFeedback = (feedback: FeedbackHandoff) => {
-    setSavedFeedbacks((prev) => {
-      if (feedback.id && prev.some((f) => f.id === feedback.id)) {
-        // Update existing draft
-        return prev.map((f) => (f.id === feedback.id ? { ...feedback, status: "draft" } : f));
-      } else {
-        // Add new draft
-        return [{ ...feedback, id: Date.now(), status: "draft" }, ...prev];
-      }
-    });
-    setActiveSection("history"); // Route to history page after saving draft
+  // Bookmark a form for later (real persistence — bookmarks table, Session 4).
+  // Used by the landing/company-modal "Bookmark" buttons; Suggested toggles its
+  // own via the store. Sends the user to History so they see the saved item.
+  const handleBookmarkForm = async (feedback: FeedbackHandoff) => {
+    const formId = feedback.formId || (typeof feedback.id === "string" ? feedback.id : undefined);
+    if (!formId) return;
+    try {
+      await addBookmark(formId);
+      setActiveSection("history");
+    } catch {
+      setQuotaMessage("Couldn't save that bookmark. Please try again.");
+    }
   };
 
   const handleStartFeedbackFromSuggested = async (feedbackData?: FeedbackHandoff | null) => {
@@ -155,7 +156,7 @@ export default function UserDashboard() {
             handleStartFeedbackFromSuggested={handleStartFeedbackFromSuggested}
             setSelectedCompanyForModal={setSelectedCompanyForModal}
             setIsCompanyModalOpen={setIsCompanyModalOpen}
-            onSaveForLater={addOrUpdateSavedFeedback}
+            onSaveForLater={handleBookmarkForm}
             dailyFeedbackRemaining={dailyFeedbackCount}
             dailyFeedbackLimit={dailyLimit}
             completedToday={completedToday}
@@ -165,19 +166,10 @@ export default function UserDashboard() {
         return (
           <SuggestedFeedback
             handleStartFeedbackFromSuggested={handleStartFeedbackFromSuggested}
-            onSaveForLater={addOrUpdateSavedFeedback}
           />
         );
       case "history":
-        return (
-          <FeedbackHistory
-            newFeedbacks={[]}
-            savedFeedbacks={savedFeedbacks}
-            onContinueEditing={handleStartFeedbackFromSuggested}
-            onStartFeedback={handleStartFeedbackFromSuggested}
-            onSaveForLater={addOrUpdateSavedFeedback}
-          />
-        );
+        return <FeedbackHistory />;
       case "profile":
         return <UserProfile router={router} />;
       default:
@@ -186,7 +178,7 @@ export default function UserDashboard() {
             handleStartFeedbackFromSuggested={handleStartFeedbackFromSuggested}
             setSelectedCompanyForModal={setSelectedCompanyForModal}
             setIsCompanyModalOpen={setIsCompanyModalOpen}
-            onSaveForLater={addOrUpdateSavedFeedback}
+            onSaveForLater={handleBookmarkForm}
             dailyFeedbackRemaining={dailyFeedbackCount}
             dailyFeedbackLimit={dailyLimit}
             completedToday={completedToday}
@@ -221,7 +213,7 @@ export default function UserDashboard() {
           onClose={() => setIsCompanyModalOpen(false)}
           company={selectedCompanyForModal}
           onStartFeedback={handleStartFeedbackFromSuggested}
-          onSaveForLater={addOrUpdateSavedFeedback}
+          onSaveForLater={handleBookmarkForm}
         />
       )}
     </div>

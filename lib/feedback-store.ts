@@ -492,6 +492,25 @@ export async function getResponsesByFormId(formId: string): Promise<FormResponse
   return (data ?? []).map(mapResponseRow);
 }
 
+// The signed-in user's own submitted response for a given form, if any. RLS
+// already scopes `responses` to the caller's rows, so this returns only the
+// user's own answers — used by the read-only "View" mode on feedback/[id]
+// (Phase 9 · Session 4, item 7). Returns null when they haven't submitted.
+export async function getUserResponseForForm(formId: string, userId: string): Promise<FormResponse | null> {
+  const normalizedUserId = String(userId || "").trim();
+  if (!formId || !normalizedUserId) return null;
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("responses")
+    .select("*")
+    .eq("form_id", formId)
+    .eq("user_id", normalizedUserId)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapResponseRow(data) : null;
+}
+
 export async function getResponsesByUser(userId: string): Promise<FormResponse[]> {
   const supabase = createClient();
   const { data, error } = await supabase

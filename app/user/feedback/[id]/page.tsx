@@ -1,10 +1,10 @@
 "use client"
 
 import { useState, useEffect, useRef, useMemo } from "react"
-import { useRouter, useParams } from "next/navigation"
+import { useRouter, useParams, useSearchParams } from "next/navigation"
 import {
   Star, ArrowLeft, ArrowRight, Check, AlertCircle, Mic, MicOff,
-  Sparkles, Send, CheckCircle2, MessageSquare,
+  Sparkles, Send, CheckCircle2, MessageSquare, Eye,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,7 @@ import {
   getFormById,
   addResponse,
   hasUserSubmittedForm,
+  getUserResponseForForm,
   subscribeToFormsUpdates,
   type FeedbackForm,
   type Question,
@@ -308,10 +309,65 @@ function QuestionField({
   )
 }
 
+// ── Read-only answer renderer (View mode) ───────────────────────────────────────
+// Renders the user's own stored answer for one question, non-editable. Session 4
+// item 7: clicking "View" on a completed feedback must show what they submitted,
+// not the "Submission blocked" screen.
+function ReadOnlyAnswer({ question, value }: { question: Question; value: AnswerValue | undefined }) {
+  const { type, title } = question
+  const stars = typeof value === "number" ? value : 0
+  const text = typeof value === "string" || typeof value === "number" ? String(value) : ""
+  const chips = Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : []
+  const hasAnswer =
+    (type === "star-rating" && stars > 0) ||
+    (chips.length > 0) ||
+    (text.trim().length > 0)
+
+  return (
+    <div className="space-y-2.5">
+      <p className="text-sm font-medium text-ink-dim">{title}</p>
+
+      {!hasAnswer ? (
+        <p className="text-sm italic text-ink-muted">No answer given</p>
+      ) : type === "star-rating" ? (
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <Star
+                key={s}
+                size={22}
+                className={s <= stars ? "fill-gold text-gold" : "text-white/15"}
+              />
+            ))}
+          </div>
+          <span className="tvx-num text-sm text-ink-dim">{stars}/5</span>
+        </div>
+      ) : chips.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {chips.map((chip) => (
+            <span
+              key={chip}
+              className="inline-flex items-center rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-sm text-gold"
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div className="whitespace-pre-wrap rounded-lg border border-white/[0.07] bg-white/[0.02] p-3 text-sm text-ink-dim">
+          {text}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function FeedbackSubmitPage() {
   const router  = useRouter()
   const params  = useParams()
+  const searchParams = useSearchParams()
+  const viewMode = searchParams.get("view") === "1"
   const routeId = params?.id
   const id      = Array.isArray(routeId) ? routeId[0] : routeId
 
@@ -324,6 +380,7 @@ export default function FeedbackSubmitPage() {
   const [notFound,  setNotFound]  = useState(false)
   const [alreadySubmitted, setAlreadySubmitted] = useState(false)
   const [quotaError, setQuotaError] = useState("")
+  const [viewAnswers, setViewAnswers] = useState<Record<string, AnswerValue> | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -343,6 +400,28 @@ export default function FeedbackSubmitPage() {
           isApproved,
         })
 
+        // Viewing your own past submission is read-only history, so it must work
+        // even if the form has since closed / hit its limit — those gates block
+        // *new* submissions, not reading what you already sent. So resolve the
+        // user's existing response FIRST and short-circuit to view mode before
+        // applying the submission gates. (An unapproved form with a stored
+        // response still renders the answers — the form data is the user's own
+        // history, RLS-scoped.)
+        const userId = await resolveCurrentUserId()
+        const existingResponse =
+          userId && found ? await getUserResponseForForm(id, userId) : null
+
+        if (existingResponse) {
+          // Item 7: render the user's own stored answers read-only instead of
+          // dead-ending on the "Submission blocked" screen.
+          setViewAnswers((existingResponse.answers as Record<string, AnswerValue>) ?? {})
+          setAlreadySubmitted(true)
+          setNotFound(false)
+          setForm(found || null)
+          return
+        }
+
+        // No existing response → this is a submission attempt; apply the gates.
         if (!isApproved) {
           setNotFound(true)
           setForm(null)
@@ -361,16 +440,7 @@ export default function FeedbackSubmitPage() {
           return
         }
 
-        const userId = await resolveCurrentUserId()
-        const alreadyFilled = userId ? await hasUserSubmittedForm(id, userId) : false
-
-        if (alreadyFilled) {
-          setAlreadySubmitted(true)
-          setNotFound(false)
-          setForm(found || null)
-          return
-        }
-
+        setViewAnswers(null)
         setAlreadySubmitted(false)
         setNotFound(false)
         setForm(found || null)
@@ -511,29 +581,96 @@ export default function FeedbackSubmitPage() {
     )
   }
 
-  if (alreadySubmitted && form) {
+  // Read-only "View" of the user's own submitted answers (Session 4 item 7).
+  // Reached from every completed-form "View" button (Suggested, Trending,
+  // History) via ?view=1. Renders the stored answers, never the block screen.
+  if (alreadySubmitted && form && viewMode && viewAnswers) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="max-w-md text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/10">
-            <AlertCircle size={28} className="text-destructive" />
+      <div className="min-h-screen">
+        <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-background/80 backdrop-blur-xl">
+          <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
+            <button
+              onClick={() => router.push("/user/dashboard?section=history")}
+              className="flex items-center gap-2 text-sm text-ink-dim transition-colors hover:text-gold"
+            >
+              <ArrowLeft size={16} />
+              Back to history
+            </button>
+            <Badge variant="outline" className="border-mint/25 bg-mint/10 text-xs text-mint">
+              <Eye size={12} className="mr-1" /> Read-only
+            </Badge>
           </div>
-          <h2 className="mb-2 text-lg font-semibold text-destructive">Submission blocked</h2>
-          <p className="mb-2 text-sm text-ink-muted">You already submitted this feedback form for your account.</p>
-          <p className="mb-6 text-xs text-ink-muted">Rule: one feedback submission per form per account.</p>
-          <div className="flex flex-col gap-3">
+        </header>
+
+        <main className="mx-auto max-w-2xl px-4 py-8">
+          <div className="mb-6 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <Badge variant="outline" className="border-gold/30 text-xs text-gold">{form.product}</Badge>
+              <Badge variant="outline" className="border-white/10 text-xs text-ink-muted">{form.category}</Badge>
+            </div>
+            <h1 className="font-display text-xl font-bold text-ink">{form.title}</h1>
+            <p className="mt-2 flex items-center gap-1.5 text-sm text-mint">
+              <CheckCircle2 size={14} /> You completed this feedback — here&apos;s what you submitted.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {form.questions.map((q, i) => (
+              <div key={q.id} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
+                <div className="mb-4 flex items-center gap-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold/20 text-xs font-bold text-gold">
+                    {i + 1}
+                  </span>
+                  <div className="h-px flex-1 bg-white/[0.07]" />
+                </div>
+                <ReadOnlyAnswer question={q} value={viewAnswers[q.id]} />
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 flex flex-col gap-3">
             <Button
               onClick={() => router.push("/user/dashboard?section=suggested")}
               className="bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105"
             >
-              Browse Other Feedbacks
+              Browse other feedbacks
             </Button>
             <Button
               variant="ghost"
               className="text-ink-dim hover:text-ink"
-              onClick={() => router.push("/user/dashboard")}
+              onClick={() => router.push("/user/dashboard?section=history")}
             >
-              Back to Dashboard
+              Back to history
+            </Button>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (alreadySubmitted && form) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="max-w-md text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-mint/25 bg-mint/10">
+            <CheckCircle2 size={28} className="text-mint" />
+          </div>
+          <h2 className="mb-2 text-lg font-semibold text-ink">Already completed</h2>
+          <p className="mb-2 text-sm text-ink-muted">You&apos;ve already submitted this feedback for your account.</p>
+          <p className="mb-6 text-xs text-ink-muted">One feedback submission per form per account.</p>
+          <div className="flex flex-col gap-3">
+            <Button
+              onClick={() => router.push(`/user/feedback/${form.id}?view=1`)}
+              className="bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105"
+            >
+              <Eye size={16} className="mr-1" /> View your response
+            </Button>
+            <Button
+              variant="ghost"
+              className="text-ink-dim hover:text-ink"
+              onClick={() => router.push("/user/dashboard?section=suggested")}
+            >
+              Browse other feedbacks
             </Button>
           </div>
         </div>

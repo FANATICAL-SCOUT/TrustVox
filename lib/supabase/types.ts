@@ -123,6 +123,42 @@ export type Database = {
         }
         Relationships: []
       }
+      bookmarks: {
+        Row: {
+          id: string
+          user_id: string
+          form_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          form_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          form_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookmarks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookmarks_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       redemptions: {
         Row: {
           id: string

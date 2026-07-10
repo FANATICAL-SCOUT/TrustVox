@@ -15,7 +15,7 @@ This README gives a snapshot for getting the project running. For anything about
 | [`docs/frontend/`](docs/frontend/) | The "Ledger" UI rebuild (Phases 1–7, ✅ done). | [`frontend/TRACKER.md`](docs/frontend/TRACKER.md) |
 | [`docs/backend/`](docs/backend/) | The real DB + auth + security rebuild (Phase 8, Supabase). | [`backend/TRACKER.md`](docs/backend/TRACKER.md) + [`backend/ARCHITECTURE.md`](docs/backend/ARCHITECTURE.md) |
 
-Each folder holds its own `TRACKER.md` (status), `TODO.md` (checklist), and `LOG.md` (change history).
+Each folder holds its own `TRACKER.md` (status + task checklist) and `LOG.md` (dated change history).
 
 [`PROJECT_REBUILD_SPEC.md`](PROJECT_REBUILD_SPEC.md) is an **archived** pre-rebuild planning document — historical only, not maintained.
 
