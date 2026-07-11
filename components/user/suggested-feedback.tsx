@@ -22,7 +22,7 @@ import {
   toggleBookmark,
   subscribeToBookmarkUpdates,
 } from "@/lib/bookmark-store"
-import { createClient } from "@/lib/supabase/client"
+import { createClient, getCachedUser } from "@/lib/supabase/client"
 
 interface SuggestedFeedbackProps {
   handleStartFeedbackFromSuggested: (feedback: FeedbackHandoff) => void
@@ -70,8 +70,8 @@ function isEndingSoon(form: FeedbackForm): boolean {
 
 async function resolveCurrentUserId(): Promise<string | null> {
   const supabase = createClient()
-  const { data } = await supabase.auth.getUser()
-  return data.user?.id ?? null
+  const user = await getCachedUser(supabase)
+  return user?.id ?? null
 }
 
 // A collapsible dropdown section in the filter sidebar. Click the header to open
@@ -151,8 +151,9 @@ const SuggestedFeedbacks = ({ handleStartFeedbackFromSuggested }: SuggestedFeedb
   const [desktopFiltersOpen, setDesktopFiltersOpen] = useState(true)
 
   const loadForms = useCallback(async () => {
-    const forms = await getApprovedForms()
-    const userId = await resolveCurrentUserId()
+    // Forms + user-id resolve in parallel; the user-scoped queries then run
+    // together (Phase 9 · Session 6 — was a 3-deep waterfall).
+    const [forms, userId] = await Promise.all([getApprovedForms(), resolveCurrentUserId()])
     const [ids, bookmarks] = await Promise.all([
       userId ? getSubmittedFormIdsByUser(userId) : Promise.resolve<string[]>([]),
       getBookmarkedFormIds(),

@@ -14,7 +14,7 @@ import {
 } from "@/lib/feedback-store"
 import { getFeedbackQuota, subscribeToFeedbackQuotaUpdates } from "@/lib/feedback-quota"
 import { getTVXWalletState, subscribeToTVXWalletUpdates } from "@/lib/tvx-wallet"
-import { createClient } from "@/lib/supabase/client"
+import { createClient, getCachedUser } from "@/lib/supabase/client"
 
 interface LandingSectionProps {
   handleStartFeedbackFromSuggested: (feedbackData: FeedbackHandoff) => void
@@ -47,8 +47,8 @@ function toHandoff(form: FeedbackForm): FeedbackHandoff {
 
 async function resolveCurrentUserId(): Promise<string | null> {
   const supabase = createClient()
-  const { data } = await supabase.auth.getUser()
-  return data.user?.id ?? null
+  const user = await getCachedUser(supabase)
+  return user?.id ?? null
 }
 
 function Pill({ children }: { children: React.ReactNode }) {
@@ -79,8 +79,8 @@ export default function LandingSection({
   useEffect(() => {
     let active = true
     const loadForms = async () => {
-      const forms = await getApprovedForms()
-      const userId = await resolveCurrentUserId()
+      // Forms + user id in parallel, then the user-scoped query (Session 6).
+      const [forms, userId] = await Promise.all([getApprovedForms(), resolveCurrentUserId()])
       const ids = new Set(userId ? await getSubmittedFormIdsByUser(userId) : [])
       if (!active) return
       setApprovedForms(forms)
@@ -101,7 +101,7 @@ export default function LandingSection({
     let active = true
     const supabase = createClient()
 
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    getCachedUser(supabase).then(async (user) => {
       if (!user || !active) return
       const { data } = await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
       if (!active) return

@@ -10,7 +10,7 @@
 //     from the form, idempotent per response.
 //   • redeemTVXItem        → redeem_reward(item_id): cost read from the catalog,
 //     atomic balance check (no overspend).
-import { createClient, nextChannelId } from "@/lib/supabase/client"
+import { createClient, getCachedUser, nextChannelId } from "@/lib/supabase/client"
 import type { Tables } from "@/lib/supabase/types"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 
@@ -95,7 +95,7 @@ export function subscribeToTVXWalletUpdates(callback: () => void) {
   let channel: RealtimeChannel | null = null
   let cancelled = false
 
-  supabase.auth.getUser().then(({ data: { user } }) => {
+  getCachedUser(supabase).then((user) => {
     if (cancelled || !user) return
     channel = supabase
       // Unique per subscription (see nextChannelId) — never reuse a channel name.
@@ -116,9 +116,7 @@ export function subscribeToTVXWalletUpdates(callback: () => void) {
 
 export async function getTVXWalletState(): Promise<TVXWalletState> {
   const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCachedUser(supabase)
   if (!user) return emptyWalletState
 
   const [balances, transactions] = await Promise.all([
@@ -208,9 +206,7 @@ export function deriveEarnHistory(transactions: TVXTransaction[]): TVXEarnEntry[
 // shows an honest active/expired state, not a meaningless countdown.
 export async function getRedemptions(): Promise<Redemption[]> {
   const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCachedUser(supabase)
   if (!user) return []
 
   const { data, error } = await supabase

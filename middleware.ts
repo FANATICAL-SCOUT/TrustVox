@@ -42,7 +42,14 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // Logged in: resolve the real role + status from the profiles row.
+  // The role/status lookup only affects the outcome on an auth page (redirect
+  // home) or a gated route (enforce role + blocked-status). On a public,
+  // non-auth path the result is unused, so skip that round-trip entirely
+  // (Phase 9 · Session 6 perf fix) — every gated route and auth page still
+  // does the full check, so the blocked-status security control is unchanged.
+  if (!gate && !isAuthPage) return response
+
+  // Logged in + a path where role/status matters: resolve them from profiles.
   const { data: profile } = await supabase
     .from("profiles")
     .select("role, status")

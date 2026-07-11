@@ -7,7 +7,7 @@
 // profile row). Writes go through the trusted /api/update-profile route so the
 // 90-day name-change cooldown and field validation are enforced server-side —
 // the DB trigger (0010) is the real backstop, the route gives a clean error.
-import { createClient } from "@/lib/supabase/client"
+import { createClient, getCachedUser } from "@/lib/supabase/client"
 
 // Selectable interest tags = the feedback categories the app actually uses
 // (from create-feedback's CATEGORIES), minus the "Other"/"Others" placeholders
@@ -87,9 +87,7 @@ export function getNameChangeStatus(lastNameChangeAt: string | null): NameChange
 
 export async function getUserProfile(): Promise<UserProfile | null> {
   const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCachedUser(supabase)
   if (!user) return null
 
   const { data, error } = await supabase

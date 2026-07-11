@@ -10,7 +10,7 @@
 // immediately via the trusted `credit_feedback_reward` path (Phase 8.4), so
 // this fires a single honest "reward credited" notification right after
 // submission — there is no simulated pending/24h-delay step anymore.
-import { createClient, nextChannelId } from "@/lib/supabase/client"
+import { createClient, getCachedUser, nextChannelId } from "@/lib/supabase/client"
 import type { Tables } from "@/lib/supabase/types"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 import { getApprovedForms } from "@/lib/feedback-store"
@@ -54,9 +54,7 @@ function dateKeyFromIso(iso: string) {
 
 async function getCurrentUserId(): Promise<string | null> {
   const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCachedUser(supabase)
   return user?.id ?? null
 }
 
@@ -170,7 +168,14 @@ async function doRefreshSystemNotifications(): Promise<UserNotification[]> {
   const userId = await getCurrentUserId()
   if (!userId) return []
 
-  const existing = await getUserNotifications()
+  // These three reads are independent — fetch them in parallel instead of
+  // waterfalling (Phase 9 · Session 6 perf fix). Was: existing → forms → quota
+  // serially, ~3 extra round-trips deep.
+  const [existing, approvedForms, quota] = await Promise.all([
+    getUserNotifications(),
+    getApprovedForms(),
+    getFeedbackQuota(),
+  ])
 
   const notifiedFormIds = new Set(
     existing
@@ -178,7 +183,6 @@ async function doRefreshSystemNotifications(): Promise<UserNotification[]> {
       .map((item) => item.action?.formId)
       .filter((formId): formId is string => Boolean(formId)),
   )
-  const approvedForms = await getApprovedForms()
   const unseenForms = approvedForms.filter((form) => !notifiedFormIds.has(form.id))
 
   const supabase = createClient()
@@ -201,7 +205,7 @@ async function doRefreshSystemNotifications(): Promise<UserNotification[]> {
     (item) => item.type === "streak_risk" && dateKeyFromIso(item.createdAt) === today,
   )
 
-  const quota = await getFeedbackQuota()
+  // quota was fetched in parallel above.
   const shouldWarnForStreak = quota.streakCount > 0 && quota.lastSubmittedDate !== today && !warnedToday
 
   if (shouldWarnForStreak) {
@@ -235,7 +239,7 @@ export function subscribeToUserNotifications(onUpdate: (notifications: UserNotif
 
   const emit = () => void getUserNotifications().then(onUpdate)
 
-  supabase.auth.getUser().then(({ data: { user } }) => {
+  getCachedUser(supabase).then((user) => {
     if (cancelled || !user) return
     channel = supabase
       // Unique per subscription (see nextChannelId) — never reuse a channel name.

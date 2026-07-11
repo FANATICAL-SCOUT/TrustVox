@@ -4,7 +4,7 @@
 // All functions are async and run through the RLS-gated browser client;
 // column names are snake_case in the DB and mapped to the camelCase shape
 // the UI expects at the boundary in this file.
-import { createClient, nextChannelId } from "@/lib/supabase/client";
+import { createClient, getCachedUser, nextChannelId } from "@/lib/supabase/client";
 import type { Json, Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
 import { logFlow } from "@/lib/debug-log";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -172,8 +172,8 @@ async function fetchResponseCounts(supabase: SupabaseClient, formIds: string[]):
 }
 
 async function currentUserId(supabase: SupabaseClient): Promise<string | null> {
-  const { data } = await supabase.auth.getUser();
-  return data.user?.id ?? null;
+  const user = await getCachedUser(supabase);
+  return user?.id ?? null;
 }
 
 // Validates a company id against the real `companies` table. Since 8.5, the

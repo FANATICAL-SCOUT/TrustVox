@@ -12,12 +12,12 @@ import { getFeedbackQuota, subscribeToFeedbackQuotaUpdates } from "@/lib/feedbac
 import { refreshSystemNotifications, type UserNotification } from "@/lib/user-notifications"
 import { hasUserSubmittedForm, type FeedbackHandoff } from "@/lib/feedback-store"
 import { addBookmark } from "@/lib/bookmark-store"
-import { createClient } from "@/lib/supabase/client"
+import { createClient, getCachedUser } from "@/lib/supabase/client"
 
 async function resolveCurrentUserId(): Promise<string | null> {
   const supabase = createClient()
-  const { data } = await supabase.auth.getUser()
-  return data.user?.id ?? null
+  const user = await getCachedUser(supabase)
+  return user?.id ?? null
 }
 
 export default function UserDashboard() {

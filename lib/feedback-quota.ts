@@ -4,7 +4,7 @@
 // `responses` rows on every call — there is no separate quota table and
 // nothing is cached locally, so the numbers can never drift from what was
 // actually submitted.
-import { createClient, nextChannelId } from "@/lib/supabase/client"
+import { createClient, getCachedUser, nextChannelId } from "@/lib/supabase/client"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 
 const FREE_USER_DAILY_LIMIT = 3
@@ -68,9 +68,7 @@ function computeStreak(dateSet: Set<string>, today: string): number {
 
 export async function getFeedbackQuota(): Promise<FeedbackQuotaResult> {
   const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCachedUser(supabase)
   if (!user) return EMPTY_QUOTA
 
   const { data, error } = await supabase.from("responses").select("submitted_at").eq("user_id", user.id)
@@ -119,7 +117,7 @@ export function subscribeToFeedbackQuotaUpdates(onUpdate: (quota: FeedbackQuotaR
 
   const emit = () => void getFeedbackQuota().then(onUpdate)
 
-  supabase.auth.getUser().then(({ data: { user } }) => {
+  getCachedUser(supabase).then((user) => {
     if (cancelled || !user) return
     channel = supabase
       // Unique per subscription (see nextChannelId) — never reuse a channel name.

@@ -7,7 +7,7 @@
 // keyword heuristic as before; the CampaignSummary aggregates (formsCount,
 // totalResponses, averageRating) stay derived from real forms/responses, not
 // stored.
-import { createClient } from "@/lib/supabase/client"
+import { createClient, getCachedUser } from "@/lib/supabase/client"
 import type { Tables } from "@/lib/supabase/types"
 import { getClientForms, getResponsesByFormId, type FeedbackForm } from "@/lib/feedback-store"
 
@@ -66,9 +66,7 @@ function inferTemplateKey(form: FeedbackForm): CampaignTemplateKey {
 
 async function getCurrentUserId(): Promise<string | null> {
   const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCachedUser(supabase)
   return user?.id ?? null
 }
 

@@ -18,7 +18,7 @@ import {
   subscribeToBookmarkUpdates,
   type Bookmark as BookmarkRow,
 } from "@/lib/bookmark-store"
-import { createClient } from "@/lib/supabase/client"
+import { createClient, getCachedUser } from "@/lib/supabase/client"
 
 // A completed feedback = one real submitted response, joined with its form.
 interface CompletedItem {
@@ -35,8 +35,8 @@ type HistoryFilter = "all" | "bookmarked" | "completed"
 
 async function resolveCurrentUserId(): Promise<string | null> {
   const supabase = createClient()
-  const { data } = await supabase.auth.getUser()
-  return data.user?.id ?? null
+  const user = await getCachedUser(supabase)
+  return user?.id ?? null
 }
 
 function StatTile({

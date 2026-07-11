@@ -24,7 +24,7 @@ import { subscribeToApprovedCompanies } from "@/lib/approved-company-store"
 import { consumeFeedbackQuota, getFeedbackQuota } from "@/lib/feedback-quota"
 import { recordFeedbackSubmittedNotification } from "@/lib/user-notifications"
 import { creditFeedbackReward } from "@/lib/tvx-wallet"
-import { createClient } from "@/lib/supabase/client"
+import { createClient, getCachedUser } from "@/lib/supabase/client"
 
 type AnswerValue = string | number | string[]
 
@@ -46,8 +46,8 @@ type SpeechRecognitionWindow = Window & typeof globalThis & {
 
 async function resolveCurrentUserId(): Promise<string | null> {
   const supabase = createClient()
-  const { data } = await supabase.auth.getUser()
-  return data.user?.id ?? null
+  const user = await getCachedUser(supabase)
+  return user?.id ?? null
 }
 
 // ── Star Rating ────────────────────────────────────────────────────────────────

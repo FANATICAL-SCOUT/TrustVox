@@ -5,7 +5,7 @@
 // per-user RLS policies in migration 0011. All functions are async and run
 // through the RLS-gated browser client; snake_case DB columns are mapped to the
 // camelCase the UI expects at the boundary here.
-import { createClient, nextChannelId } from "@/lib/supabase/client"
+import { createClient, getCachedUser, nextChannelId } from "@/lib/supabase/client"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 
 // A bookmarked opportunity, joined with the live form so History/Suggested can
@@ -31,8 +31,8 @@ function isBrowser() {
 
 async function currentUserId(): Promise<string | null> {
   const supabase = createClient()
-  const { data } = await supabase.auth.getUser()
-  return data.user?.id ?? null
+  const user = await getCachedUser(supabase)
+  return user?.id ?? null
 }
 
 // The set of form ids the signed-in user has bookmarked — the cheap shape the
@@ -132,7 +132,7 @@ export function subscribeToBookmarkUpdates(callback: () => void) {
   let channel: RealtimeChannel | null = null
   let cancelled = false
 
-  supabase.auth.getUser().then(({ data: { user } }) => {
+  getCachedUser(supabase).then((user) => {
     if (cancelled || !user) return
     channel = supabase
       // Unique per subscription (see nextChannelId) — never reuse a channel name.
