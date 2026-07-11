@@ -232,6 +232,11 @@ export default function ClientHomePage() {
   const [mounted, setMounted] = useState(false)
   const [allForms, setAllForms] = useState<FeedbackForm[]>([])
   const [timeRange, setTimeRange] = useState<TimeRange>("7d")
+  // The dashboard fetches after mount, so `mounted` flips true well before the
+  // data lands. Gating the skeleton on the first *fetch* (not just mount) avoids
+  // the landing page briefly showing "0 forms / 0 responses" + zeroed stat tiles
+  // before the real numbers arrive — the main "dashboard feels slow" complaint.
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setMounted(true)
@@ -241,7 +246,11 @@ export default function ClientHomePage() {
     if (!mounted) return
 
     const loadForms = async () => {
-      setAllForms(await getClientForms())
+      try {
+        setAllForms(await getClientForms())
+      } finally {
+        setLoading(false)
+      }
     }
 
     void loadForms()
@@ -433,8 +442,40 @@ export default function ClientHomePage() {
       })
   }, [realResponses, allForms])
 
-  if (!mounted) {
-    return <div className="min-h-screen bg-background" />
+  if (!mounted || loading) {
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-6">
+        <div className="mx-auto max-w-7xl animate-pulse">
+          {/* Hero */}
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 md:p-6">
+            <div className="h-7 w-56 rounded bg-white/[0.06]" />
+            <div className="mt-2 h-4 w-80 max-w-full rounded bg-white/[0.04]" />
+            <div className="mt-4 h-4 w-40 rounded bg-white/[0.04]" />
+          </div>
+          {/* Time filters */}
+          <div className="mt-5 flex flex-wrap gap-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-7 w-16 rounded-full bg-white/[0.04]" />
+            ))}
+          </div>
+          {/* Stat tiles */}
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5">
+                <div className="h-4 w-24 rounded bg-white/[0.05]" />
+                <div className="mt-3 h-7 w-20 rounded bg-white/[0.06]" />
+                <div className="mt-3 h-3 w-28 rounded bg-white/[0.04]" />
+              </div>
+            ))}
+          </div>
+          {/* Chart block */}
+          <div className="mt-6 rounded-xl border border-white/[0.07] bg-white/[0.02] p-5">
+            <div className="h-5 w-40 rounded bg-white/[0.05]" />
+            <div className="mt-4 h-64 w-full rounded-lg bg-white/[0.03]" />
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

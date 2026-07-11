@@ -169,9 +169,18 @@ export default function ClientFormsPage() {
   const [filter, setFilter] = useState<FilterKey>("all")
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
+  // First-load flag: the fetch runs after mount, so without this the page would
+  // flash all-zero stats + a "No forms here" empty state before the real data
+  // arrives — which read as broken/slow. We show a skeleton grid until the first
+  // fetch resolves. Subsequent refreshes keep the current list on screen.
+  const [loading, setLoading] = useState(true)
 
   const loadForms = async () => {
-    setForms(await getClientForms())
+    try {
+      setForms(await getClientForms())
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -287,7 +296,24 @@ export default function ClientFormsPage() {
         </div>
 
         {/* Grid */}
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 animate-pulse"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="h-5 w-24 rounded-full bg-white/[0.06]" />
+                  <div className="h-4 w-10 rounded bg-white/[0.05]" />
+                </div>
+                <div className="h-4 w-3/4 rounded bg-white/[0.06] mb-2.5" />
+                <div className="h-3 w-1/2 rounded bg-white/[0.04] mb-6" />
+                <div className="h-9 w-full rounded-lg bg-white/[0.04]" />
+              </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-16 h-16 rounded-2xl bg-white/[0.02] border border-white/[0.07] flex items-center justify-center mb-4">
               <FileText size={28} className="text-ink-muted" />
