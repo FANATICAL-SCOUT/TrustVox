@@ -2,13 +2,13 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react"
 import {
-  Activity,
   BarChart3,
+  Check,
   ChevronDown,
   Download,
-  LineChart as LineChartIcon,
-  Loader2,
-  Trash2,
+  FileText,
+  Layers,
+  Sparkles,
   TrendingUp,
 } from "lucide-react"
 import {
@@ -35,8 +35,9 @@ import AnalyticsPDFTemplate from "@/components/analytics-pdf-template"
 import { useSearchParams } from "next/navigation"
 
 const REPORTS_STORAGE_KEY = "trustvox.client.analytics.reports.v1"
+const MAX_COMPARE_FORMS = 3
 // Single-accent Ledger palette for series that need to stay distinguishable
-// (compare mode caps out at 3 campaign slots).
+// (compare mode caps out at 3 form slots).
 const LEDGER_SERIES_COLORS = ["#EBBC6B", "#5FD0A6", "#B6BACB"]
 
 type CampaignResponse = {
@@ -265,7 +266,7 @@ function generateInsights(metrics: CampaignMetric[], pairwise: PairwiseCompariso
   })
 
   if (insightLines.length === 0) {
-    insightLines.push("No major anomalies detected. Campaign performance remains stable across the selected period.")
+    insightLines.push("No major anomalies detected. Form performance remains stable across the selected period.")
   }
 
   return insightLines
@@ -325,7 +326,7 @@ function applyCampaignRanking(metrics: CampaignMetric[]): CampaignMetric[] {
 
 function buildComparativeAnalysis(metrics: CampaignMetric[]): string[] {
   if (metrics.length < 2) {
-    return ["Comparative analysis requires at least two campaigns. Add another campaign to unlock side-by-side interpretation."]
+    return ["Comparative analysis requires at least two forms. Add another form to unlock side-by-side interpretation."]
   }
 
   const ranked = [...metrics].sort((first, second) => first.rank - second.rank)
@@ -350,24 +351,24 @@ function buildPatternObservations(metrics: CampaignMetric[]): string[] {
   const biggestDropOff = [...metrics].sort((first, second) => second.dropOffPct - first.dropOffPct)[0]
 
   return [
-    `${mostVolatile?.campaignName || "Campaign"} is the most volatile pattern with consistency score ${mostVolatile?.consistencyScore.toFixed(2) || "0.00"}.`,
-    `${highestPeak?.campaignName || "Campaign"} has the strongest peak concentration (${highestPeak?.peakContributionPct.toFixed(1) || "0.0"}% of responses on ${formatDateLabel(highestPeak?.trend.peakDay || "-")}).`,
-    `${biggestDropOff?.campaignName || "Campaign"} shows the sharpest post-peak decline at ${biggestDropOff?.dropOffPct.toFixed(1) || "0.0"}%.`,
+    `${mostVolatile?.campaignName || "This form"} is the most volatile pattern with consistency score ${mostVolatile?.consistencyScore.toFixed(2) || "0.00"}.`,
+    `${highestPeak?.campaignName || "This form"} has the strongest peak concentration (${highestPeak?.peakContributionPct.toFixed(1) || "0.0"}% of responses on ${formatDateLabel(highestPeak?.trend.peakDay || "-")}).`,
+    `${biggestDropOff?.campaignName || "This form"} shows the sharpest post-peak decline at ${biggestDropOff?.dropOffPct.toFixed(1) || "0.0"}%.`,
   ]
 }
 
 function buildFinalRecommendation(metrics: CampaignMetric[]): string {
-  if (metrics.length === 0) return "No recommendation available because no campaign metrics are present."
+  if (metrics.length === 0) return "No recommendation available because no form metrics are present."
   const best = [...metrics].sort((first, second) => first.rank - second.rank)[0]
   if (!best) return "No recommendation available."
-  return `Recommended campaign for scale: ${best.campaignName} (rank #${best.rank}) due to engagement ${best.engagementRate.toFixed(1)} responses/day, sentiment score ${best.sentimentScore.toFixed(1)}, and ${best.consistencyLevel.toLowerCase()} consistency.`
+  return `Recommended form to double down on: ${best.campaignName} (rank #${best.rank}) due to engagement ${best.engagementRate.toFixed(1)} responses/day, sentiment score ${best.sentimentScore.toFixed(1)}, and ${best.consistencyLevel.toLowerCase()} consistency.`
 }
 
 function buildFinalSummary(metrics: CampaignMetric[]): string[] {
   if (metrics.length === 0) {
     return [
-      "Comparative output is currently limited by missing campaign activity.",
-      "Add campaign responses to unlock engagement and sentiment conclusions.",
+      "Comparative output is currently limited by missing form activity.",
+      "Add form responses to unlock engagement and sentiment conclusions.",
       "Once data is available, this section will produce a final recommendation.",
       "Current state indicates insufficient volume for strategic decision-making.",
     ]
@@ -378,11 +379,11 @@ function buildFinalSummary(metrics: CampaignMetric[]): string[] {
   const mostVolatile = [...metrics].sort((first, second) => second.consistencyScore - first.consistencyScore)[0]
 
   return [
-    `${best?.campaignName || "Top campaign"} leads overall performance with ${best?.engagementRate.toFixed(1) || "0.0"} responses/day and rank #${best?.rank || 0}.`,
-    `${bestSentiment?.campaignName || "Leading sentiment campaign"} delivers the strongest sentiment profile at ${bestSentiment?.sentimentScore.toFixed(1) || "0.0"} score.`,
-    `${mostVolatile?.campaignName || "Most volatile campaign"} needs pacing optimization due to ${mostVolatile?.consistencyLevel.toLowerCase() || "moderate"} response volatility.`,
-    "Overall campaign set shows positive audience reception with targeted room to improve post-peak retention.",
-    `${best?.campaignName || "The leading campaign"} is recommended for scale while sentiment-leading variants can be used for precision targeting.`,
+    `${best?.campaignName || "The top form"} leads overall performance with ${best?.engagementRate.toFixed(1) || "0.0"} responses/day and rank #${best?.rank || 0}.`,
+    `${bestSentiment?.campaignName || "The leading form"} delivers the strongest sentiment profile at ${bestSentiment?.sentimentScore.toFixed(1) || "0.0"} score.`,
+    `${mostVolatile?.campaignName || "The most volatile form"} needs pacing optimization due to ${mostVolatile?.consistencyLevel.toLowerCase() || "moderate"} response volatility.`,
+    "Overall the form set shows positive audience reception with targeted room to improve post-peak retention.",
+    `${best?.campaignName || "The leading form"} is recommended to prioritize while sentiment-leading forms can be used for precision targeting.`,
   ]
 }
 
@@ -443,8 +444,8 @@ function createAnalyticsReport(input: {
 
 function normalizeMetric(raw: Partial<CampaignMetric>): CampaignMetric {
   return {
-    campaignId: raw.campaignId || "unknown-campaign",
-    campaignName: raw.campaignName || "Unknown Campaign",
+    campaignId: raw.campaignId || "unknown-form",
+    campaignName: raw.campaignName || "Unknown Form",
     totalResponses: raw.totalResponses ?? 0,
     durationDays: raw.durationDays ?? 1,
     engagementRate: raw.engagementRate ?? 0,
@@ -499,7 +500,7 @@ function buildSingleCampaignSummary(metric: CampaignMetric, healthScore: number)
     `${metric.campaignName} recorded ${metric.totalResponses} total responses over ${metric.durationDays} active days at ${metric.engagementRate.toFixed(2)} responses per day.`,
     `Sentiment profile stands at ${metric.sentimentScore.toFixed(1)} with ${formatPercent(metric.positiveRate)} positive and ${formatPercent(metric.negativeRate)} negative responses.`,
     `Growth pattern is ${trendLabel} with a peak contribution of ${metric.peakContributionPct.toFixed(1)}% and post-peak drop-off of ${metric.dropOffPct.toFixed(1)}%.`,
-    `Overall campaign health score is ${healthScore.toFixed(1)}/100, indicating ${healthScore >= 70 ? "strong" : healthScore >= 50 ? "moderate" : "at-risk"} performance quality.`,
+    `Overall form health score is ${healthScore.toFixed(1)}/100, indicating ${healthScore >= 70 ? "strong" : healthScore >= 50 ? "moderate" : "at-risk"} performance quality.`,
   ]
 }
 
@@ -526,15 +527,15 @@ function buildSummaryLines(metrics: CampaignMetric[], pairwise: PairwiseComparis
 
   const lines = [
     bestCampaign.totalResponses > 0
-      ? `${bestCampaign.campaignName} is the best-performing campaign with ${bestCampaign.totalResponses} total responses and ${formatPercent(bestCampaign.positiveRate)} positive feedback.`
-      : "None of the selected campaigns have recorded responses yet.",
+      ? `${bestCampaign.campaignName} is the best-performing form with ${bestCampaign.totalResponses} total responses and ${formatPercent(bestCampaign.positiveRate)} positive feedback.`
+      : "None of the selected forms have recorded responses yet.",
     topShift
       ? `Largest comparative shift: ${topShift.currentCampaignName} vs ${topShift.previousCampaignName} (${formatDeltaPercent(topShift.responseChangePct)} response change).`
-      : "Comparative shifts are limited due to fewer campaign combinations.",
+      : "Comparative shifts are limited due to fewer form combinations.",
     risingCount > decliningCount
-      ? "Overall trend indicates broader engagement growth across selected campaigns."
+      ? "Overall trend indicates broader engagement growth across selected forms."
       : decliningCount > risingCount
-      ? "Overall trend indicates engagement softening across selected campaigns."
+      ? "Overall trend indicates engagement softening across selected forms."
       : "Overall trend is balanced with no dominant directional shift.",
     highNegative.length > 0
       ? `Risk note: ${highNegative.map((metric) => metric.campaignName).join(", ")} show elevated negative feedback and should be reviewed.`
@@ -685,13 +686,10 @@ function ClientAnalyticsPageContent() {
   const autoDownloadTokenRef = useRef<string>("")
 
   const [campaigns, setCampaigns] = useState<AnalyticsCampaign[]>([])
-  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("compare")
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("single")
   const [singleCampaignId, setSingleCampaignId] = useState<string>("")
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<CampaignSlots>([null, null, null])
-  const [draggingCampaignId, setDraggingCampaignId] = useState<string | null>(null)
-  const [hoveredSlot, setHoveredSlot] = useState<number | null>(null)
   const [warning, setWarning] = useState("")
-  const [isGenerating, setIsGenerating] = useState(false)
   const [reports, setReports] = useState<AnalyticsReport[]>([])
   const [activeReportId, setActiveReportId] = useState<string | null>(null)
   const [singleReportId, setSingleReportId] = useState<string | null>(null)
@@ -755,59 +753,6 @@ function ClientAnalyticsPageContent() {
     if (!isHydrated) return
     window.localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(reports))
   }, [isHydrated, reports])
-
-  useEffect(() => {
-    if (!draggingCampaignId) return
-
-    const edgeThresholdPx = 120
-    const maxSpeedPxPerFrame = 26
-    const smoothing = 0.2
-    let targetVelocity = 0
-    let currentVelocity = 0
-    let rafId: number | null = null
-
-    const handleAutoScrollOnDrag = (event: DragEvent) => {
-      const pointerY = event.clientY
-      const viewportHeight = window.innerHeight
-
-      let nextTargetVelocity = 0
-
-      if (pointerY < edgeThresholdPx) {
-        const intensity = (edgeThresholdPx - pointerY) / edgeThresholdPx
-        nextTargetVelocity = -(maxSpeedPxPerFrame * intensity * intensity)
-      } else if (pointerY > viewportHeight - edgeThresholdPx) {
-        const intensity = (pointerY - (viewportHeight - edgeThresholdPx)) / edgeThresholdPx
-        nextTargetVelocity = maxSpeedPxPerFrame * intensity * intensity
-      }
-
-      targetVelocity = nextTargetVelocity
-    }
-
-    const animateAutoScroll = () => {
-      // Ease toward the target speed for smoother continuous scrolling.
-      currentVelocity += (targetVelocity - currentVelocity) * smoothing
-
-      if (Math.abs(currentVelocity) < 0.1 && Math.abs(targetVelocity) < 0.1) {
-        currentVelocity = 0
-      } else {
-        window.scrollBy({ top: currentVelocity, behavior: "auto" })
-      }
-
-      rafId = window.requestAnimationFrame(animateAutoScroll)
-    }
-
-    rafId = window.requestAnimationFrame(animateAutoScroll)
-    window.addEventListener("dragover", handleAutoScrollOnDrag, true)
-
-    return () => {
-      targetVelocity = 0
-      currentVelocity = 0
-      if (rafId !== null) {
-        window.cancelAnimationFrame(rafId)
-      }
-      window.removeEventListener("dragover", handleAutoScrollOnDrag, true)
-    }
-  }, [draggingCampaignId])
 
   const selectedCampaigns = useMemo(() => {
     const uniqueIds = selectedCampaignIds.filter((id): id is string => Boolean(id))
@@ -997,31 +942,34 @@ function ClientAnalyticsPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reports, searchParams])
 
-  const handleDropToSlot = (slotIndex: number, droppedCampaignId: string | null) => {
-    if (!droppedCampaignId) return
+  // Click-to-select comparison: toggle a form in/out of the (up to 3) compare
+  // set. Replaces the old drag-and-drop-into-slots flow. The underlying
+  // `CampaignSlots` shape is kept so saved reports + the `?campaigns=` URL
+  // param continue to work unchanged.
+  const compareCount = selectedCampaignIds.filter((id): id is string => Boolean(id)).length
 
+  const toggleCompareForm = (formId: string) => {
     setSelectedCampaignIds((current) => {
-      if (current.includes(droppedCampaignId)) {
-        setWarning("Duplicate selection is not allowed. Choose a different campaign.")
+      const chosen = current.filter((id): id is string => Boolean(id))
+
+      if (chosen.includes(formId)) {
+        setWarning("")
+        return toThreeSlots(chosen.filter((id) => id !== formId))
+      }
+
+      if (chosen.length >= MAX_COMPARE_FORMS) {
+        setWarning(`You can compare up to ${MAX_COMPARE_FORMS} forms at once. Deselect one first.`)
         return current
       }
 
-      const next: CampaignSlots = [...current] as CampaignSlots
-      next[slotIndex] = droppedCampaignId
       setWarning("")
-      return next
+      return toThreeSlots([...chosen, formId])
     })
-
-    setDraggingCampaignId(null)
-    setHoveredSlot(null)
   }
 
-  const handleRemoveFromSlot = (slotIndex: number) => {
-    setSelectedCampaignIds((current) => {
-      const next: CampaignSlots = [...current] as CampaignSlots
-      next[slotIndex] = null
-      return next
-    })
+  const clearCompareSelection = () => {
+    setSelectedCampaignIds([null, null, null])
+    setWarning("")
   }
 
   const scrollToReportOutput = () => {
@@ -1034,46 +982,42 @@ function ClientAnalyticsPageContent() {
     const uniqueCampaignIds = Array.from(new Set(selectedCampaigns.map((campaign) => campaign.id)))
 
     if (uniqueCampaignIds.length < 2) {
-      setWarning("Select at least 2 campaigns to generate a comparison report.")
+      setWarning("Select at least 2 forms to generate a comparison report.")
       return
     }
 
     setWarning("")
-    setIsGenerating(true)
 
-    window.setTimeout(() => {
-      const selected = uniqueCampaignIds
-        .map((id) => campaignMap.get(id))
-        .filter((campaign): campaign is AnalyticsCampaign => Boolean(campaign))
-        .sort((first, second) => Date.parse(first.date) - Date.parse(second.date))
+    const selected = uniqueCampaignIds
+      .map((id) => campaignMap.get(id))
+      .filter((campaign): campaign is AnalyticsCampaign => Boolean(campaign))
+      .sort((first, second) => Date.parse(first.date) - Date.parse(second.date))
 
-      const metrics = selected.map(calculateCampaignMetrics)
-      const pairwise = calculatePairwiseComparisons(metrics)
-      const report = createAnalyticsReport({
-        id: String(Date.now()),
-        generatedAt: new Date().toISOString(),
-        campaignIds: selected.map((campaign) => campaign.id),
-        metrics,
-        pairwise,
-      })
+    const metrics = selected.map(calculateCampaignMetrics)
+    const pairwise = calculatePairwiseComparisons(metrics)
+    const report = createAnalyticsReport({
+      id: String(Date.now()),
+      generatedAt: new Date().toISOString(),
+      campaignIds: selected.map((campaign) => campaign.id),
+      metrics,
+      pairwise,
+    })
 
-      setReports((current) => [report, ...current].slice(0, 15))
-      setActiveReportId(report.id)
-      setSelectedCampaignIds(toThreeSlots(report.campaignIds))
-      setIsGenerating(false)
-      scrollToReportOutput()
-    }, 2000)
+    setReports((current) => [report, ...current].slice(0, 15))
+    setActiveReportId(report.id)
+    setSelectedCampaignIds(toThreeSlots(report.campaignIds))
+    scrollToReportOutput()
   }
 
   const analyzeSingleCampaign = () => {
     if (!singleCampaignId) {
-      setWarning("Select a campaign to run single analysis.")
+      setWarning("Select a form to run single analysis.")
       return
     }
 
     const selected = campaignMap.get(singleCampaignId)
     if (!selected) {
-      setWarning("Selected campaign could not be found.")
+      setWarning("Selected form could not be found.")
       return
     }
 
@@ -1157,174 +1101,129 @@ function ClientAnalyticsPageContent() {
   return (
     <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-7xl px-4 py-8">
-        <header className="tvx-card-gold mb-8 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h1 className="font-display text-2xl font-bold text-ink">Campaign Analytics</h1>
-              <p className="mt-1 text-sm text-ink-dim">
-                Compare up to 3 campaigns, analyze trends, generate insight-rich reports, and download PDF summaries.
-              </p>
-            </div>
-            <span className="inline-flex items-center rounded-full border border-gold/30 bg-gold/10 px-2.5 py-0.5 text-xs font-semibold text-gold">
-              Frontend Analytics Module
-            </span>
-          </div>
+        <header className="tvx-card-gold mb-6 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-6">
+          <p className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gold">
+            <BarChart3 className="h-3.5 w-3.5" />
+            Analytics Workspace
+          </p>
+          <h1 className="mt-2 font-display text-3xl font-bold text-ink">
+            Form <span className="tvx-text-gold">Analytics</span>
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-ink-dim">
+            Analyze a single form in depth or compare up to {MAX_COMPARE_FORMS} forms side by side. Every number is
+            derived from real submitted responses — export any report as a PDF.
+          </p>
         </header>
 
-        <section className="mb-8 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-ink">
-              <BarChart3 className="h-4 w-4 text-gold" />
-              <h2 className="text-base font-semibold">Analysis Mode</h2>
-            </div>
-            <div className="inline-flex items-center rounded-xl border border-white/10 bg-white/[0.04] p-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setAnalysisMode("single")
-                  setWarning("")
-                }}
-                className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-                  analysisMode === "single" ? "bg-gold/10 text-gold" : "text-ink-muted hover:text-ink-dim"
-                }`}
-              >
-                Single Campaign
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAnalysisMode("compare")
-                  setWarning("")
-                }}
-                className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-                  analysisMode === "compare" ? "bg-gold/10 text-gold" : "text-ink-muted hover:text-ink-dim"
-                }`}
-              >
-                Compare Campaigns
-              </button>
-            </div>
-          </div>
-          <p className="mt-2 text-sm text-ink-muted">
-            Choose single mode for deep analysis of one campaign, or compare mode for side-by-side campaign reporting.
-          </p>
-        </section>
+        {/* Mode toggle — segmented control, matches the create-page pattern */}
+        <div className="mb-8 inline-flex items-center rounded-lg border border-white/10 bg-white/[0.04] p-1">
+          <button
+            type="button"
+            onClick={() => {
+              setAnalysisMode("single")
+              setWarning("")
+            }}
+            className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              analysisMode === "single"
+                ? "bg-gradient-to-b from-[#f2c877] to-gold-deep text-[#241a06]"
+                : "text-ink-muted hover:text-ink-dim"
+            }`}
+          >
+            <FileText className="h-4 w-4" />
+            Single Form
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAnalysisMode("compare")
+              setWarning("")
+            }}
+            className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              analysisMode === "compare"
+                ? "bg-gradient-to-b from-[#f2c877] to-gold-deep text-[#241a06]"
+                : "text-ink-muted hover:text-ink-dim"
+            }`}
+          >
+            <Layers className="h-4 w-4" />
+            Compare Forms
+          </button>
+        </div>
 
         {analysisMode === "compare" ? (
           <>
-            <section className="mb-8">
-              <div className="mb-3 flex items-center gap-2 text-ink">
-                <Activity className="h-4 w-4 text-gold" />
-                <h2 className="text-base font-semibold">Campaign Library</h2>
+            <section className="mb-8 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+              <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-ink">
+                  <Layers className="h-4 w-4 text-gold" />
+                  <h2 className="text-base font-semibold">Select forms to compare</h2>
+                </div>
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-xs font-medium text-ink-dim">
+                  {compareCount} / {MAX_COMPARE_FORMS} selected
+                </span>
               </div>
+              <p className="mb-4 text-sm text-ink-muted">
+                Pick 2 or 3 forms, then generate a side-by-side report.
+              </p>
 
               {campaigns.length === 0 ? (
-                <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] py-10 text-center text-sm text-ink-muted">
-                  No campaign data is available yet — create a form to get started.
+                <div className="rounded-xl border border-dashed border-white/[0.1] bg-white/[0.02] py-12 text-center text-sm text-ink-muted">
+                  No forms yet — create a form to unlock analytics.
                 </div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {campaigns.map((campaign) => {
                     const totalResponses = getCampaignTotalResponses(campaign)
+                    const isSelected = selectedCampaignIds.includes(campaign.id)
+                    const atLimit = compareCount >= MAX_COMPARE_FORMS && !isSelected
 
                     return (
-                      <div
+                      <button
                         key={campaign.id}
-                        draggable
-                        onDragStart={(event) => {
-                          event.dataTransfer.setData("text/plain", campaign.id)
-                          event.dataTransfer.effectAllowed = "copyMove"
-                          setDraggingCampaignId(campaign.id)
-                          setWarning("")
-                        }}
-                        onDragEnd={() => {
-                          setDraggingCampaignId(null)
-                          setHoveredSlot(null)
-                        }}
-                        className="cursor-grab rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 transition-colors hover:border-white/20 active:cursor-grabbing"
+                        type="button"
+                        onClick={() => toggleCompareForm(campaign.id)}
+                        disabled={atLimit}
+                        aria-pressed={isSelected}
+                        className={`group relative rounded-xl border p-4 text-left transition-all ${
+                          isSelected
+                            ? "border-gold/50 bg-gold/[0.07]"
+                            : atLimit
+                            ? "cursor-not-allowed border-white/[0.06] bg-white/[0.01] opacity-50"
+                            : "border-white/[0.07] bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                        }`}
                       >
-                        <p className="text-lg font-semibold text-ink">{campaign.name}</p>
-                        <p className="mb-3 text-xs text-ink-muted">Launch Date: {formatDateLabel(campaign.date)}</p>
-                        <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
-                          <p className="text-[11px] uppercase tracking-wide text-ink-muted">Total Responses</p>
-                          <p className="text-xl font-semibold text-ink">{totalResponses}</p>
-                        </div>
-                      </div>
+                        <span
+                          className={`absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+                            isSelected ? "border-gold bg-gold text-[#241a06]" : "border-white/20 text-transparent"
+                          }`}
+                        >
+                          <Check className="h-3 w-3" />
+                        </span>
+                        <p className="pr-6 font-semibold text-ink">{campaign.name}</p>
+                        <p className="mt-0.5 text-xs text-ink-muted">Created {formatDateLabel(campaign.date)}</p>
+                        <p className="mt-3 tvx-num text-2xl font-semibold text-ink">{totalResponses}</p>
+                        <p className="text-[11px] uppercase tracking-wide text-ink-muted">Responses</p>
+                      </button>
                     )
                   })}
                 </div>
               )}
-            </section>
 
-            <section className="mb-8">
-              <div className="mb-3 flex items-center gap-2 text-ink">
-                <LineChartIcon className="h-4 w-4 text-gold" />
-                <h2 className="text-base font-semibold">Drag and Drop Comparison Zone</h2>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                {selectedCampaignIds.map((campaignId, slotIndex) => {
-                  const slotCampaign = campaignId ? campaignMap.get(campaignId) : null
-
-                  return (
-                    <div
-                      key={`comparison-slot-${slotIndex}`}
-                      onDragOver={(event) => {
-                        event.preventDefault()
-                        setHoveredSlot(slotIndex)
-                      }}
-                      onDragLeave={() => setHoveredSlot((current) => (current === slotIndex ? null : current))}
-                      onDrop={(event) => {
-                        event.preventDefault()
-                        const payloadId = event.dataTransfer.getData("text/plain")
-                        handleDropToSlot(slotIndex, draggingCampaignId || payloadId)
-                      }}
-                      className={`min-h-[140px] rounded-xl border border-dashed p-4 transition-all ${
-                        hoveredSlot === slotIndex
-                          ? "border-gold/50 bg-gold/10"
-                          : "border-white/15 bg-white/[0.02]"
-                      }`}
-                    >
-                      <p className="mb-3 text-xs uppercase tracking-wide text-ink-muted">Slot {slotIndex + 1}</p>
-                      {slotCampaign ? (
-                        <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className="font-medium text-ink">{slotCampaign.name}</p>
-                              <p className="text-xs text-ink-muted">{formatDateLabel(slotCampaign.date)}</p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveFromSlot(slotIndex)}
-                              className="rounded-md border border-white/15 p-1.5 text-ink-dim transition-colors hover:border-destructive/50 hover:text-destructive"
-                              aria-label={`Remove ${slotCampaign.name} from slot ${slotIndex + 1}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex h-[80px] items-center justify-center rounded-lg border border-white/10 bg-white/[0.02] text-sm text-ink-muted">
-                          Drop Campaign Here
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center gap-3">
+              <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/[0.06] pt-4">
                 <button
                   onClick={runReportGeneration}
-                  className="inline-flex items-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105"
+                  disabled={compareCount < 2}
+                  className="inline-flex items-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <TrendingUp className="mr-2 h-4 w-4" />
                   Generate Comparison
                 </button>
-                {isGenerating ? (
-                  <p className="inline-flex items-center gap-2 text-sm text-ink-dim">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Generating report... (~2 seconds)
-                  </p>
+                {compareCount > 0 ? (
+                  <button
+                    onClick={clearCompareSelection}
+                    className="text-sm font-medium text-ink-muted transition-colors hover:text-ink-dim"
+                  >
+                    Clear selection
+                  </button>
                 ) : null}
                 {warning ? <p className="text-sm text-destructive">{warning}</p> : null}
               </div>
@@ -1332,10 +1231,10 @@ function ClientAnalyticsPageContent() {
           </>
         ) : (
           <>
-            <section className="mb-8 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
-              <div className="mb-3 flex items-center gap-2 text-ink">
-                <Activity className="h-4 w-4 text-gold" />
-                <h2 className="text-base font-semibold">Single Campaign Selection</h2>
+            <section className="mb-8 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+              <div className="mb-4 flex items-center gap-2 text-ink">
+                <FileText className="h-4 w-4 text-gold" />
+                <h2 className="text-base font-semibold">Choose a form to analyze</h2>
               </div>
               <div className="flex flex-col gap-3 md:flex-row md:items-center">
                 <div className="relative w-full md:max-w-md">
@@ -1345,9 +1244,9 @@ function ClientAnalyticsPageContent() {
                       setSingleCampaignId(event.target.value)
                       setWarning("")
                     }}
-                    className="w-full appearance-none rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2 pr-10 text-sm text-ink"
+                    className="h-11 w-full appearance-none rounded-lg border border-white/15 bg-white/[0.04] px-3 pr-10 text-sm text-ink outline-none transition-colors focus:border-gold/60 focus:ring-2 focus:ring-gold/20"
                   >
-                    <option value="">Select a campaign</option>
+                    <option value="">Select a form…</option>
                     {campaigns.map((campaign) => (
                       <option key={campaign.id} value={campaign.id}>
                         {campaign.name} ({formatDateLabel(campaign.date)})
@@ -1358,12 +1257,15 @@ function ClientAnalyticsPageContent() {
                 </div>
                 <button
                   onClick={analyzeSingleCampaign}
-                  className="inline-flex items-center justify-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105"
+                  className="inline-flex h-11 items-center justify-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 text-sm font-semibold text-[#241a06] transition hover:brightness-105"
                 >
                   <TrendingUp className="mr-2 h-4 w-4" />
-                  Analyze Campaign
+                  Analyze Form
                 </button>
               </div>
+              {campaigns.length === 0 ? (
+                <p className="mt-3 text-sm text-ink-muted">No forms yet — create a form to unlock analytics.</p>
+              ) : null}
               {warning ? <p className="mt-3 text-sm text-destructive">{warning}</p> : null}
             </section>
 
@@ -1372,7 +1274,7 @@ function ClientAnalyticsPageContent() {
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-ink">
                     <BarChart3 className="h-4 w-4 text-gold" />
-                    <h2 className="text-base font-semibold">Single Campaign Analysis</h2>
+                    <h2 className="text-base font-semibold">Form Analysis</h2>
                   </div>
                   {singleReport ? (
                     <button
@@ -1385,11 +1287,11 @@ function ClientAnalyticsPageContent() {
                   ) : null}
                 </div>
 
-                <div className="space-y-5 rounded-xl border border-white/[0.07] bg-white/[0.02] p-5">
+                <div className="space-y-5 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
                   <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
-                    <h3 className="text-lg font-semibold text-ink">Campaign Overview</h3>
+                    <h3 className="text-lg font-semibold text-ink">Overview</h3>
                     <p className="mb-2 text-xs text-ink-muted">
-                      {singleCampaign.name} | Launch Date: {formatDateLabel(singleCampaign.date)}
+                      {singleCampaign.name} · Created {formatDateLabel(singleCampaign.date)}
                     </p>
                     <div className="space-y-2 text-sm text-ink-dim">
                       {singleSummaryLines.map((line) => (
@@ -1400,21 +1302,37 @@ function ClientAnalyticsPageContent() {
 
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
-                      <p className="text-xs uppercase tracking-wide text-ink-muted">Campaign Score</p>
-                      <p className="mt-2 text-xl font-semibold text-ink">{singleHealthScore.toFixed(1)} / 100</p>
+                      <p className="text-xs uppercase tracking-wide text-ink-muted">Form Score</p>
+                      <p className="mt-2 tvx-num text-2xl font-semibold text-gold">{singleHealthScore.toFixed(1)}<span className="text-sm text-ink-muted"> / 100</span></p>
                     </div>
                     <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
                       <p className="text-xs uppercase tracking-wide text-ink-muted">Total Responses</p>
-                      <p className="mt-2 text-xl font-semibold text-ink">{singleMetric.totalResponses}</p>
+                      <p className="mt-2 tvx-num text-2xl font-semibold text-ink">{singleMetric.totalResponses}</p>
                     </div>
                     <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
                       <p className="text-xs uppercase tracking-wide text-ink-muted">Engagement / Day</p>
-                      <p className="mt-2 text-xl font-semibold text-ink">{singleMetric.engagementRate.toFixed(1)}</p>
+                      <p className="mt-2 tvx-num text-2xl font-semibold text-ink">{singleMetric.engagementRate.toFixed(1)}</p>
                     </div>
                     <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
                       <p className="text-xs uppercase tracking-wide text-ink-muted">Sentiment Score</p>
-                      <p className="mt-2 text-xl font-semibold text-ink">{singleMetric.sentimentScore.toFixed(1)}</p>
+                      <p className="mt-2 tvx-num text-2xl font-semibold text-ink">{singleMetric.sentimentScore.toFixed(1)}</p>
                     </div>
+                  </div>
+
+                  {/* AI summary slot — the 11.6 AI response-analysis panel plugs in here.
+                      Honest "coming soon" nod (no fake computation) until that ships. */}
+                  <div className="rounded-xl border border-dashed border-gold/25 bg-gold/[0.04] p-4">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-gold" />
+                      <h3 className="text-sm font-semibold text-ink">AI Summary</h3>
+                      <span className="rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-[11px] font-medium text-gold">
+                        Coming soon
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-ink-dim">
+                      A plain-language read of what these responses are telling you — themes and suggested actions —
+                      is on the way. It will summarize your real submitted responses; review before acting.
+                    </p>
                   </div>
 
                   <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
@@ -1445,7 +1363,7 @@ function ClientAnalyticsPageContent() {
                         </ResponsiveContainer>
                       </div>
                     ) : (
-                      <p className="text-sm text-ink-muted">No response timeline available for this campaign.</p>
+                      <p className="text-sm text-ink-muted">No response timeline available for this form.</p>
                     )}
                   </div>
 
@@ -1457,7 +1375,7 @@ function ClientAnalyticsPageContent() {
                           <table className="min-w-full border-collapse text-sm">
                             <thead>
                               <tr className="text-left text-ink-muted">
-                                <th className="border-b border-white/[0.06] px-3 py-2">Campaign</th>
+                                <th className="border-b border-white/[0.06] px-3 py-2">Form</th>
                                 <th className="border-b border-white/[0.06] px-3 py-2">Responses</th>
                                 <th className="border-b border-white/[0.06] px-3 py-2">Engagement / Day</th>
                                 <th className="border-b border-white/[0.06] px-3 py-2">Positive %</th>
@@ -1595,7 +1513,7 @@ function ClientAnalyticsPageContent() {
                   <table className="min-w-full border-collapse text-sm">
                     <thead>
                       <tr className="text-left text-ink-muted">
-                        <th className="border-b border-white/[0.06] px-3 py-2">Campaign Name</th>
+                        <th className="border-b border-white/[0.06] px-3 py-2">Form Name</th>
                         <th className="border-b border-white/[0.06] px-3 py-2">Total Responses</th>
                         <th className="border-b border-white/[0.06] px-3 py-2">Engagement / Day</th>
                         <th className="border-b border-white/[0.06] px-3 py-2">Positive %</th>
@@ -1665,10 +1583,10 @@ function ClientAnalyticsPageContent() {
                       </ResponsiveContainer>
                     </div>
                   ) : (
-                    <p className="text-sm text-ink-muted">No timeline data available for selected campaigns.</p>
+                    <p className="text-sm text-ink-muted">No timeline data available for selected forms.</p>
                   )}
                   <p className="mt-3 text-xs text-ink-muted">
-                    This chart compares how response volume changed across each selected campaign date by date.
+                    This chart compares how response volume changed across each selected form, date by date.
                   </p>
                 </div>
 
@@ -1701,7 +1619,7 @@ function ClientAnalyticsPageContent() {
                       </ResponsiveContainer>
                     </div>
                   ) : (
-                    <p className="text-sm text-ink-muted">No sentiment totals available for selected campaigns.</p>
+                    <p className="text-sm text-ink-muted">No sentiment totals available for selected forms.</p>
                   )}
                   <p className="mt-3 text-xs text-ink-muted">
                     Bars highlight positive (mint) and negative (rose) totals to expose sentiment quality gaps.
@@ -1747,7 +1665,7 @@ function ClientAnalyticsPageContent() {
                               labelStyle={{ color: "#B6BACB" }}
                               formatter={(value: number, _name: string, payload) => {
                                 const share = Number(payload?.payload?.sharePct || 0)
-                                return [`${value} responses (${share.toFixed(1)}%)`, payload?.name || "Campaign"]
+                                return [`${value} responses (${share.toFixed(1)}%)`, payload?.name || "Form"]
                               }}
                             />
                             <Legend wrapperStyle={{ color: "#B6BACB", fontSize: "12px" }} />
@@ -1844,7 +1762,7 @@ function ClientAnalyticsPageContent() {
                               }}
                             />
                             <Legend wrapperStyle={{ color: "#B6BACB", fontSize: "12px" }} />
-                            <Scatter name="Campaign Points" data={responseVsSentimentData} fill="#EBBC6B" />
+                            <Scatter name="Forms" data={responseVsSentimentData} fill="#EBBC6B" />
                           </ScatterChart>
                         </ResponsiveContainer>
                       </div>
@@ -1874,7 +1792,7 @@ function ClientAnalyticsPageContent() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-ink-muted">Not enough campaigns selected for comparative pair analysis.</p>
+                  <p className="text-sm text-ink-muted">Not enough forms selected for comparative pair analysis.</p>
                 )}
               </div>
 
@@ -1899,7 +1817,7 @@ function ClientAnalyticsPageContent() {
                   <table className="min-w-full border-collapse text-sm">
                     <thead>
                       <tr className="text-left text-ink-muted">
-                        <th className="border-b border-white/[0.06] px-3 py-2">Campaign</th>
+                        <th className="border-b border-white/[0.06] px-3 py-2">Form</th>
                         <th className="border-b border-white/[0.06] px-3 py-2">Engagement Rate</th>
                         <th className="border-b border-white/[0.06] px-3 py-2">Consistency</th>
                         <th className="border-b border-white/[0.06] px-3 py-2">Sentiment Score</th>

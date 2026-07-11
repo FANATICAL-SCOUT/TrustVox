@@ -279,9 +279,9 @@ export default function AnalyticsPDFTemplate({
 
       <div className="pdf-page">
         <section>
-          <h1 className="report-title">Campaign Analytics Report</h1>
+          <h1 className="report-title">Form Analytics Report</h1>
           <p className="meta-line">Generated: {generatedOn}</p>
-          <p className="meta-line">Campaigns Compared: {campaignLabel}</p>
+          <p className="meta-line">Forms Compared: {campaignLabel}</p>
         </section>
 
         <section className="section">
@@ -299,7 +299,7 @@ export default function AnalyticsPDFTemplate({
             <table>
               <thead>
                 <tr>
-                  <th>Campaign Name</th>
+                  <th>Form Name</th>
                   <th>Total Responses</th>
                   <th>Engagement Rate</th>
                   <th>Positive %</th>
@@ -450,7 +450,7 @@ export default function AnalyticsPDFTemplate({
             <table>
               <thead>
                 <tr>
-                  <th>Campaign</th>
+                  <th>Form</th>
                   <th>Engagement Rate</th>
                   <th>Consistency</th>
                   <th>Sentiment Score</th>

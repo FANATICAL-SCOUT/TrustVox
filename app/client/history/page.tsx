@@ -92,7 +92,7 @@ export default function ClientAnalyticsHistoryPage() {
             <div>
               <h1 className="font-display text-2xl font-bold text-ink">Analytics History</h1>
               <p className="mt-1 text-sm text-ink-dim">
-                View previously generated campaign analytics reports, re-open analysis context, and trigger downloads.
+                View previously generated form analytics reports, re-open analysis context, and trigger downloads.
               </p>
             </div>
             <span className="inline-flex items-center rounded-full border border-gold/30 bg-gold/10 px-2.5 py-0.5 text-xs font-semibold text-gold">Report Archive</span>
@@ -154,7 +154,7 @@ export default function ClientAnalyticsHistoryPage() {
             <h2 className="text-sm font-semibold">Tip</h2>
           </div>
           <p className="mt-2 text-sm text-ink-muted">
-            Use Re-analyze when campaign data has changed and you want a fresh report with the same campaign selection.
+            Use Re-analyze when form data has changed and you want a fresh report with the same form selection.
           </p>
           <button
             className="mt-3 inline-flex items-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105"
