@@ -67,7 +67,7 @@ export default function CampaignDetailsPage() {
           Back to Campaigns
         </button>
 
-        <section className="tvx-card-gold mb-6 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-surface to-[#0e1017] p-6">
+        <section className="tvx-card-gold mb-6 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-6">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center rounded-full border border-gold/30 bg-gold/10 px-2.5 py-0.5 text-xs font-semibold text-gold">{campaign.status}</span>
             <span className="text-xs uppercase tracking-wide text-ink-muted">Campaign details</span>

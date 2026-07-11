@@ -109,7 +109,7 @@ export default function FormAnalyticsPage() {
           Back to My Forms
         </Button>
 
-        <section className="tvx-card-gold mb-6 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-surface to-[#0e1017] p-6">
+        <section className="tvx-card-gold mb-6 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-6">
           <div className="mb-3 flex items-center gap-2">
             <Badge className="border border-gold/30 bg-gold/10 text-gold">Form Analytics</Badge>
             <span className="text-xs uppercase tracking-wide text-ink-muted">Insights</span>

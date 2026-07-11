@@ -21,7 +21,10 @@ import { useEffect, useRef } from "react"
 const GAP = 30 // px between grid dots
 const RADIUS = 150 // px ignite radius around the light
 const LAG = 0.14 // light easing toward the cursor (weight/trailing feel)
-const COOL = 0.955 // per-frame ember decay (Balanced intensity)
+// Per-frame ember decay. Tuned for a smooth ~1.5–2s dim-down (not a snap-off)
+// once the cursor stops: at 60fps, heat 1 → the 0.02 cutoff takes ~1.7s with
+// 0.978. Raise toward 1 for a longer, gentler fade; lower for a quicker one.
+const COOL = 0.978
 const REGION = 0.85 // dots fade out toward the bottom of the viewport
 const MAX_DPR = 2
 
@@ -64,8 +67,16 @@ export default function EmberTrailBackground() {
     // Raw cursor target and the lagged "light" that trails toward it.
     const mouse = { x: -9999, y: -9999 }
     const light = { x: -9999, y: -9999 }
+    // Timestamp of the last pointer move — dots only ignite while the cursor is
+    // actively moving, so a stationary cursor leaves its patch to cool and fade
+    // out (a true cursor trail) instead of parking a permanent glowing blob.
+    let lastMoveAt = -9999
     // Ember heat per grid cell, keyed "col,row". Absent = cold.
     const heat = new Map<string, number>()
+
+    // How long after the last move dots keep igniting. Short window so the trail
+    // tracks motion but doesn't strobe between individual pointer events.
+    const IGNITE_WINDOW = 90 // ms
 
     let raf = 0
     let running = false
@@ -84,6 +95,9 @@ export default function EmberTrailBackground() {
       ctx.clearRect(0, 0, width, height)
 
       let anyHot = false
+      // Only ignite while the cursor is actively moving; once it stops, existing
+      // heat just cools each frame and the patch fades out like the rest of the trail.
+      const igniting = performance.now() - lastMoveAt < IGNITE_WINDOW
 
       for (let i = 0; i < cols; i++) {
         for (let j = 0; j < rows; j++) {
@@ -96,7 +110,7 @@ export default function EmberTrailBackground() {
           const key = `${i},${j}`
 
           let hv = heat.get(key) ?? 0
-          if (near > hv) hv = near // ignite
+          if (igniting && near > hv) hv = near // ignite (only while moving)
           hv *= COOL // cool
           if (hv < 0.02) {
             heat.delete(key)
@@ -106,8 +120,14 @@ export default function EmberTrailBackground() {
           anyHot = true
 
           const rf = regionFade(y)
-          const alpha = hv * hv * 0.9 * (0.55 + rf * 0.45)
-          if (alpha <= 0.012) continue
+          // Softened brightness curve. The old `hv*hv` (quadratic) made the tail
+          // of the fade collapse almost instantly — the visible "snap off" when
+          // the cursor stopped. `hv * (0.35 + 0.65*hv)` stays near-linear at low
+          // heat (so the dim-down is gradual, not a flash) while still keeping
+          // hot dots bright at high heat.
+          const brightness = hv * (0.35 + 0.65 * hv)
+          const alpha = brightness * 0.9 * (0.55 + rf * 0.45)
+          if (alpha <= 0.008) continue
           const radius = 1 + hv * 1.7
 
           ctx.globalAlpha = Math.min(1, alpha)
@@ -140,6 +160,7 @@ export default function EmberTrailBackground() {
     const onPointerMove = (e: PointerEvent) => {
       mouse.x = e.clientX
       mouse.y = e.clientY
+      lastMoveAt = performance.now()
       wake()
     }
 

@@ -151,7 +151,7 @@ export default function StoreSection() {
       </div>
 
       {/* Balance hero */}
-      <div data-reveal-card className="tvx-card-gold mt-8 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-surface to-[#0e1017] p-7">
+      <div data-reveal-card className="tvx-card-gold mt-8 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-7">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.16em] text-ink-muted">Available balance</p>

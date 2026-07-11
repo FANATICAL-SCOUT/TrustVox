@@ -350,7 +350,7 @@ export default function LandingSection({
         )}
 
         {/* CTA */}
-        <div data-reveal-block className="tvx-card-gold rounded-2xl border border-white/[0.08] bg-gradient-to-b from-surface to-[#0e1017] p-10 text-center">
+        <div data-reveal-block className="tvx-card-gold rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-10 text-center">
           <h2 className="text-balance font-display text-3xl font-extrabold tracking-[-0.03em] text-ink sm:text-4xl">Earn more tokens today</h2>
           <p className="mx-auto mt-4 max-w-2xl text-ink-dim">
             Browse every live opportunity, share your honest feedback, and unlock your next reward.

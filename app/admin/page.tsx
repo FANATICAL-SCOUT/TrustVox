@@ -221,7 +221,7 @@ export default function AdminCommandCenter() {
 
   return (
     <div className="space-y-8">
-      <section className="tvx-card-gold relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-surface to-[#0e1017] p-5 md:p-6">
+      <section className="tvx-card-gold relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-5 md:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">Admin Command Center</h1>
