@@ -230,7 +230,8 @@ export default function ContactPage() {
           <div>&copy; 2026 TrustVox. All rights reserved.</div>
           <div className="flex gap-5">
             <Link href="/" className="transition-colors hover:text-ink">Home</Link>
-            <Link href="/contact" className="transition-colors hover:text-ink">Contact</Link>
+            <Link href="/legal#privacy" className="transition-colors hover:text-ink">Privacy</Link>
+            <Link href="/legal#terms" className="transition-colors hover:text-ink">Terms</Link>
           </div>
         </div>
       </footer>

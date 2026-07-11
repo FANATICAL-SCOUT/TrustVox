@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Eye, Save, Send,
   Star, Type, AlignLeft, List, CheckSquare, Mic,
-  GripVertical, X, Check, AlertCircle, Sparkles, Wand2, Settings, Search
+  GripVertical, X, Check, AlertCircle, Sparkles, Settings, Search
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,18 +29,6 @@ import {
 import { logFlow } from "@/lib/debug-log"
 import { getActiveApprovedCompanies, subscribeToApprovedCompanies, type ApprovedCompany } from "@/lib/approved-company-store"
 
-type TemplateQuestionSeed = { type: QuestionType; title: string; required: boolean; options: string[] }
-type TemplateDefinition = { name: string; description: string; questions: TemplateQuestionSeed[] }
-type TemplateDomain = "software" | "beverage" | "service"
-type TemplateSuggestion = {
-  id: string
-  domain: TemplateDomain
-  name: string
-  description: string
-  title: string
-  formDescription: string
-  questions: TemplateQuestionSeed[]
-}
 type ToastState = { msg: string; type: "success" | "error" }
 
 // Upper bound on the per-response TVX reward. Mirrors the DB `reward_tokens
@@ -59,160 +47,8 @@ const QUESTION_TYPES = [
 
 const CATEGORIES = [
   "Software", "Service", "Mobile App", "Hardware", "E-Commerce",
-  "Food & Beverage", "Healthcare", "Education", "Finance", "Other", "Others",
+  "Food & Beverage", "Healthcare", "Education", "Finance", "Other",
 ]
-
-const TEMPLATE_LIBRARY: Record<TemplateDomain, TemplateDefinition[]> = {
-  software: [
-    {
-      name: "Product Experience",
-      description: "Capture UX quality, performance and value perception.",
-      questions: [
-        { type: "star-rating", title: "How would you rate your overall experience?", required: true, options: [] },
-        { type: "star-rating", title: "How reliable is the product performance?", required: true, options: [] },
-        { type: "multi-select", title: "Which features did you find most valuable?", required: false, options: ["Ease of use", "Speed", "Design", "Integrations", "Support"] },
-        { type: "multiple-choice", title: "How often do you use this product?", required: true, options: ["Daily", "Weekly", "Monthly", "Rarely"] },
-        { type: "text-long", title: "What should we improve next?", required: false, options: [] },
-      ],
-    },
-    {
-      name: "Onboarding Feedback",
-      description: "Understand first-time setup and learning friction.",
-      questions: [
-        { type: "star-rating", title: "How easy was account setup?", required: true, options: [] },
-        { type: "star-rating", title: "How clear were onboarding instructions?", required: true, options: [] },
-        { type: "multi-select", title: "What caused friction during onboarding?", required: false, options: ["Too many steps", "UI confusion", "Slow loading", "Missing guidance"] },
-        { type: "text-short", title: "Which part was most confusing?", required: false, options: [] },
-        { type: "text-long", title: "How can we improve the onboarding flow?", required: false, options: [] },
-      ],
-    },
-    {
-      name: "Support Quality",
-      description: "Measure support experience after product issues.",
-      questions: [
-        { type: "star-rating", title: "How satisfied are you with support resolution?", required: true, options: [] },
-        { type: "star-rating", title: "How quickly was your issue resolved?", required: true, options: [] },
-        { type: "multi-select", title: "How would you describe support quality?", required: false, options: ["Helpful", "Fast", "Professional", "Needs Improvement"] },
-        { type: "voice-feedback", title: "Would you like to leave voice feedback?", required: false, options: [] },
-        { type: "text-long", title: "Any additional comments on support?", required: false, options: [] },
-      ],
-    },
-  ],
-  beverage: [
-    {
-      name: "Taste & Quality",
-      description: "Collect flavor, freshness and value insights.",
-      questions: [
-        { type: "star-rating", title: "How would you rate the overall taste?", required: true, options: [] },
-        { type: "star-rating", title: "How would you rate product freshness?", required: true, options: [] },
-        { type: "multi-select", title: "Which flavor notes stood out?", required: false, options: ["Sweet", "Fruity", "Rich", "Balanced", "Refreshing"] },
-        { type: "multiple-choice", title: "Would you purchase this again?", required: true, options: ["Definitely", "Maybe", "Not likely"] },
-        { type: "text-long", title: "What can we improve in taste or quality?", required: false, options: [] },
-      ],
-    },
-    {
-      name: "Packaging & Experience",
-      description: "Evaluate packaging, convenience and branding.",
-      questions: [
-        { type: "star-rating", title: "How appealing is the packaging design?", required: true, options: [] },
-        { type: "star-rating", title: "How convenient is the packaging to use?", required: true, options: [] },
-        { type: "multi-select", title: "What did you like about the packaging?", required: false, options: ["Easy to open", "Portable", "Attractive", "Eco-friendly"] },
-        { type: "text-short", title: "Any packaging issue you noticed?", required: false, options: [] },
-        { type: "text-long", title: "Share packaging improvement suggestions", required: false, options: [] },
-      ],
-    },
-    {
-      name: "Cafe/Outlet Service",
-      description: "Measure service speed and in-store experience.",
-      questions: [
-        { type: "star-rating", title: "How would you rate service speed?", required: true, options: [] },
-        { type: "star-rating", title: "How friendly was the staff?", required: true, options: [] },
-        { type: "multi-select", title: "How was your visit overall?", required: false, options: ["Clean", "Welcoming", "Quick", "Crowded", "Noisy"] },
-        { type: "voice-feedback", title: "Leave voice feedback about your visit", required: false, options: [] },
-        { type: "text-long", title: "What should we improve at this outlet?", required: false, options: [] },
-      ],
-    },
-  ],
-  service: [
-    {
-      name: "Service Satisfaction",
-      description: "Track delivery quality, timeliness and communication.",
-      questions: [
-        { type: "star-rating", title: "How satisfied are you with the service overall?", required: true, options: [] },
-        { type: "star-rating", title: "How would you rate service timeliness?", required: true, options: [] },
-        { type: "multiple-choice", title: "Was your request resolved in one attempt?", required: true, options: ["Yes", "Partially", "No"] },
-        { type: "multi-select", title: "Which qualities best describe our service?", required: false, options: ["Professional", "Responsive", "Reliable", "Needs Improvement"] },
-        { type: "text-long", title: "What can we do better next time?", required: false, options: [] },
-      ],
-    },
-    {
-      name: "Post-Interaction Review",
-      description: "Gather immediate impressions after service interaction.",
-      questions: [
-        { type: "star-rating", title: "How clear was the communication?", required: true, options: [] },
-        { type: "star-rating", title: "How confident are you in the solution provided?", required: true, options: [] },
-        { type: "multi-select", title: "What mattered most to you?", required: false, options: ["Speed", "Accuracy", "Courtesy", "Cost", "Follow-up"] },
-        { type: "text-short", title: "What service did you use?", required: true, options: [] },
-        { type: "text-long", title: "Share any follow-up requests", required: false, options: [] },
-      ],
-    },
-    {
-      name: "Voice of Customer",
-      description: "Capture richer customer stories via mixed formats.",
-      questions: [
-        { type: "star-rating", title: "How likely are you to recommend us?", required: true, options: [] },
-        { type: "multi-select", title: "How did we perform?", required: false, options: ["Excellent", "Good", "Average", "Poor"] },
-        { type: "voice-feedback", title: "Record a quick voice summary", required: false, options: [] },
-        { type: "text-long", title: "Tell us your full experience", required: false, options: [] },
-      ],
-    },
-  ],
-}
-
-function detectDomain(categoryValue: string, productValue: string, contextValue: string): TemplateDomain {
-  const categoryText = (categoryValue || "").toLowerCase()
-  const productText = (productValue || "").toLowerCase()
-  const contextText = (contextValue || "").toLowerCase()
-  const combined = `${categoryText} ${productText} ${contextText}`
-
-  if (
-    combined.includes("beverage") ||
-    combined.includes("drink") ||
-    combined.includes("coffee") ||
-    combined.includes("tea") ||
-    combined.includes("juice")
-  ) {
-    return "beverage"
-  }
-
-  if (
-    combined.includes("software") ||
-    combined.includes("app") ||
-    combined.includes("saas") ||
-    combined.includes("technology") ||
-    combined.includes("mobile")
-  ) {
-    return "software"
-  }
-
-  return "service"
-}
-
-function generateTemplateSuggestions(productValue: string, categoryValue: string, contextValue: string): TemplateSuggestion[] {
-  const domain = detectDomain(categoryValue, productValue, contextValue)
-  const candidates = TEMPLATE_LIBRARY[domain] || TEMPLATE_LIBRARY.service
-  const contextSuffix = contextValue ? ` Context: ${contextValue}` : ""
-
-  return candidates.map((template, index) => ({
-    id: `${domain}-${index + 1}`,
-    domain,
-    name: template.name,
-    description: template.description,
-    title: `${productValue || "Customer"} ${template.name} Form`,
-    formDescription: `AI suggested template for ${productValue || "your offering"} in ${categoryValue || "general"} domain. ${template.description}${contextSuffix}`,
-    questions: template.questions,
-  }))
-}
 
 function QuestionTypeIcon({ type, size = 16 }: { type: QuestionType; size?: number }) {
   const qt = QUESTION_TYPES.find((q) => q.value === type)
@@ -422,8 +258,6 @@ function CreateFeedbackInner() {
   const [submitState, setSubmitState] = useState("idle")
   const [toast, setToast] = useState<ToastState | null>(null)
   const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null)
-  const [templateSuggestions, setTemplateSuggestions] = useState<TemplateSuggestion[]>([])
-  const [isGeneratingTemplates, setIsGeneratingTemplates] = useState(false)
   const [draggingQuestionId, setDraggingQuestionId] = useState<string | null>(null)
   const [dragOverQuestionId, setDragOverQuestionId] = useState<string | null>(null)
 
@@ -583,52 +417,6 @@ function CreateFeedbackInner() {
     )
   }
 
-  async function handleGenerateTemplates() {
-    if (!product.trim()) {
-      showToast("Enter Product / Service name to generate templates.", "error")
-      return
-    }
-
-    setIsGeneratingTemplates(true)
-    await new Promise((r) => setTimeout(r, 450))
-    if ((category === "Other" || category === "Others") && !otherCategoryDetails.trim()) {
-      setIsGeneratingTemplates(false)
-      showToast("Please describe your product/service for 'Other' category.", "error")
-      return
-    }
-
-    const suggestions = generateTemplateSuggestions(product, category, otherCategoryDetails)
-    setTemplateSuggestions(suggestions)
-    setIsGeneratingTemplates(false)
-    showToast(`Generated ${suggestions.length} AI template suggestions.`)
-  }
-
-  function applyTemplateSuggestion(template: TemplateSuggestion) {
-    const mappedQuestions: Question[] = template.questions.map((q) => ({
-      id: newQuestionId(),
-      type: q.type,
-      title: q.title,
-      required: q.required,
-      options: q.options,
-    }))
-
-    setTitle(template.title)
-    setDescription(template.formDescription)
-    setQuestions(mappedQuestions)
-    setExpandedQuestion(mappedQuestions[0]?.id || null)
-
-    logFlow("ai-template-applied", {
-      templateId: template.id,
-      domain: template.domain,
-      questionCount: mappedQuestions.length,
-      product,
-      category,
-      otherCategoryDetails,
-    })
-
-    showToast(`Applied "${template.name}" template. You can edit any question.`)
-  }
-
   // ── Save / Submit ───────────────────────────────────────────────────────────
   function buildPayload() {
     const normalizedRewardTokens = Math.min(MAX_REWARD_TOKENS, Math.max(1, Math.floor(Number(rewardTokens) || 0)))
@@ -680,7 +468,7 @@ function CreateFeedbackInner() {
         return "Auto close date is invalid."
       }
     }
-    if ((category === "Other" || category === "Others") && !otherCategoryDetails.trim()) {
+    if (category === "Other" && !otherCategoryDetails.trim()) {
       return "Please add a short product/service description for Other category."
     }
     if (questions.length === 0) return "Add at least one question."
@@ -810,7 +598,7 @@ function CreateFeedbackInner() {
           <div className="flex items-center gap-1 bg-white/[0.04] rounded-lg p-0.5 border border-white/10">
             <button
               onClick={() => setPreviewMode(false)}
-              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 !previewMode
                   ? "bg-gold/10 text-gold"
                   : "text-ink-muted hover:text-ink-dim"
@@ -821,7 +609,7 @@ function CreateFeedbackInner() {
             </button>
             <button
               onClick={() => setPreviewMode(true)}
-              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 previewMode
                   ? "bg-gold/10 text-gold"
                   : "text-ink-muted hover:text-ink-dim"
@@ -885,9 +673,9 @@ function CreateFeedbackInner() {
 
       <main className="max-w-5xl mx-auto px-4 py-10 relative z-10">
         {!previewMode ? (
-        <div className="grid lg:grid-cols-[1fr_360px] gap-8">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] gap-8">
           {/* ── Left column: Form Builder ── */}
-          <div className="space-y-7">
+          <div className="min-w-0 space-y-7">
             {/* Basic details */}
             <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-7">
               <h2 className="text-base font-semibold text-ink mb-6 flex items-center gap-2">
@@ -937,7 +725,12 @@ function CreateFeedbackInner() {
                           <ChevronDown size={16} className="text-ink-muted" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-surface-raised border-white/10 text-ink">
+                      <PopoverContent
+                        align="start"
+                        side="bottom"
+                        sideOffset={6}
+                        className="w-[--radix-popover-trigger-width] p-0 bg-surface-raised border-white/10 text-ink"
+                      >
                         <Command shouldFilter={false} className="bg-transparent text-ink">
                           <div className="relative border-b border-white/10">
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
@@ -1000,7 +793,12 @@ function CreateFeedbackInner() {
                       <SelectTrigger className="bg-white/[0.03] border-white/10 text-ink data-[placeholder]:text-ink-muted">
                         <SelectValue>{category || "Select category"}</SelectValue>
                       </SelectTrigger>
-                      <SelectContent className="bg-surface-raised border-white/10 text-ink shadow-2xl">
+                      <SelectContent
+                        position="popper"
+                        side="bottom"
+                        sideOffset={6}
+                        className="max-h-[280px] w-[--radix-select-trigger-width] overflow-y-auto bg-surface-raised border-white/10 text-ink shadow-2xl"
+                      >
                         {CATEGORIES.map((c) => (
                           <SelectItem
                             key={c}
@@ -1029,9 +827,9 @@ function CreateFeedbackInner() {
                   </div>
                 </div>
 
-                {(category === "Other" || category === "Others") && (
+                {category === "Other" && (
                   <div>
-                    <Label className="text-xs text-ink-dim mb-1.5 block">Describe Product / Service (for AI templates) <span className="text-destructive">*</span></Label>
+                    <Label className="text-xs text-ink-dim mb-1.5 block">Describe Product / Service <span className="text-destructive">*</span></Label>
                     <Textarea
                       value={otherCategoryDetails}
                       onChange={(e) => setOtherCategoryDetails(e.target.value)}
@@ -1088,63 +886,6 @@ function CreateFeedbackInner() {
                     </div>
                   </div>
                 </div>
-
-                <div className="pt-3 border-t border-white/10 space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs text-ink-dim font-medium flex items-center gap-1.5">
-                        <Wand2 size={12} className="text-gold" />
-                        AI Suggested Templates
-                      </p>
-                      <p className="text-[11px] text-ink-muted mt-0.5">
-                        Generate domain-based form templates from your product and category.
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={handleGenerateTemplates}
-                      disabled={isGeneratingTemplates}
-                      className="border-gold/40 text-gold hover:bg-gold/10 hover:text-gold-deep text-xs gap-1.5"
-                    >
-                      <Wand2 size={12} />
-                      {isGeneratingTemplates ? "Generating…" : "Generate Templates"}
-                    </Button>
-                  </div>
-
-                  {templateSuggestions.length > 0 && (
-                    <div className="grid gap-2">
-                      {templateSuggestions.map((template) => (
-                        <div key={template.id} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-ink truncate">{template.name}</p>
-                              <p className="text-xs text-ink-dim mt-0.5">{template.description}</p>
-                              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                <Badge variant="outline" className="text-[10px] border-gold/30 text-gold">
-                                  {template.questions.length} questions
-                                </Badge>
-                                <Badge variant="outline" className="text-[10px] border-white/15 text-ink-dim capitalize">
-                                  {template.domain}
-                                </Badge>
-                              </div>
-                            </div>
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={() => applyTemplateSuggestion(template)}
-                              className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 text-xs px-3"
-                              variant="ghost"
-                            >
-                              Use
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </div>
             </section>
 
@@ -1185,7 +926,7 @@ function CreateFeedbackInner() {
                   {/* Content */}
                   <h3 className="text-base font-semibold text-ink mb-2">Start Building Your Form</h3>
                   <p className="text-xs text-ink-dim mb-2">Add questions, set types, and collect meaningful feedback</p>
-                  <p className="text-[10px] text-ink-muted mb-6">3 smart ways to get started:</p>
+                  <p className="text-[10px] text-ink-muted mb-6">Two quick ways to get started:</p>
 
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
@@ -1199,21 +940,7 @@ function CreateFeedbackInner() {
                       Add Question
                     </Button>
 
-                    {/* Secondary: Use Template */}
-                    {product && category && (
-                      <Button
-                        size="sm"
-                        onClick={handleGenerateTemplates}
-                        disabled={isGeneratingTemplates}
-                        className="border-gold/40 text-gold hover:bg-gold/10 hover:text-gold-deep text-xs gap-1.5 flex-1 sm:flex-none"
-                        variant="outline"
-                      >
-                        <Wand2 size={14} />
-                        {isGeneratingTemplates ? "Generating…" : "AI Template"}
-                      </Button>
-                    )}
-
-                    {/* Tertiary: Quick Start */}
+                    {/* Secondary: Quick Start */}
                     <button
                       onClick={() => {
                         const q1: Question = {
@@ -1317,7 +1044,7 @@ function CreateFeedbackInner() {
                               <button
                                 onClick={(e) => { e.stopPropagation(); moveQuestion(q.id, -1) }}
                                 disabled={idx === 0}
-                                className="p-1.5 text-ink-muted hover:text-ink-dim hover:bg-white/[0.06] rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                className="p-1.5 text-ink-muted hover:text-ink-dim hover:bg-white/[0.06] rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                 title="Move up"
                               >
                                 <ChevronUp size={14} />
@@ -1325,14 +1052,14 @@ function CreateFeedbackInner() {
                               <button
                                 onClick={(e) => { e.stopPropagation(); moveQuestion(q.id, 1) }}
                                 disabled={idx === questions.length - 1}
-                                className="p-1.5 text-ink-muted hover:text-ink-dim hover:bg-white/[0.06] rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                className="p-1.5 text-ink-muted hover:text-ink-dim hover:bg-white/[0.06] rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                 title="Move down"
                               >
                                 <ChevronDown size={14} />
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); removeQuestion(q.id) }}
-                                className="p-1.5 text-ink-muted hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                                className="p-1.5 text-ink-muted hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                                 title="Delete question"
                               >
                                 <Trash2 size={14} />
@@ -1376,7 +1103,12 @@ function CreateFeedbackInner() {
                                   <SelectTrigger className="bg-white/[0.03] border-white/10 text-ink text-sm data-[placeholder]:text-ink-muted">
                                     <SelectValue>{QUESTION_TYPES.find(t => t.value === q.type)?.label || q.type}</SelectValue>
                                   </SelectTrigger>
-                                  <SelectContent className="bg-surface-raised border-white/10 text-ink shadow-2xl">
+                                  <SelectContent
+                                    position="popper"
+                                    side="bottom"
+                                    sideOffset={6}
+                                    className="max-h-[280px] w-[--radix-select-trigger-width] overflow-y-auto bg-surface-raised border-white/10 text-ink shadow-2xl"
+                                  >
                                     {QUESTION_TYPES.map((t) => (
                                       <SelectItem
                                         key={t.value}
@@ -1409,7 +1141,7 @@ function CreateFeedbackInner() {
                                       />
                                       <button
                                         onClick={() => removeOption(q.id, oi)}
-                                        className="p-1.5 text-ink-muted hover:text-destructive hover:bg-destructive/10 rounded transition-colors shrink-0"
+                                        className="p-1.5 text-ink-muted hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors shrink-0"
                                         title="Remove option"
                                       >
                                         <X size={14} />
@@ -1463,9 +1195,18 @@ function CreateFeedbackInner() {
                   <Label className="text-xs font-medium text-ink-dim mb-2 block">Visibility</Label>
                   <Select value={formVisibility} onValueChange={(v: FormVisibility) => setFormVisibility(v)}>
                     <SelectTrigger className="bg-white/[0.03] border-white/10 text-ink text-sm h-8">
-                      <SelectValue>{formVisibility.charAt(0).toUpperCase() + formVisibility.slice(1)}</SelectValue>
+                      <SelectValue>
+                        {formVisibility === "link"
+                          ? "Link Only"
+                          : formVisibility.charAt(0).toUpperCase() + formVisibility.slice(1)}
+                      </SelectValue>
                     </SelectTrigger>
-                    <SelectContent className="bg-surface-raised border-white/10 text-ink">
+                    <SelectContent
+                      position="popper"
+                      side="bottom"
+                      sideOffset={6}
+                      className="max-h-[280px] w-[--radix-select-trigger-width] overflow-y-auto bg-surface-raised border-white/10 text-ink"
+                    >
                       <SelectItem value="private" className="text-sm">
                         Private
                       </SelectItem>
