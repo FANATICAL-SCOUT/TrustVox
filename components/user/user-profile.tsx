@@ -145,6 +145,18 @@ export default function UserProfile({ router }: UserProfileProps) {
 
   const canSave = dirty && !bioOverLimit && !nameLocked && nameInput.trim().length > 0 && !isSaving
 
+  // Reason the Save bar is blocked, surfaced next to the button so the disabled
+  // state is explained where the action now lives (not just at the field).
+  const saveBlockReason = !dirty
+    ? null
+    : nameInput.trim().length === 0
+      ? "Name can’t be empty"
+      : nameLocked
+        ? `Name is on cooldown (${nameStatus.daysRemaining} day${nameStatus.daysRemaining === 1 ? "" : "s"} left)`
+        : bioOverLimit
+          ? "Bio is over the word limit"
+          : null
+
   const handleSave = async () => {
     if (!canSave) return
     setIsSaving(true)
@@ -187,7 +199,7 @@ export default function UserProfile({ router }: UserProfileProps) {
   }))
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className={`mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 ${dirty ? "pb-28" : ""}`}>
       <button
         onClick={() => router.back()}
         className="mb-4 inline-flex items-center gap-2 text-sm text-ink-muted transition-colors hover:text-ink"
@@ -319,16 +331,6 @@ export default function UserProfile({ router }: UserProfileProps) {
                 className="mt-1 resize-none border-white/[0.07] bg-white/[0.02] text-ink"
               />
             </div>
-
-            <div className="mt-4 flex justify-end">
-              <Button
-                onClick={handleSave}
-                disabled={!canSave}
-                className="bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSaving ? "Saving…" : "Save changes"}
-              </Button>
-            </div>
           </div>
 
           {/* Interests — separate section (Session 3 item 3) */}
@@ -364,7 +366,7 @@ export default function UserProfile({ router }: UserProfileProps) {
               })}
             </div>
             <p className="mt-3 text-xs text-ink-muted">
-              {interests.length}/{MAX_INTERESTS} selected · changes save with the button above.
+              {interests.length}/{MAX_INTERESTS} selected · use the Save bar to apply your changes.
             </p>
           </div>
 
@@ -494,6 +496,36 @@ export default function UserProfile({ router }: UserProfileProps) {
           </div>
         </div>
       </div>
+
+      {/* Universal sticky Save bar — appears only when there are unsaved changes,
+          so name/bio/interests can be saved from anywhere without scrolling back
+          up to the form (Phase 9 follow-up). */}
+      {dirty ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4 sm:pb-6">
+          <div className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-white/[0.1] bg-surface-raised/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
+            <span className="flex min-w-0 flex-1 items-center gap-2 text-sm">
+              {saveBlockReason ? (
+                <>
+                  <AlertCircle className="h-4 w-4 flex-none text-destructive" />
+                  <span className="truncate text-destructive">{saveBlockReason}</span>
+                </>
+              ) : (
+                <>
+                  <span className="h-2 w-2 flex-none rounded-full bg-gold" />
+                  <span className="truncate text-ink-dim">You have unsaved changes</span>
+                </>
+              )}
+            </span>
+            <Button
+              onClick={handleSave}
+              disabled={!canSave}
+              className="flex-none bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSaving ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
