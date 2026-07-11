@@ -44,7 +44,7 @@ Each folder holds its own `TRACKER.md` (status + task checklist) and `LOG.md` (d
 │  ├─ ui/                  # shadcn primitives
 │  ├─ client-navbar.tsx, admin-navbar.tsx  # Client/admin navbars (loose at root, same as user's used to be)
 │  └─ brand-logo.tsx, theme-provider.tsx, global-scroll-effects.tsx  # Shared app-wide components
-├─ lib/                   # Domain store modules (feedback, wallet, notifications, companies, campaigns)
+├─ lib/                   # Domain store modules (feedback, wallet, notifications, companies)
 ├─ utils/                 # Small utility helpers
 ├─ docs/                  # Living project record — start here for status/context
 └─ public/                # Static assets
@@ -57,7 +57,6 @@ Each folder holds its own `TRACKER.md` (status + task checklist) and `LOG.md` (d
 - `feedback-quota.ts` — daily submission limits
 - `user-notifications.ts` — notification feed
 - `approved-company-store.ts` — approved company directory
-- `client-campaigns.ts` — client-side campaign aggregation
 
 ## Routes
 
@@ -70,7 +69,7 @@ Each folder holds its own `TRACKER.md` (status + task checklist) and `LOG.md` (d
 (`/dashboard`, `/wallet`, `/store`, `/suggested`, `/history`, `/profile` are legacy redirects to the routes above.)
 
 ### Client
-`/client/dashboard` (canonical) · `/client/forms` · `/client/create-feedback` · `/client/campaigns` (+ `[campaignId]`) · `/client/analytics` · `/client/history` · `/client/profile`
+`/client/dashboard` (canonical) · `/client/forms` · `/client/create-feedback` · `/client/analytics` · `/client/history` · `/client/profile`
 
 ### Admin
 `/admin` (canonical) · `/admin/approvals` · `/admin/approved-companies` · `/admin/user-management`

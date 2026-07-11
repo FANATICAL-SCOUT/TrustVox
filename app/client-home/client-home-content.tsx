@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
-  Activity,
   ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
@@ -21,17 +20,9 @@ import {
   Users,
   XCircle,
 } from "lucide-react"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { getResponsesByFormId, subscribeToFormsUpdates } from "@/lib/feedback-store"
+import { getClientForms, getResponsesByFormId, subscribeToFormsUpdates } from "@/lib/feedback-store"
 import type { FeedbackForm, FormResponse } from "@/lib/feedback-store"
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
-import { getCampaignDetails, getCampaignSummaries, type CampaignSummary } from "@/lib/client-campaigns"
 
 const STATUS_STYLES: Record<FeedbackForm["status"], string> = {
   draft: "border-white/15 bg-white/[0.04] text-ink-muted",
@@ -79,12 +70,6 @@ const TIME_FILTERS: Array<{ key: TimeRange; label: string }> = [
   { key: "30d", label: "Last 30 days" },
   { key: "all", label: "All time" },
 ]
-
-const CAMPAIGN_STATUS_STYLE = {
-  active: "border-mint/30 bg-mint/10 text-mint",
-  draft: "border-gold/30 bg-gold/10 text-gold",
-  completed: "border-white/15 bg-white/[0.04] text-ink-muted",
-}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
@@ -245,10 +230,8 @@ function getLastUpdated(form: FeedbackForm) {
 export default function ClientHomePage() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
-  const [campaigns, setCampaigns] = useState<CampaignSummary[]>([])
-  const [selectedCampaign, setSelectedCampaign] = useState("")
+  const [allForms, setAllForms] = useState<FeedbackForm[]>([])
   const [timeRange, setTimeRange] = useState<TimeRange>("7d")
-  const [isLive, setIsLive] = useState(true)
 
   useEffect(() => {
     setMounted(true)
@@ -257,74 +240,38 @@ export default function ClientHomePage() {
   useEffect(() => {
     if (!mounted) return
 
-    const loadCampaigns = async () => {
-      const summaries = await getCampaignSummaries()
-      const relevantCampaigns = isLive
-        ? summaries.filter((campaign) => campaign.status === "active")
-        : summaries
-
-      setCampaigns(relevantCampaigns)
-
-      const defaultCampaignId = relevantCampaigns[0]?.id || ""
-
-      setSelectedCampaign((current) => {
-        if (current && relevantCampaigns.some((campaign) => campaign.id === current)) return current
-        return defaultCampaignId
-      })
+    const loadForms = async () => {
+      setAllForms(await getClientForms())
     }
 
-    void loadCampaigns()
-    const unsubscribe = subscribeToFormsUpdates(() => void loadCampaigns())
+    void loadForms()
+    const unsubscribe = subscribeToFormsUpdates(() => void loadForms())
     return () => unsubscribe()
-  }, [mounted, isLive])
-
-  const selectedCampaignSummary = useMemo(() => {
-    return campaigns.find((campaign) => campaign.id === selectedCampaign) || null
-  }, [campaigns, selectedCampaign])
-
-  const [campaignDetails, setCampaignDetails] = useState<Awaited<ReturnType<typeof getCampaignDetails>>>(null)
-
-  useEffect(() => {
-    if (!selectedCampaign) {
-      setCampaignDetails(null)
-      return
-    }
-    let active = true
-    void getCampaignDetails(selectedCampaign).then((details) => {
-      if (active) setCampaignDetails(details)
-    })
-    return () => {
-      active = false
-    }
-  }, [selectedCampaign])
-
-  const selectedForms = useMemo(() => {
-    return campaignDetails?.forms || []
-  }, [campaignDetails])
+  }, [mounted])
 
   const [realResponses, setRealResponses] = useState<FormResponse[]>([])
 
   useEffect(() => {
     let active = true
     void (async () => {
-      const responses = await Promise.all(selectedForms.map((form) => getResponsesByFormId(form.id)))
+      const responses = await Promise.all(allForms.map((form) => getResponsesByFormId(form.id)))
       if (active) setRealResponses(responses.flat())
     })()
     return () => {
       active = false
     }
-  }, [selectedForms])
+  }, [allForms])
 
   const recentForms = useMemo(() => {
-    return [...selectedForms]
+    return [...allForms]
       .sort((a, b) => Date.parse(getLastUpdated(b) || "") - Date.parse(getLastUpdated(a) || ""))
       .slice(0, 6)
-  }, [selectedForms])
+  }, [allForms])
 
   const activity = useMemo(() => {
     const items: ActivityItem[] = []
 
-    selectedForms.forEach((form) => {
+    allForms.forEach((form) => {
       if (form.status === "approved" && form.approvedAt) {
         items.push({
           id: `${form.id}-approved`,
@@ -357,17 +304,15 @@ export default function ClientHomePage() {
     })
 
     return items.slice(0, 8)
-  }, [selectedForms])
+  }, [allForms])
 
   const currentSeries = useMemo(() => {
-    if (!selectedCampaign) return []
     return buildTrendSeries(realResponses, timeRange, 0)
-  }, [selectedCampaign, realResponses, timeRange])
+  }, [realResponses, timeRange])
 
   const previousSeries = useMemo(() => {
-    if (!selectedCampaign) return []
     return buildTrendSeries(realResponses, timeRange, 1)
-  }, [selectedCampaign, realResponses, timeRange])
+  }, [realResponses, timeRange])
 
   const windowedResponses = useMemo(() => {
     const start = getPeriodStart(timeRange, 0)
@@ -469,7 +414,7 @@ export default function ClientHomePage() {
       .sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt))
       .slice(0, 4)
       .map((response) => {
-        const form = selectedForms.find((candidate) => candidate.id === response.formId)
+        const form = allForms.find((candidate) => candidate.id === response.formId)
         const textAnswer = Object.values(response.answers || {}).find((value) => typeof value === "string" && value.length > 12)
         const rating = Math.round(deriveResponseScore(response))
         const sentiment = rating >= 4 ? "Positive" : rating <= 2 ? "Negative" : "Neutral"
@@ -486,13 +431,7 @@ export default function ClientHomePage() {
           time: timeAgo(response.submittedAt),
         }
       })
-  }, [realResponses, selectedForms])
-
-  const engagementProgress = useMemo(() => {
-    if (!campaignDetails) return 0
-    const target = Math.max(60, campaignDetails.formsCount * 70)
-    return Math.round(clamp((campaignDetails.totalResponses / target) * 100, 0, 100))
-  }, [campaignDetails])
+  }, [realResponses, allForms])
 
   if (!mounted) {
     return <div className="min-h-screen bg-background" />
@@ -504,90 +443,16 @@ export default function ClientHomePage() {
         <section className="tvx-card-gold relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-5 md:p-6">
           <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="font-display text-2xl font-bold tracking-tight text-ink">Campaign Performance</h1>
-              <p className="mt-1 text-sm text-ink-dim">Track responses, engagement, and trends in real time</p>
+              <h1 className="font-display text-2xl font-bold tracking-tight text-ink">Feedback Overview</h1>
+              <p className="mt-1 text-sm text-ink-dim">Track responses, engagement, and trends across all your forms</p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${CAMPAIGN_STATUS_STYLE[(campaignDetails?.status || "draft") as keyof typeof CAMPAIGN_STATUS_STYLE]}`}>
-                  {(campaignDetails?.status || "draft").toUpperCase()}
-                </span>
-                <span className="text-xs text-ink-dim">{campaignDetails?.formsCount || 0} forms</span>
+                <span className="text-xs text-ink-dim">{allForms.length} form{allForms.length !== 1 ? "s" : ""}</span>
                 <span className="text-xs text-ink-muted">|</span>
-                <span className="text-xs text-ink-dim">{campaignDetails?.totalResponses || 0} lifetime responses</span>
-              </div>
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <label className="text-xs font-medium uppercase tracking-wide text-ink-muted">Campaign:</label>
-                {campaigns.length > 0 ? (
-                  <Select value={selectedCampaign} onValueChange={setSelectedCampaign}>
-                    <SelectTrigger className="w-64 border-white/15 bg-white/[0.04] text-ink focus:border-gold/40 focus:ring-gold/20">
-                      <SelectValue>
-                        {selectedCampaignSummary ? selectedCampaignSummary.name : "Select a campaign"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent className="border-white/10 bg-surface-raised text-ink">
-                      {campaigns.map((campaign) => (
-                        <SelectItem key={campaign.id} value={campaign.id} className="focus:bg-gold/10 focus:text-gold">
-                          {campaign.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="inline-flex h-9 items-center rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs text-ink-muted">
-                    {isLive ? "No active campaigns available" : "No campaigns available"}
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setIsLive((prev) => !prev)}
-                  className={`inline-flex h-11 items-center gap-3 rounded-xl border px-3.5 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 ${
-                    isLive
-                      ? "border-mint/40 bg-mint/10 text-mint focus-visible:ring-mint/30"
-                      : "border-white/15 bg-white/[0.04] text-ink-dim focus-visible:ring-white/20"
-                  }`}
-                  role="switch"
-                  aria-checked={isLive}
-                  aria-label={`Live analytics ${isLive ? "enabled" : "disabled"}`}
-                >
-                  <span
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-colors ${
-                      isLive ? "border-mint/40 bg-mint/20" : "border-white/15 bg-white/[0.06]"
-                    }`}
-                    aria-hidden="true"
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                        isLive ? "translate-x-5" : "translate-x-0.5"
-                      }`}
-                    />
-                  </span>
-                  <Activity className={`h-4 w-4 ${isLive ? "text-mint" : "text-ink-dim"}`} />
-                  <span className="tracking-wide">Live Analytics</span>
-                  <span
-                    className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
-                      isLive ? "bg-mint/20 text-mint" : "bg-white/10 text-ink-dim"
-                    }`}
-                  >
-                    {isLive ? "ON" : "OFF"}
-                  </span>
-                </button>
+                <span className="text-xs text-ink-dim">{realResponses.length} lifetime response{realResponses.length !== 1 ? "s" : ""}</span>
               </div>
             </div>
 
             <div className="flex flex-col items-start gap-3 sm:items-end">
-              <p className="text-xs uppercase tracking-wide text-ink-muted">Current Campaign</p>
-              <p className="text-sm font-medium text-ink-dim">{campaignDetails?.name || "No campaign available"}</p>
-              <div className="w-56">
-                <div className="mb-1 flex items-center justify-between text-[11px] text-ink-dim">
-                  <span>Engagement progress</span>
-                  <span className="tvx-num">{engagementProgress}%</span>
-                </div>
-                <div className="h-2 w-full rounded-full bg-white/[0.06]">
-                  <div
-                    className="h-2 rounded-full bg-gradient-to-r from-gold-deep to-gold"
-                    style={{ width: `${engagementProgress}%` }}
-                  />
-                </div>
-              </div>
               <button
                 onClick={() => router.push("/client/create")}
                 className="inline-flex w-full items-center justify-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105 sm:w-auto"
@@ -683,9 +548,9 @@ export default function ClientHomePage() {
                 <BarChart3 className="h-3.5 w-3.5" />
                 Analytics Workspace
               </p>
-              <h3 className="mt-1 text-base font-semibold text-ink">Comparative Campaign Analytics</h3>
+              <h3 className="mt-1 text-base font-semibold text-ink">Deep-dive Analytics</h3>
               <p className="mt-1 text-sm text-ink-dim">
-                Compare up to 3 campaigns, generate executive insights, and export reports as PDF.
+                Compare forms side by side, generate executive insights, and export reports as PDF.
               </p>
             </div>
             <button
@@ -703,7 +568,7 @@ export default function ClientHomePage() {
             <h2 className="mb-2 text-lg font-semibold text-ink">Feedback Trends</h2>
             {aggregates.totalFeedbacks === 0 ? (
               <p className="flex h-[300px] items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.02] text-center text-sm text-ink-muted">
-                No responses recorded for this campaign in this window yet.
+                No responses recorded in this window yet.
               </p>
             ) : (
               <ResponsiveContainer width="100%" height={340}>
@@ -840,7 +705,7 @@ export default function ClientHomePage() {
                   </div>
                 )
               })}
-              {!feedbackItems.length ? <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-4 text-center text-sm text-ink-muted">No feedback captured for this campaign yet.</p> : null}
+              {!feedbackItems.length ? <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-4 text-center text-sm text-ink-muted">No feedback captured yet.</p> : null}
             </div>
           </div>
         </section>
@@ -859,7 +724,7 @@ export default function ClientHomePage() {
             <div className="space-y-2">
               {recentForms.length === 0 ? (
                 <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-6 text-center text-sm text-ink-muted">
-                  No forms available yet. Use Create Form to launch your first feedback campaign.
+                  No forms available yet. Use Create Form to launch your first feedback form.
                 </p>
               ) : (
                 recentForms.map((form) => {

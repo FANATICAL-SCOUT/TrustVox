@@ -1,8 +1,20 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { UserCircle2, Save } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { useRouter } from "next/navigation"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import {
+  Building2,
+  Mail,
+  LogOut,
+  Save,
+  Lock,
+  CheckCircle2,
+  AlertCircle,
+  ArrowLeft,
+} from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
 type ProfileFields = {
@@ -11,18 +23,21 @@ type ProfileFields = {
   email: string
 }
 
-const DEFAULT_PROFILE: ProfileFields = {
-  contactName: "Client User",
-  companyName: "Trustvox Client",
+const EMPTY_PROFILE: ProfileFields = {
+  contactName: "",
+  companyName: "",
   email: "",
 }
 
+const cardCls = "rounded-xl border border-white/[0.07] bg-white/[0.02] p-5"
+
 export default function ClientProfilePage() {
-  const [profile, setProfile] = useState(DEFAULT_PROFILE)
-  const [draft, setDraft] = useState(DEFAULT_PROFILE)
-  const [editing, setEditing] = useState(false)
+  const router = useRouter()
+  const [loaded, setLoaded] = useState(false)
+  const [profile, setProfile] = useState<ProfileFields>(EMPTY_PROFILE)
+  const [draft, setDraft] = useState<ProfileFields>(EMPTY_PROFILE)
   const [saving, setSaving] = useState(false)
-  const [savedMessage, setSavedMessage] = useState("")
+  const [banner, setBanner] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   useEffect(() => {
     let active = true
@@ -37,13 +52,14 @@ export default function ClientProfilePage() {
         .maybeSingle()
       if (!active) return
 
-      const loaded: ProfileFields = {
-        contactName: data?.contact_name || DEFAULT_PROFILE.contactName,
-        companyName: data?.company_name || DEFAULT_PROFILE.companyName,
+      const loadedProfile: ProfileFields = {
+        contactName: data?.contact_name || "",
+        companyName: data?.company_name || "",
         email: data?.email || user.email || "",
       }
-      setProfile(loaded)
-      setDraft(loaded)
+      setProfile(loadedProfile)
+      setDraft(loadedProfile)
+      setLoaded(true)
     })
 
     return () => {
@@ -61,12 +77,19 @@ export default function ClientProfilePage() {
       .join("")
   }, [draft.companyName, draft.contactName])
 
+  const dirty =
+    loaded && (draft.contactName !== profile.contactName || draft.companyName !== profile.companyName)
+
+  const canSave = dirty && draft.contactName.trim().length > 0 && !saving
+
   const onChange = (field: keyof ProfileFields, value: string) => {
     setDraft((prev) => ({ ...prev, [field]: value }))
   }
 
   const handleSave = async () => {
+    if (!canSave) return
     setSaving(true)
+    setBanner(null)
     const supabase = createClient()
     const {
       data: { user },
@@ -80,111 +103,175 @@ export default function ClientProfilePage() {
     const { error } = await supabase
       .from("profiles")
       .update({
-        contact_name: draft.contactName,
-        company_name: draft.companyName,
+        contact_name: draft.contactName.trim(),
+        company_name: draft.companyName.trim(),
       })
       .eq("id", user.id)
 
     setSaving(false)
     if (error) {
-      setSavedMessage("Could not save changes. Please try again.")
-      window.setTimeout(() => setSavedMessage(""), 2500)
+      setBanner({ type: "error", text: "Could not save changes. Please try again." })
       return
     }
 
     setProfile(draft)
-    setEditing(false)
-    setSavedMessage("Profile updated successfully.")
-    window.setTimeout(() => setSavedMessage(""), 2500)
+    setBanner({ type: "success", text: "Profile updated successfully." })
   }
 
-  const handleCancel = () => {
-    setDraft(profile)
-    setEditing(false)
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push("/")
   }
-
-  const inputClass =
-    "w-full rounded-lg border border-white/15 bg-white/[0.03] px-3 py-2 text-sm text-ink outline-none transition focus:border-gold/40 focus:ring-2 focus:ring-gold/20 disabled:text-ink-muted disabled:opacity-70"
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="max-w-3xl mx-auto px-4 py-8">
-        <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6">
-          <h1 className="font-display text-2xl font-bold text-ink">Client Profile</h1>
-          <p className="mt-1 text-sm text-ink-dim">Manage your account and company details.</p>
+    <div className={`mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 ${dirty ? "pb-28" : ""}`}>
+      <button
+        onClick={() => router.back()}
+        className="mb-4 inline-flex items-center gap-2 text-sm text-ink-muted transition-colors hover:text-ink"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back
+      </button>
 
-          <div className="mt-6 space-y-6">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-16 w-16 border border-white/10">
-                <AvatarFallback className="bg-surface-raised text-ink">{initials || "C"}</AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-medium text-ink">{draft.contactName || "Client User"}</p>
-                <p className="text-sm text-ink-dim">{draft.companyName}</p>
-              </div>
+      {/* Header */}
+      <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-4">
+          <span className="grid h-11 w-11 flex-none place-items-center rounded-xl border border-gold/20 bg-gold/[0.08] text-gold">
+            <Building2 className="h-5 w-5" />
+          </span>
+          <div>
+            <h1 className="font-display text-3xl font-extrabold tracking-[-0.03em] text-ink">Client profile</h1>
+            <p className="mt-1 text-ink-muted">Manage your account and company details</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Save result banner */}
+      {banner ? (
+        <div
+          role="status"
+          className={`mb-6 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${
+            banner.type === "success"
+              ? "border-mint/25 bg-mint/10 text-mint"
+              : "border-destructive/30 bg-destructive/10 text-destructive"
+          }`}
+        >
+          {banner.type === "success" ? (
+            <CheckCircle2 className="h-4 w-4 flex-none" />
+          ) : (
+            <AlertCircle className="h-4 w-4 flex-none" />
+          )}
+          {banner.text}
+        </div>
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Left: identity card */}
+        <div className={`${cardCls} h-fit lg:col-span-1`}>
+          <div className="text-center">
+            <div className="mx-auto mb-4 grid h-24 w-24 place-items-center rounded-full bg-gradient-to-br from-[#f2c877] to-gold-deep text-3xl font-bold text-[#241a06]">
+              {initials || "C"}
             </div>
+            <h2 className="font-display text-xl font-bold text-ink">{loaded ? draft.contactName || "—" : "…"}</h2>
+            <p className="mt-0.5 text-sm text-ink-muted">{loaded ? draft.companyName || "Client" : "…"}</p>
+          </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-ink-muted">Client Name</label>
-                <input
+          <div className="my-5 h-px bg-white/[0.07]" />
+
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm text-ink-dim">
+              <Mail className="h-4 w-4 flex-none text-gold" /> <span className="truncate">{profile.email || "—"}</span>
+            </div>
+          </div>
+
+          <div className="my-5 h-px bg-white/[0.07]" />
+
+          <button
+            onClick={handleLogout}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-400/30 bg-rose-500/[0.06] px-4 py-2 text-sm font-medium text-rose-300 transition-all hover:bg-rose-500/10"
+          >
+            <LogOut className="h-4 w-4" /> Logout
+          </button>
+        </div>
+
+        {/* Right: edit fields */}
+        <div className="space-y-6 lg:col-span-2">
+          <div className={cardCls}>
+            <h3 className="font-display text-lg font-bold text-ink">Edit profile</h3>
+            <p className="mt-0.5 text-sm text-ink-muted">Update your contact name and company name.</p>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <Label htmlFor="profile-contact-name" className="text-sm font-medium text-ink-dim">
+                  Client name
+                </Label>
+                <Input
+                  id="profile-contact-name"
                   value={draft.contactName}
                   onChange={(e) => onChange("contactName", e.target.value)}
-                  disabled={!editing}
-                  className={inputClass}
+                  maxLength={120}
+                  className="mt-1 border-white/[0.07] bg-white/[0.02] text-ink"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-ink-muted">Company Name</label>
-                <input
+              <div>
+                <Label htmlFor="profile-company-name" className="text-sm font-medium text-ink-dim">
+                  Company name
+                </Label>
+                <Input
+                  id="profile-company-name"
                   value={draft.companyName}
                   onChange={(e) => onChange("companyName", e.target.value)}
-                  disabled={!editing}
-                  className={inputClass}
+                  maxLength={120}
+                  className="mt-1 border-white/[0.07] bg-white/[0.02] text-ink"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-ink-muted">Email ID</label>
-                <input type="email" value={draft.email} disabled className={inputClass} />
+              <div>
+                <Label className="text-sm font-medium text-ink-dim">Email</Label>
+                <div className="mt-1 flex items-center gap-2 rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2 text-sm font-medium text-ink-dim">
+                  <Lock className="h-3.5 w-3.5 flex-none text-ink-muted" />
+                  <span className="truncate">{profile.email || "—"}</span>
+                </div>
+                <p className="mt-1.5 text-xs text-ink-muted">Email is permanent and can&apos;t be changed.</p>
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-ink-muted">Role</label>
-                <input value="Client" disabled className={inputClass} />
+              <div>
+                <Label className="text-sm font-medium text-ink-dim">Role</Label>
+                <div className="mt-1 flex items-center gap-2 rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2 text-sm font-medium text-ink-dim">
+                  Client
+                </div>
               </div>
-            </div>
-
-            {savedMessage ? <p className="text-sm text-mint">{savedMessage}</p> : null}
-
-            <div className="flex items-center gap-2">
-              {!editing ? (
-                <button
-                  onClick={() => setEditing(true)}
-                  className="inline-flex items-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105"
-                >
-                  <UserCircle2 className="w-4 h-4 mr-2" /> Edit Profile
-                </button>
-              ) : (
-                <>
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="inline-flex items-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105 disabled:opacity-60"
-                  >
-                    <Save className="w-4 h-4 mr-2" /> {saving ? "Saving…" : "Save/Update"}
-                  </button>
-                  <button
-                    onClick={handleCancel}
-                    disabled={saving}
-                    className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium text-ink-dim transition hover:bg-white/[0.06] hover:text-ink"
-                  >
-                    Cancel
-                  </button>
-                </>
-              )}
             </div>
           </div>
         </div>
-      </main>
+      </div>
+
+      {/* Sticky Save bar — appears only when there are unsaved changes (matches the user profile pattern). */}
+      {dirty ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4 sm:pb-6">
+          <div className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-white/[0.1] bg-surface-raised/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
+            <span className="flex min-w-0 flex-1 items-center gap-2 text-sm">
+              {draft.contactName.trim().length === 0 ? (
+                <>
+                  <AlertCircle className="h-4 w-4 flex-none text-destructive" />
+                  <span className="truncate text-destructive">Client name can&apos;t be empty</span>
+                </>
+              ) : (
+                <>
+                  <span className="h-2 w-2 flex-none rounded-full bg-gold" />
+                  <span className="truncate text-ink-dim">You have unsaved changes</span>
+                </>
+              )}
+            </span>
+            <Button
+              onClick={handleSave}
+              disabled={!canSave}
+              className="flex-none bg-gradient-to-b from-[#f2c877] to-gold-deep font-semibold text-[#241a06] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Save className="mr-1.5 h-4 w-4" />
+              {saving ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

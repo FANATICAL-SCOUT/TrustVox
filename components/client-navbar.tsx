@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Rocket, LogOut, FileText, Plus, User, ChevronDown, BarChart3, History, Menu } from "lucide-react"
+import { LayoutDashboard, LogOut, FileText, Plus, User, ChevronDown, BarChart3, History, Menu } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -22,7 +22,6 @@ const navItems = [
   { name: "Dashboard", href: "/client/dashboard", icon: LayoutDashboard, match: ["/client/dashboard"] },
   { name: "My Forms", href: "/client/forms", icon: FileText, match: ["/client/forms"] },
   { name: "Create Form", href: "/client/create", icon: Plus, match: ["/client/create", "/client/create-feedback"] },
-  { name: "Campaigns", href: "/client/campaigns", icon: Rocket, match: ["/client/campaigns"] },
   { name: "Analytics", href: "/client/analytics", icon: BarChart3, match: ["/client/analytics"] },
   { name: "History", href: "/client/history", icon: History, match: ["/client/history"] },
 ]

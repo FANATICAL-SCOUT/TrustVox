@@ -14,7 +14,6 @@ import {
 import {
   getClientForms, deleteForm, submitFormForApproval, type FeedbackForm, type FormStatus,
 } from "@/lib/feedback-store"
-import { getCampaignForForm, listCampaigns, type ClientCampaign } from "@/lib/client-campaigns"
 
 type FilterKey = "all" | FormStatus
 
@@ -47,14 +46,12 @@ function StatusBadge({ status }: { status: FormStatus }) {
 
 function FormCard({
   form,
-  campaigns,
   onEdit,
   onDelete,
   onSubmit,
   onAnalytics,
 }: {
   form: FeedbackForm
-  campaigns: ClientCampaign[]
   onEdit: (id: string) => void
   onDelete: (id: string) => void
   onSubmit: (id: string) => void
@@ -64,7 +61,6 @@ function FormCard({
   const canSubmit = form.status === "draft"
   const isLive    = form.status === "approved"
   const isPending = form.status === "pending"
-  const campaign = getCampaignForForm(form, campaigns)
 
   return (
     <div className="group rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 transition-all duration-200 hover:border-white/20">
@@ -86,9 +82,6 @@ function FormCard({
           <h3 className="text-base font-semibold text-ink truncate group-hover:text-gold transition-colors">
             {form.title || "Untitled Form"}
           </h3>
-          <p className="mt-1 text-[11px] text-ink-muted">
-            Campaign: <span className="text-ink-dim">{campaign?.name ?? "Unassigned"}</span>
-          </p>
           {form.description && (
             <p className="text-xs text-ink-dim mt-0.5 line-clamp-1">{form.description}</p>
           )}
@@ -173,7 +166,6 @@ function FormCard({
 export default function ClientFormsPage() {
   const router = useRouter()
   const [forms, setForms] = useState<FeedbackForm[]>([])
-  const [campaigns, setCampaigns] = useState<ClientCampaign[]>([])
   const [filter, setFilter] = useState<FilterKey>("all")
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
@@ -184,7 +176,6 @@ export default function ClientFormsPage() {
 
   useEffect(() => {
     void loadForms()
-    void listCampaigns().then(setCampaigns)
   }, [])
 
   const showToast = (msg: string) => {
@@ -317,7 +308,6 @@ export default function ClientFormsPage() {
               <FormCard
                 key={form.id}
                 form={form}
-                campaigns={campaigns}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onSubmit={handleSubmit}
