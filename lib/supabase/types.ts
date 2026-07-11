@@ -159,6 +159,35 @@ export type Database = {
           },
         ]
       }
+      ai_generation_log: {
+        Row: {
+          id: string
+          user_id: string
+          feature: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          feature: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          feature?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_generation_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       redemptions: {
         Row: {
           id: string

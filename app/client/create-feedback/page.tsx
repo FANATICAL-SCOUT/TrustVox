@@ -6,6 +6,7 @@ import {
   Plus, Trash2, ChevronUp, ChevronDown, Eye, Save, Send,
   Star, Type, AlignLeft, List, CheckSquare, Mic,
   GripVertical, X, Check, AlertCircle, Settings, Search,
+  Sparkles, Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -282,6 +283,9 @@ function CreateFeedbackInner() {
   const [submitState, setSubmitState] = useState("idle")
   const [toast, setToast] = useState<ToastState | null>(null)
   const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null)
+  const [aiPrompt, setAiPrompt] = useState("")
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
   const [draggingQuestionId, setDraggingQuestionId] = useState<string | null>(null)
   const [dragOverQuestionId, setDragOverQuestionId] = useState<string | null>(null)
 
@@ -375,6 +379,45 @@ function CreateFeedbackInner() {
     setCompanyId(matched.id)
     setCompanyPickerOpen(false)
     setCompanyQuery("")
+  }
+
+  // AI question generation (Phase 11 · Session 11.5) — calls the server route,
+  // which is the only place a model is invoked; this just drops the validated
+  // result into the same question-state the manual builder uses, fully editable.
+  async function handleGenerateQuestions() {
+    const prompt = aiPrompt.trim()
+    if (!prompt) return
+    setAiLoading(true)
+    setAiError(null)
+    try {
+      const res = await fetch("/api/generate-questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setAiError(data?.error ?? "Couldn't generate — try again.")
+        return
+      }
+      const generated = (data.questions as Array<{ title: string; type: QuestionType; options: string[] }>).map(
+        (q) => ({
+          id: newQuestionId(),
+          type: q.type,
+          title: q.title,
+          required: true,
+          options: q.options ?? [],
+        }),
+      )
+      setQuestions((prev) => [...prev, ...generated])
+      setExpandedQuestion(null)
+      setAiPrompt("")
+      showToast(`${generated.length} AI-generated question${generated.length === 1 ? "" : "s"} added — review and edit below`)
+    } catch {
+      setAiError("Couldn't generate — try again.")
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   // ── Question helpers ────────────────────────────────────────────────────────
@@ -867,6 +910,60 @@ function CreateFeedbackInner() {
                     />
                   </div>
                 )}
+
+                {/* AI Question Generator */}
+                <div className="pt-2">
+                  <p className="text-xs text-ink-dim font-medium flex items-center gap-1.5 mb-3">
+                    <Sparkles size={12} className="text-gold" />
+                    Generate with AI
+                    <span className="text-ink-muted font-normal">— describe what you want feedback on</span>
+                  </p>
+                  <div className="rounded-lg border border-gold/20 bg-gold/[0.04] p-3.5">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Input
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value.slice(0, 500))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !aiLoading && aiPrompt.trim()) {
+                            e.preventDefault()
+                            void handleGenerateQuestions()
+                          }
+                        }}
+                        placeholder="e.g. our new mobile checkout flow"
+                        className={FIELD_CLASS + " flex-1"}
+                        disabled={aiLoading}
+                        maxLength={500}
+                      />
+                      <Button
+                        onClick={() => void handleGenerateQuestions()}
+                        disabled={aiLoading || !aiPrompt.trim()}
+                        className="bg-gradient-to-b from-[#f2c877] to-gold-deep text-[#241a06] font-semibold hover:brightness-105 text-xs gap-1.5 shrink-0"
+                      >
+                        {aiLoading ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin" />
+                            Generating…
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={14} />
+                            Generate Questions
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {aiError ? (
+                      <p className="text-[11px] text-red-400 mt-2 flex items-center gap-1.5">
+                        <AlertCircle size={12} />
+                        {aiError}
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-ink-muted mt-2">
+                        AI-generated — review and edit before saving. Adds 5 questions to the list below.
+                      </p>
+                    )}
+                  </div>
+                </div>
 
                 {/* Quick Start Templates */}
                 <div className="pt-2">
