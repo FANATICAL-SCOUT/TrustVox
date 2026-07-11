@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { getFormById, getResponsesByFormId, type FeedbackForm, type FormResponse } from "@/lib/feedback-store"
+import AiSummaryPanel from "@/components/ai-summary-panel"
 
 function formatDate(value: string | undefined) {
   if (!value) return "-"
@@ -135,6 +136,13 @@ export default function FormAnalyticsPage() {
               <p className="text-xs text-ink-muted">Last update</p>
             </div>
           </div>
+        </section>
+
+        {/* AI summary panel (Phase 12 · Step 12.1) — shares the exact component
+            11.6 built for client/analytics, pointed at this single form's own
+            page instead. Same route, same data-gate, no changes to either. */}
+        <section className="mb-6">
+          <AiSummaryPanel formId={form.id} />
         </section>
 
         <section className="grid gap-4 lg:grid-cols-2">

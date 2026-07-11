@@ -2,15 +2,12 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react"
 import {
-  AlertCircle,
   BarChart3,
   Check,
   ChevronDown,
   Download,
   FileText,
   Layers,
-  Loader2,
-  Sparkles,
   TrendingUp,
 } from "lucide-react"
 import {
@@ -34,6 +31,7 @@ import {
 } from "recharts"
 import { getClientForms, getResponsesByFormId, subscribeToFormsUpdates, type FeedbackForm, type FormResponse } from "@/lib/feedback-store"
 import AnalyticsPDFTemplate from "@/components/analytics-pdf-template"
+import AiSummaryPanel from "@/components/ai-summary-panel"
 import { useSearchParams } from "next/navigation"
 
 const REPORTS_STORAGE_KEY = "trustvox.client.analytics.reports.v1"
@@ -698,14 +696,6 @@ function ClientAnalyticsPageContent() {
   const [pdfReportId, setPdfReportId] = useState<string | null>(null)
   const [isHydrated, setIsHydrated] = useState(false)
 
-  // AI summary (Phase 11 · Session 11.6) — keyed by formId so switching the
-  // selected single form doesn't show a stale summary from a different form.
-  const [aiSummaryFormId, setAiSummaryFormId] = useState<string | null>(null)
-  const [aiSummaryText, setAiSummaryText] = useState<string | null>(null)
-  const [aiSummaryInsufficientCount, setAiSummaryInsufficientCount] = useState<number | null>(null)
-  const [aiSummaryLoading, setAiSummaryLoading] = useState(false)
-  const [aiSummaryError, setAiSummaryError] = useState<string | null>(null)
-
   const campaignMap = useMemo(() => new Map(campaigns.map((campaign) => [campaign.id, campaign])), [campaigns])
 
   useEffect(() => {
@@ -1045,46 +1035,7 @@ function ClientAnalyticsPageContent() {
     setPdfReportId(report.id)
     setWarning("")
     setActiveReportId(null)
-    // A new single-form report invalidates any AI summary shown for a
-    // previous form — clear it so the panel doesn't show a stale read.
-    setAiSummaryFormId(null)
-    setAiSummaryText(null)
-    setAiSummaryInsufficientCount(null)
-    setAiSummaryError(null)
     scrollToReportOutput()
-  }
-
-  // AI summary (Phase 11 · Session 11.6) — on-demand fetch, not auto-fired on
-  // form selection, so browsing forms never silently burns the rate limit.
-  // Reuses the exact auth-gate/rate-limit/validation pattern from 11.5's
-  // /api/generate-questions (see that route for the shared shell).
-  const handleGenerateAiSummary = async (formId: string) => {
-    setAiSummaryLoading(true)
-    setAiSummaryError(null)
-    try {
-      const res = await fetch("/api/summarize-responses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ formId }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setAiSummaryError(data?.error ?? "Couldn't generate a summary — try again.")
-        return
-      }
-      setAiSummaryFormId(formId)
-      if (data.insufficientData) {
-        setAiSummaryText(null)
-        setAiSummaryInsufficientCount(data.responseCount ?? 0)
-      } else {
-        setAiSummaryText(data.summary as string)
-        setAiSummaryInsufficientCount(null)
-      }
-    } catch {
-      setAiSummaryError("Couldn't generate a summary — try again.")
-    } finally {
-      setAiSummaryLoading(false)
-    }
   }
 
   const exportReportToPdf = async (reportToDownload?: AnalyticsReport) => {
@@ -1368,59 +1319,11 @@ function ClientAnalyticsPageContent() {
                     </div>
                   </div>
 
-                  {/* AI summary panel (Phase 11 · Session 11.6) — real Groq call over
-                      this form's actual responses, on demand (not auto-fired), data-gated
-                      on a minimum response count with an honest empty state below it. */}
-                  <div className="rounded-xl border border-dashed border-gold/25 bg-gold/[0.04] p-4">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-gold" />
-                        <h3 className="text-sm font-semibold text-ink">AI Summary</h3>
-                      </div>
-                      <button
-                        onClick={() => void handleGenerateAiSummary(singleCampaign.id)}
-                        disabled={aiSummaryLoading}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-3 py-1.5 text-xs font-semibold text-[#241a06] transition hover:brightness-105 disabled:opacity-60"
-                      >
-                        {aiSummaryLoading ? (
-                          <>
-                            <Loader2 size={13} className="animate-spin" />
-                            Analyzing…
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles size={13} />
-                            {aiSummaryFormId === singleCampaign.id && (aiSummaryText || aiSummaryInsufficientCount !== null)
-                              ? "Regenerate"
-                              : "Generate Summary"}
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    {aiSummaryError ? (
-                      <p className="mt-3 flex items-center gap-1.5 text-[11px] text-red-400">
-                        <AlertCircle size={12} />
-                        {aiSummaryError}
-                      </p>
-                    ) : aiSummaryFormId === singleCampaign.id && aiSummaryInsufficientCount !== null ? (
-                      <p className="mt-3 text-sm text-ink-dim">
-                        Not enough responses yet to analyze — this form has {aiSummaryInsufficientCount}{" "}
-                        response{aiSummaryInsufficientCount === 1 ? "" : "s"} so far. A meaningful AI read needs a
-                        few more real submissions.
-                      </p>
-                    ) : aiSummaryFormId === singleCampaign.id && aiSummaryText ? (
-                      <div className="mt-3 space-y-2">
-                        <p className="text-sm leading-relaxed text-ink-dim whitespace-pre-line">{aiSummaryText}</p>
-                        <p className="text-[10px] text-ink-muted">AI summary — review before acting.</p>
-                      </div>
-                    ) : (
-                      <p className="mt-3 text-sm text-ink-dim">
-                        A plain-language read of what this form&apos;s real responses are telling you — themes and
-                        suggested actions. Generate it on demand; review before acting.
-                      </p>
-                    )}
-                  </div>
+                  {/* AI summary panel (Phase 11 · Session 11.6, extracted as a shared
+                      component in Phase 12 · Step 12.1) — real Groq call over this
+                      form's actual responses, on demand, data-gated on a minimum
+                      response count with an honest empty state below it. */}
+                  <AiSummaryPanel formId={singleCampaign.id} />
 
                   <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
                     <h3 className="mb-3 text-lg font-semibold text-ink">Response Trend</h3>
