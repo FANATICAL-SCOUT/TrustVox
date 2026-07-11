@@ -6,7 +6,7 @@ import {
   Plus, Trash2, ChevronUp, ChevronDown, Eye, Save, Send,
   Star, Type, AlignLeft, List, CheckSquare, Mic,
   GripVertical, X, Check, AlertCircle, Settings, Search,
-  Sparkles, Loader2,
+  Sparkles, Loader2, CheckCircle2, Lightbulb, Wand2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,6 +30,16 @@ import { logFlow } from "@/lib/debug-log"
 import { getActiveApprovedCompanies, subscribeToApprovedCompanies, type ApprovedCompany } from "@/lib/approved-company-store"
 
 type ToastState = { msg: string; type: "success" | "error" }
+
+// Per-question AI critique state (Phase 12 · Step 12.3).
+type QuestionCritique = {
+  status: "loading" | "done" | "error"
+  checkedTitle: string           // the title text that was actually critiqued
+  ok?: boolean                   // model verdict: is the question clear/fair?
+  critique?: string              // short explanation (present on done)
+  suggestion?: string            // neutral rewrite (only when ok === false)
+  error?: string                 // message on status === "error"
+}
 
 // Upper bound on the per-response TVX reward. Mirrors the DB `reward_tokens
 // between 1 and 1000` CHECK (migration 0008) so the form can't submit a value
@@ -265,6 +275,10 @@ function CreateFeedbackInner() {
   const [otherCategoryDetails, setOtherCategoryDetails] = useState("")
   const [rewardTokens, setRewardTokens] = useState("24")
   const [questions, setQuestions] = useState<Question[]>([])
+  // Per-question AI critique (Phase 12 · Step 12.3), keyed by question id. On-demand
+  // only — never auto-fired. `checkedTitle` is the exact title we critiqued, so an
+  // edit after a check can invalidate the stale result instead of showing it as-is.
+  const [critiques, setCritiques] = useState<Record<string, QuestionCritique>>({})
   const [formId, setFormId] = useState<string | null>(null)
   const [approvedCompanies, setApprovedCompanies] = useState<ApprovedCompany[]>([])
   const [companyPickerOpen, setCompanyPickerOpen] = useState(false)
@@ -437,6 +451,66 @@ function CreateFeedbackInner() {
     setQuestions((prev) =>
       prev.map((q) => (q.id === id ? { ...q, ...patch } : q))
     )
+    // Editing the title invalidates any prior AI critique for this question —
+    // drop it so a stale verdict can't linger over changed text.
+    if (patch.title !== undefined) {
+      setCritiques((prev) => {
+        if (!prev[id]) return prev
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+    }
+  }
+
+  // On-demand AI critique of one question (Phase 12 · Step 12.3). Never auto-fired,
+  // never auto-edits — the client sees the suggestion and chooses to apply it.
+  async function checkQuestion(q: Question) {
+    const title = q.title.trim()
+    if (!title) {
+      setCritiques((prev) => ({
+        ...prev,
+        [q.id]: { status: "error", checkedTitle: "", error: "Add question text first." },
+      }))
+      return
+    }
+    setCritiques((prev) => ({ ...prev, [q.id]: { status: "loading", checkedTitle: title } }))
+    try {
+      const res = await fetch("/api/critique-question", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, type: q.type }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setCritiques((prev) => ({
+          ...prev,
+          [q.id]: { status: "error", checkedTitle: title, error: data?.error ?? "AI review failed." },
+        }))
+        return
+      }
+      setCritiques((prev) => ({
+        ...prev,
+        [q.id]: {
+          status: "done",
+          checkedTitle: title,
+          ok: Boolean(data.ok),
+          critique: typeof data.critique === "string" ? data.critique : "",
+          suggestion: typeof data.suggestion === "string" ? data.suggestion : "",
+        },
+      }))
+    } catch {
+      setCritiques((prev) => ({
+        ...prev,
+        [q.id]: { status: "error", checkedTitle: title, error: "AI review failed. Please try again." },
+      }))
+    }
+  }
+
+  // Apply the AI's suggested rewrite (client's explicit choice — updateQuestion
+  // clears the now-satisfied critique for us).
+  function applySuggestion(id: string, suggestion: string) {
+    updateQuestion(id, { title: suggestion })
   }
 
   function removeQuestion(id: string) {
@@ -1192,7 +1266,22 @@ function CreateFeedbackInner() {
                             {/* Title & Type Row */}
                             <div className="grid sm:grid-cols-2 gap-4">
                               <div>
-                                <Label className="text-xs font-medium text-ink-dim mb-2 block">Question Title *</Label>
+                                <div className="flex items-center justify-between mb-2">
+                                  <Label className="text-xs font-medium text-ink-dim">Question Title *</Label>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); void checkQuestion(q) }}
+                                    disabled={critiques[q.id]?.status === "loading" || !q.title.trim()}
+                                    className="flex items-center gap-1 text-[11px] font-medium text-gold hover:text-gold-deep disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    title="AI review — flags leading or unclear phrasing"
+                                  >
+                                    {critiques[q.id]?.status === "loading" ? (
+                                      <><Loader2 size={12} className="animate-spin" /> Checking…</>
+                                    ) : (
+                                      <><Sparkles size={12} /> Check with AI</>
+                                    )}
+                                  </button>
+                                </div>
                                 <Input
                                   value={q.title}
                                   onChange={(e) => updateQuestion(q.id, { title: e.target.value })}
@@ -1236,6 +1325,54 @@ function CreateFeedbackInner() {
                                 </Select>
                               </div>
                             </div>
+
+                            {/* AI critique result (Phase 12 · Step 12.3) — on-demand, never auto-edits */}
+                            {(() => {
+                              const c = critiques[q.id]
+                              if (!c || c.status === "loading") return null
+                              if (c.status === "error") {
+                                return (
+                                  <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/[0.06] p-3 text-xs text-destructive">
+                                    <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                                    <span>{c.error}</span>
+                                  </div>
+                                )
+                              }
+                              // done
+                              if (c.ok) {
+                                return (
+                                  <div className="flex items-start gap-2 rounded-lg border border-mint/25 bg-mint/[0.06] p-3 text-xs">
+                                    <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-mint" />
+                                    <span className="text-ink-dim">{c.critique || "This question looks clear and neutral."}</span>
+                                  </div>
+                                )
+                              }
+                              return (
+                                <div className="rounded-lg border border-gold/25 bg-gold/[0.05] p-3 space-y-2.5">
+                                  <div className="flex items-start gap-2 text-xs">
+                                    <Lightbulb size={14} className="mt-0.5 shrink-0 text-gold" />
+                                    <span className="text-ink-dim">{c.critique}</span>
+                                  </div>
+                                  {c.suggestion && (
+                                    <div className="flex flex-col gap-2 rounded-md border border-white/10 bg-white/[0.03] p-2.5 sm:flex-row sm:items-center sm:justify-between">
+                                      <p className="text-xs text-ink">
+                                        <span className="text-ink-muted">Suggested: </span>
+                                        &ldquo;{c.suggestion}&rdquo;
+                                      </p>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); applySuggestion(q.id, c.suggestion!) }}
+                                        className="flex shrink-0 items-center gap-1 self-start rounded-md border border-gold/30 bg-gold/10 px-2.5 py-1 text-[11px] font-medium text-gold hover:bg-gold/20 transition-colors sm:self-auto"
+                                      >
+                                        <Wand2 size={12} />
+                                        Use this
+                                      </button>
+                                    </div>
+                                  )}
+                                  <p className="text-[10px] text-ink-muted">AI suggestion — review before applying. Your wording is never changed automatically.</p>
+                                </div>
+                              )
+                            })()}
 
                             {/* Options Editor */}
                             {hasOptionsType(q.type) && (
