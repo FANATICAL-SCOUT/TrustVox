@@ -3,7 +3,7 @@
 import { useState } from "react"
 import type { FormEvent } from "react"
 import { useRouter } from "next/navigation"
-import { UserRound, LogIn } from "lucide-react"
+import { Building2, LogIn } from "lucide-react"
 import AuthShell, { authFieldLabelClass, authInputClass } from "@/components/auth/auth-shell"
 import PasswordField from "@/components/auth/password-field"
 import { createClient } from "@/lib/supabase/client"
@@ -15,7 +15,7 @@ import {
   lockoutMessage,
 } from "@/lib/auth/login-guard-client"
 
-export default function UserLoginPage() {
+export default function ClientLoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -27,7 +27,7 @@ export default function UserLoginPage() {
     setError("")
 
     if (!email || !password) {
-      setError("Please enter both email and password.")
+      setError("Please enter both business email and password.")
       return
     }
 
@@ -51,14 +51,14 @@ export default function UserLoginPage() {
       return
     }
 
-    // This door is for users only — verify the real role, don't trust the email.
+    // Client door — enforce the real role before letting them in.
     const { data: profile } = await supabase
       .from("profiles")
       .select("role, status")
       .eq("id", data.user.id)
       .single()
 
-    if (profile?.role !== "user" || profile?.status === "blocked") {
+    if (profile?.role !== "client" || profile?.status === "blocked") {
       // Wrong door / blocked also counts as a failed attempt for this email.
       await supabase.auth.signOut()
       const after = await recordFailedLogin(email)
@@ -69,28 +69,28 @@ export default function UserLoginPage() {
 
     // Clean login — clear the failed-attempt slate for this email.
     await clearLoginAttempts(email)
-    router.replace(ROLE_HOME.user)
+    router.replace(ROLE_HOME.client)
   }
 
   return (
     <AuthShell
-      icon={UserRound}
-      title="User login"
-      subtitle="Sign in and continue to your user dashboard."
+      icon={Building2}
+      title="Client login"
+      subtitle="Sign in to your campaign workspace."
       backHref="/"
       backLabel="Back to home"
-      footerText="New here?"
-      footerLinkHref="/signup"
-      footerLinkLabel="Create user account"
+      footerText="Need an account?"
+      footerLinkHref="/client-signup"
+      footerLinkLabel="Register company"
       error={error}
       onSubmit={handleSubmit}
-      submitLabel={isSubmitting ? "Signing in…" : "Sign in as user"}
+      submitLabel={isSubmitting ? "Signing in…" : "Sign in as client"}
       submitIcon={LogIn}
       isSubmitting={isSubmitting}
     >
       <div>
         <label htmlFor="email" className={authFieldLabelClass}>
-          Email
+          Business email
         </label>
         <input
           id="email"
@@ -98,7 +98,7 @@ export default function UserLoginPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className={authInputClass}
-          placeholder="you@example.com"
+          placeholder="name@company.com"
           disabled={isSubmitting}
         />
       </div>

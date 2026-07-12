@@ -62,7 +62,7 @@ export default function ContactPage() {
           </nav>
           <div className="ml-auto">
             <Link
-              href="/login"
+              href="/signin"
               className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-ink transition-all hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]"
             >
               Sign in

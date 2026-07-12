@@ -8,7 +8,10 @@ import { ROLE_HOME, type AppRole } from "@/lib/auth/roles"
 // Gated by role: the three role groups below.
 
 // Auth pages: reachable while logged out; a logged-in user is bounced to their home.
-const AUTH_PAGES = new Set(["/login", "/signup", "/admin-login"])
+// `/signin` is the exception — it's the role-choice screen, so a logged-in user is
+// allowed through to it (it offers a one-click "continue as X" for their live
+// session AND a door to the other role). It's excluded from AUTH_PAGES for that reason.
+const AUTH_PAGES = new Set(["/login", "/signup", "/client-login", "/client-signup", "/admin-login"])
 
 /** Which role a path belongs to, or null if it's public. */
 function gateFor(path: string): AppRole | null {
@@ -33,7 +36,7 @@ export async function middleware(request: NextRequest) {
 
   // Logged out: gated routes hit the login wall; public + auth pages pass through.
   if (!user) {
-    if (gate) return redirectTo("/login")
+    if (gate) return redirectTo("/signin")
     return response
   }
 
@@ -54,13 +57,21 @@ export async function middleware(request: NextRequest) {
   // Blocked or missing profile → sign out and send to the login wall.
   if (!profile || profile.status === "blocked") {
     await supabase.auth.signOut()
-    return redirectTo("/login")
+    return redirectTo("/signin")
   }
 
   const home = ROLE_HOME[profile.role]
 
-  // Already authenticated → auth pages redirect to your own home.
-  if (isAuthPage) return redirectTo(home)
+  // Landing on an explicit login/signup door while a session is still live means
+  // the visitor deliberately wants to sign in — commonly as a *different* role
+  // (e.g. a User who now wants the Client door). Don't silently bounce them into
+  // the stale session's home; drop that session so the fresh login form loads.
+  // `/signin` (the role picker) is not in AUTH_PAGES precisely so it keeps the
+  // live session and can still offer "continue as X".
+  if (isAuthPage) {
+    await supabase.auth.signOut()
+    return redirectTo(path)
+  }
 
   // Gated route for a different role → bounce to your own home.
   if (gate && gate !== profile.role) return redirectTo(home)

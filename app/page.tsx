@@ -61,7 +61,7 @@ export default function HomePage() {
             <Link href="/contact" className={navLink}>Contact</Link>
           </nav>
           <div className="ml-auto">
-            <Link href="/login" className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-ink transition-all hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]">Sign in</Link>
+            <Link href="/signin" className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-ink transition-all hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]">Sign in</Link>
           </div>
         </div>
       </header>
@@ -78,8 +78,8 @@ export default function HomePage() {
               Share honest feedback on the products you use, earn <span className="text-ink">TVX tokens</span> for every accepted response, and redeem them for real coupons. Built for people whose opinions are worth something.
             </p>
             <div data-reveal-block className="mt-8 flex flex-wrap gap-3">
-              <Link href="/signup" className={ctaPrimary}>Start earning</Link>
-              <Link href="/login" className={ctaGhost}>Already a member? Sign in &rarr;</Link>
+              <Link href="/signin" className={ctaPrimary}>Start earning</Link>
+              <Link href="/signup" className={ctaGhost}>I&apos;m a contributor &rarr;</Link>
             </div>
             <div data-reveal-block className="mt-9 flex flex-wrap items-center gap-x-5 gap-y-3 text-sm text-ink-muted">
               <span><b className="tvx-num text-ink">3-step</b> loop</span>
@@ -157,7 +157,7 @@ export default function HomePage() {
           <h2 className="text-balance font-display text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">Ready to make your feedback count?</h2>
           <p className="mx-auto mt-4 max-w-[48ch] text-ink-dim">Join TrustVox, share what you think, and turn your opinions into rewards.</p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <Link href="/signup" className={ctaPrimary}>Start for free</Link>
+            <Link href="/signin" className={ctaPrimary}>Start for free</Link>
             <Link href="/contact" className={ctaGhost}>Talk to us</Link>
           </div>
         </div>
