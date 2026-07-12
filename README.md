@@ -1,100 +1,264 @@
-# TrustVox
+# TrustVox — Feedback & Rewards Platform
 
-TrustVox is a feedback platform where **users earn TVX tokens for accepted feedback and redeem them for coupons**. Three roles: user, client (company), admin. It's a portfolio / showcase rebuild — currently frontend-only, running on browser `localStorage` for persistence (no real backend or auth yet).
+A portfolio-grade feedback platform where **users earn TVX tokens (in-app reward points) for accepted feedback and redeem them for coupons**. Built with Next.js, React, and Supabase — designed for three user roles: **users**, **clients** (companies), and **admins**.
 
-> **TVX is in-app reward points, not crypto/web3.** The "wallet" is a localStorage points ledger (`lib/tvx-wallet.ts`) — no blockchain, no keys, no addresses.
+> **TVX is in-app reward points, not crypto/web3.** Just a points ledger that tracks balance and redemptions.
 
-Live design system: **"Ledger"** — dark, quiet-fintech, one gold accent, mint for positive states only, no gimmicks.
+---
 
-## Source of truth
-
-This README gives a snapshot for getting the project running. For anything about current status, in-progress work, or design decisions, **the `docs/` folder is authoritative** — see [`docs/README.md`](docs/README.md) for the hub. It's split by workstream:
-
-| Folder | What it covers | Start here |
-| --- | --- | --- |
-| [`docs/frontend/`](docs/frontend/) | The "Ledger" UI rebuild (Phases 1–7, ✅ done). | [`frontend/TRACKER.md`](docs/frontend/TRACKER.md) |
-| [`docs/backend/`](docs/backend/) | The real DB + auth + security rebuild (Phase 8, Supabase). | [`backend/TRACKER.md`](docs/backend/TRACKER.md) + [`backend/ARCHITECTURE.md`](docs/backend/ARCHITECTURE.md) |
-
-Each folder holds its own `TRACKER.md` (status + task checklist) and `LOG.md` (dated change history).
-
-[`PROJECT_REBUILD_SPEC.md`](PROJECT_REBUILD_SPEC.md) is an **archived** pre-rebuild planning document — historical only, not maintained.
-
-## Tech stack
-
-- **Framework:** Next.js 15 (App Router) · React 19 · TypeScript (strict, 0 errors)
-- **UI:** Tailwind CSS · shadcn/ui · Radix UI primitives · lucide-react icons
-- **Forms/utilities:** react-hook-form · zod · date-fns
-- **Analytics/reporting:** Recharts · html2canvas · jsPDF (PDF export)
-- **Notifications:** sonner
-- **Package manager:** pnpm
-
-## Project structure
-
-```text
-.
-├─ app/                   # Next.js App Router routes
-│  ├─ user/               # User-portal routes (dashboard, wallet, store, feedback flow)
-│  ├─ client/              # Client (company) portal routes
-│  ├─ admin/               # Admin portal routes
-│  └─ (auth pages)         # /login, /signup, /client-login, /admin-login, etc. (top-level by convention)
-├─ components/
-│  ├─ user/                # User-only components (navbar, dashboard sections, profile)
-│  ├─ auth/                # Shared auth-page shell (used by all 6 login/signup pages)
-│  ├─ modals/              # Cross-role modal components
-│  ├─ ui/                  # shadcn primitives
-│  ├─ client-navbar.tsx, admin-navbar.tsx  # Client/admin navbars (loose at root, same as user's used to be)
-│  └─ brand-logo.tsx, theme-provider.tsx, global-scroll-effects.tsx  # Shared app-wide components
-├─ lib/                   # Domain store modules (feedback, wallet, notifications, companies)
-├─ utils/                 # Small utility helpers
-├─ docs/                  # Living project record — start here for status/context
-└─ public/                # Static assets
-```
-
-### Key domain modules (`lib/`)
-
-- `feedback-store.ts` — forms, responses, subscriptions
-- `tvx-wallet.ts` — TVX balance/transaction ledger
-- `feedback-quota.ts` — daily submission limits
-- `user-notifications.ts` — notification feed
-- `approved-company-store.ts` — approved company directory
-
-## Routes
-
-### Auth (shared shell across all 3 roles)
-`/signin` (role picker — User + Client) · `/login` · `/signup` · `/client-login` · `/client-signup` · `/admin-login`
-(Admin is sign-in only and unadvertised — no admin signup; admin accounts are provisioned by hand.)
-
-### User
-`/user/dashboard` (home · `?section=suggested` browse-all · `?section=history` · `?section=profile`) · `/user/wallet` · `/user/store` · `/user/feedback/[id]`
-(`/dashboard`, `/wallet`, `/store`, `/suggested`, `/history`, `/profile` are legacy redirects to the routes above.)
-
-### Client
-`/client/dashboard` (canonical) · `/client/forms` · `/client/create-feedback` · `/client/analytics` · `/client/history` · `/client/profile`
-
-### Admin
-`/admin` (canonical) · `/admin/approvals` · `/admin/approved-companies` · `/admin/user-management`
-
-### Public
-`/` · `/contact`
-
-## Getting started
+## 🎯 Quick Start
 
 ```bash
+# Clone and install
+git clone <repo-url>
+cd trustvoxplatformver5
 pnpm install
-pnpm dev       # http://localhost:3000
+
+# Run dev server
+pnpm dev        # http://localhost:3000
+
+# Other commands
+pnpm build      # Production build
+pnpm start      # Run prod build (use: pnpm start -p 3000)
+pnpm lint       # Check TypeScript & ESLint (strict mode, 0 errors)
 ```
 
-## Scripts
+---
 
-| Command | Description |
+## 🏗️ System Architecture
+
+### User & Data Flow
+
+```mermaid
+graph TB
+    User["👤 User<br/>(Browser)"]
+    Client["🏢 Client<br/>(Company)"]
+    Admin["⚙️ Admin<br/>(Platform)"]
+    
+    Frontend["Next.js Frontend<br/>(React 19)"]
+    Auth["🔐 Supabase Auth<br/>(JWT)"]
+    RLS["🛡️ Row-Level Security<br/>(RLS Policies)"]
+    Database["🗄️ Postgres DB<br/>(Supabase)"]
+    
+    User -->|Views Feedback| Frontend
+    Client -->|Creates Forms| Frontend
+    Admin -->|Manages Platform| Frontend
+    
+    Frontend -->|Login| Auth
+    Auth -->|Token| Frontend
+    Frontend -->|Query/Mutation| Database
+    Database -->|RLS Gate| RLS
+    RLS -->|Only Own Data| Database
+    
+    style Frontend fill:#f0f0f0
+    style Auth fill:#ffe6e6
+    style RLS fill:#fff4e6
+    style Database fill:#e6f3ff
+```
+
+### Phase Progress
+
+```mermaid
+timeline
+    title TrustVox Build Phases
+    Phase 1-7 : ✅ Frontend Complete : Ledger Design System
+    Phase 8 : 🔄 Backend (In Progress) : Supabase Auth + RLS + DB
+    Phase 9 : ⏳ QA & Polish : Bug fixes + refinement
+```
+
+---
+
+## 📂 Project Structure
+
+```
+trustvoxplatformver5/
+│
+├─ app/                          # Next.js App Router routes
+│  ├─ user/                       # User portal (dashboard, wallet, store, feedback)
+│  ├─ client/                     # Client portal (forms, analytics, approvals)
+│  ├─ admin/                      # Admin portal (approvals, user management)
+│  └─ (auth pages)                # /login, /signup, /admin-login
+│
+├─ components/                    # React components
+│  ├─ user/                       # User-specific UI (navbar, dashboard sections)
+│  ├─ client/                     # Client-specific UI
+│  ├─ admin/                      # Admin-specific UI
+│  ├─ auth/                       # Shared auth shell (all login/signup pages)
+│  ├─ modals/                     # Cross-role modals
+│  └─ ui/                         # shadcn/Radix primitives
+│
+├─ lib/                          # Domain logic (state + storage)
+│  ├─ feedback-store.ts          # Feedback forms & responses
+│  ├─ tvx-wallet.ts              # TVX balance & transactions
+│  ├─ feedback-quota.ts          # Daily submission limits
+│  ├─ user-notifications.ts      # Notification feed
+│  └─ approved-company-store.ts  # Company directory
+│
+├─ supabase/                     # Database & backend
+│  ├─ migrations/                # Schema + RLS policies (git-tracked)
+│  └─ seed.sql                   # Seed data (honest-by-construction)
+│
+├─ docs/                         # 📌 INTERNAL DOCS (not git-tracked)
+│  ├─ frontend/                  # UI rebuild status (Phases 1-7)
+│  ├─ backend/                   # DB rebuild status + architecture (Phase 8)
+│  └─ README.md                  # Docs hub
+│
+├─ public/                       # Static assets (images, fonts)
+├─ .env.example                  # Environment variables template
+└─ next.config.mjs               # Next.js config (strict TS + ESLint)
+```
+
+---
+
+## 🔐 Security & Data Access
+
+### How Data Privacy Works
+
+```mermaid
+graph LR
+    Browser["Browser<br/>(Client Code)"]
+    PublicKey["NEXT_PUBLIC_*<br/>(Anon Key)"]
+    RLSPolicy["RLS Policy<br/>(userID Check)"]
+    Database["Postgres DB"]
+    
+    Browser -->|Request| PublicKey
+    PublicKey -->|Limited Access| RLSPolicy
+    RLSPolicy -->|✅ Your Data| Database
+    RLSPolicy -->|❌ Others' Data| Database
+    
+    style PublicKey fill:#fff4e6
+    style RLSPolicy fill:#ffe6e6
+    style Database fill:#e6f3ff
+    
+    ServerOnly["🔒 Server Only<br/>(Next.js)"]
+    ServiceKey["SERVICE_ROLE_KEY<br/>(Secrets)"]
+    ServerOnly -->|Admin Access| ServiceKey
+    
+    style ServerOnly fill:#e6f3ff
+    style ServiceKey fill:#ffe6e6
+```
+
+### Key Points
+
+- **Public Vars** (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) → Safe to expose; RLS gates what you can read
+- **Server Secrets** (`SUPABASE_SERVICE_ROLE_KEY`) → Stays in `.env.local`; never sent to browser
+- **RLS Policies** → Every table enforces `WHERE user_id = auth.uid()` so users only see their own data
+- **Server-Side Validation** → All writes go through Next.js server actions + `zod` schemas; no self-minting rewards
+
+---
+
+## 📋 Routes & Pages
+
+### Authentication (All Roles)
+- `/login` — Sign in for User and Client accounts (role resolved from the JWT after auth, routes automatically)
+- `/signup` — Register a User or Client account (role picker inside the form)
+- `/admin-login` — Admin auth (sign-in only; admins provisioned by hand, no self-serve signup)
+
+### User Portal
+- `/user/dashboard` — Main hub (home · browse feedback · history · profile)
+- `/user/wallet` — TVX balance & transaction history
+- `/user/store` — Redeem TVX for coupons
+- `/user/feedback/[id]` — Single feedback detail
+
+### Client Portal
+- `/client/dashboard` — Home hub
+- `/client/forms` — Manage feedback forms
+- `/client/create-feedback` — Launch new feedback request
+- `/client/analytics` — Response stats & insights
+- `/client/history` — Submitted responses
+- `/client/profile` — Account settings
+
+### Admin Portal
+- `/admin` — Home hub
+- `/admin/approvals` — Review & approve feedback
+- `/admin/approved-companies` — Company directory
+- `/admin/user-management` — User controls & lockout
+
+### Public
+- `/` — Landing page
+- `/contact` — Contact form
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
 | --- | --- |
-| `pnpm dev` | Start development server |
-| `pnpm build` | Build production bundle |
-| `pnpm start` | Start production server |
-| `pnpm lint` | Run ESLint |
+| **Frontend** | Next.js 15 (App Router), React 19, TypeScript (strict) |
+| **Styling** | Tailwind CSS, shadcn/ui, Radix UI, lucide-react |
+| **Forms** | react-hook-form, zod validation |
+| **State** | Domain stores (`lib/*.ts`) + Supabase realtime (Phase 8) |
+| **UI Charts** | Recharts (analytics), html2canvas (PDF export) |
+| **Notifications** | sonner toasts |
+| **Backend** | Supabase (Postgres + Auth + RLS) |
+| **Package Manager** | pnpm |
 
-## Notes
+---
 
-- Backend rebuild (Phase 8) is underway on **Supabase** (Postgres + Auth + RLS). Until it lands, most pages still fall back to an "anonymous" user with seeded `localStorage` demo state. Design: [`docs/backend/ARCHITECTURE.md`](docs/backend/ARCHITECTURE.md).
-- TypeScript and ESLint run in strict mode with zero tolerance for new errors (`next.config.mjs` has both checks enabled, not suppressed).
-- Keep the docs in sync with any route, component, feature, table, or policy change — frontend changes update `docs/frontend/`, backend changes update `docs/backend/`. See [`docs/README.md`](docs/README.md) for the maintenance contract.
+## 📚 Design System: "Ledger"
+
+Dark, quiet-fintech aesthetic with a single gold accent and mint for positive states. No gradients, no gimmicks.
+
+- **Primary accent:** Gold (`#d4a574`)
+- **Positive state:** Mint (`#7dd3c0`)
+- **Backgrounds:** Deep charcoal (`#0f0f0f`) with subtle layers
+- **Borders:** Minimal, understated
+
+---
+
+## 🔑 Environment Variables
+
+Create `.env.local` in the project root:
+
+```env
+# Public (safe to expose)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
+
+# Server-only (never sent to browser)
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
+```
+
+Use `.env.example` as a template. **Never commit `.env.local`** — it contains secrets.
+
+---
+
+## 🚀 Getting Started with Development
+
+```bash
+# 1. Install dependencies
+pnpm install
+
+# 2. Create .env.local with your Supabase keys
+cp .env.example .env.local
+# Then edit .env.local and add your actual keys
+
+# 3. Run the dev server
+pnpm dev
+
+# 4. Open http://localhost:3000 in your browser
+```
+
+### Development Checklist
+- Code changes go in `app/`, `components/`, `lib/`, `supabase/migrations/`
+- Test locally with `pnpm dev`
+- Lint & type-check: `pnpm lint` (strict mode, zero errors)
+- Build for production: `pnpm build`
+
+---
+
+## ✨ Current Status
+
+- **Frontend (Phases 1–7):** ✅ Complete — Ledger design system rebuilt
+- **Backend (Phase 8):** 🔄 In Progress — Supabase auth + RLS + database
+- **QA & Polish (Phase 9):** ⏳ Upcoming — Bug fixes + refinement
+
+---
+
+## 📝 Key Architecture Notes
+
+- **TypeScript strict mode** — Zero tolerance for new errors (enforced in build)
+- **Domain logic** — Lives in `lib/` as reusable, storage-agnostic modules
+- **Data isolation** — RLS policies ensure users see only their own data and feedback
+- **Honest seed data** — No fabricated analytics or stats in seed data
+- **Server-side validation** — All writes validated with `zod` schemas; no client-side trust

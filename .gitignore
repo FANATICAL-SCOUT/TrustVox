@@ -17,7 +17,9 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files — secrets live here (Supabase URL/anon/service_role keys, etc.). NEVER commit.
-.env*
+.env
+.env.local
+.env.*.local
 !.env.example
 
 # vercel
@@ -33,3 +35,17 @@ next-env.d.ts
 /supabase/.branches
 /supabase/.temp
 /supabase/.env
+/supabase/.env.local
+
+# local working files (AI/tooling config + project docs — never commit)
+docs/
+CLAUDE.md
+.claude/
+
+# IDE + OS
+.DS_Store
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo

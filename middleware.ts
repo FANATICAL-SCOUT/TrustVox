@@ -8,10 +8,7 @@ import { ROLE_HOME, type AppRole } from "@/lib/auth/roles"
 // Gated by role: the three role groups below.
 
 // Auth pages: reachable while logged out; a logged-in user is bounced to their home.
-// `/signin` is the exception — it's the role-choice screen, so a logged-in user is
-// allowed through to it (it offers a one-click "continue as X" for their live
-// session AND a door to the other role). It's excluded from AUTH_PAGES for that reason.
-const AUTH_PAGES = new Set(["/login", "/signup", "/client-login", "/client-signup", "/admin-login"])
+const AUTH_PAGES = new Set(["/login", "/signup", "/admin-login"])
 
 /** Which role a path belongs to, or null if it's public. */
 function gateFor(path: string): AppRole | null {
@@ -36,7 +33,7 @@ export async function middleware(request: NextRequest) {
 
   // Logged out: gated routes hit the login wall; public + auth pages pass through.
   if (!user) {
-    if (gate) return redirectTo("/signin")
+    if (gate) return redirectTo("/login")
     return response
   }
 
@@ -57,7 +54,7 @@ export async function middleware(request: NextRequest) {
   // Blocked or missing profile → sign out and send to the login wall.
   if (!profile || profile.status === "blocked") {
     await supabase.auth.signOut()
-    return redirectTo("/signin")
+    return redirectTo("/login")
   }
 
   const home = ROLE_HOME[profile.role]
