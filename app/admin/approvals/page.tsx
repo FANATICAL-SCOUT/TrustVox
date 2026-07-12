@@ -494,6 +494,11 @@ export default function AdminApprovalsPage() {
     setApproveTarget(form)
   }
 
+  // Each action writes to `forms`, which the subscribeToFormsUpdates
+  // subscription (below) already catches and reloads from — so these handlers
+  // no longer call loadForms() themselves (bug #9: that double-fetched every
+  // action and re-rendered the list twice). Realtime is the single refresh path;
+  // the manual Refresh button stays for an explicit reload.
   async function handleApprove() {
     if (!approveTarget) return
     const id = approveTarget.id
@@ -510,7 +515,6 @@ export default function AdminApprovalsPage() {
       showToast("Approval blocked: company is inactive or not approved.")
       return
     }
-    await loadForms()
     showToast("Form approved and published!")
   }
 
@@ -518,7 +522,6 @@ export default function AdminApprovalsPage() {
     if (!rejectTarget) return
     await rejectForm(rejectTarget.id, reason || "No reason provided.")
     setRejectTarget(null)
-    await loadForms()
     showToast("Form rejected.")
   }
 
@@ -526,7 +529,6 @@ export default function AdminApprovalsPage() {
     if (!changesTarget) return
     await requestChanges(changesTarget.id, note || "Please review and update your form.")
     setChangesTarget(null)
-    await loadForms()
     showToast("Change request sent to client.")
   }
 

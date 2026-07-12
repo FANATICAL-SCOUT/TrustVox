@@ -139,7 +139,10 @@ export default function UserManagementPage() {
       showToast(err instanceof AdminLockoutError ? err.message : "Couldn't update user status.")
       return
     }
-    void loadUsers()
+    // The status write updates `profiles`, which subscribeToManagedUsers (mount
+    // effect) already catches and reloads from — no manual loadUsers() here
+    // (bug #9: that double-fetched every block/unblock). Realtime is the single
+    // refresh path.
   }
 
   return (

@@ -495,6 +495,21 @@ export async function getResponsesByFormId(formId: string): Promise<FormResponse
   return (data ?? []).map(mapResponseRow);
 }
 
+// All responses the caller can see, in one round-trip (Phase 13.5, bug #3). The
+// admin command center used to fan out one getResponsesByFormId per form — a
+// genuine N+1 — to compute totals / average rating / TVX paid. RLS scopes the
+// read (an admin session sees every response; a user sees only their own), so
+// this is a drop-in single query for any consumer that needs the whole set.
+export async function getAllResponses(): Promise<FormResponse[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("responses")
+    .select("*")
+    .order("submitted_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(mapResponseRow);
+}
+
 // The signed-in user's own submitted response for a given form, if any. RLS
 // already scopes `responses` to the caller's rows, so this returns only the
 // user's own answers — used by the read-only "View" mode on feedback/[id]

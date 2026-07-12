@@ -51,6 +51,7 @@ export default function ApprovedCompaniesPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [deactivateOpen, setDeactivateOpen] = useState(false)
 
   const [selectedCompany, setSelectedCompany] = useState<ApprovedCompany | null>(null)
   const [newCompanyName, setNewCompanyName] = useState("")
@@ -73,7 +74,11 @@ export default function ApprovedCompaniesPage() {
   const campaignStatsByCompanyId = useMemo(() => {
     const map: Record<string, CampaignStats> = {}
     for (const company of companies) {
-      const related = forms.filter((f) => f.companyId === company.id || (f.clientName || "").toLowerCase() === company.name.toLowerCase())
+      // Match strictly on the real foreign key (bug #5): the old
+      // `clientName === company.name` fallback double-attributed forms whenever
+      // two companies shared a display name. Forms now carry a real companyId
+      // (forms.company_id → companies.id), so that's the only correct link.
+      const related = forms.filter((f) => f.companyId === company.id)
       const draft = related.filter((f) => f.status === "draft").length
       const pending = related.filter((f) => f.status === "pending").length
       const approved = related.filter((f) => f.status === "approved").length
@@ -89,6 +94,16 @@ export default function ApprovedCompaniesPage() {
       }
     }
     return map
+  }, [companies, forms])
+
+  // Honesty guard for the bug #5 fix: a form whose free-text clientName matches
+  // a company by name but which has NO companyId would have been *counted* under
+  // the old fuzzy match and now silently drops to zero. Rather than let it
+  // vanish without a trace, surface how many there are so the state is visible
+  // (a real backfill is a data task, not something this admin view should do).
+  const unlinkedNamedFormsCount = useMemo(() => {
+    const companyNames = new Set(companies.map((c) => c.name.toLowerCase()))
+    return forms.filter((f) => !f.companyId && companyNames.has((f.clientName || "").toLowerCase())).length
   }, [companies, forms])
 
   const filteredCompanies = companies.filter((company) => {
@@ -122,13 +137,16 @@ export default function ApprovedCompaniesPage() {
     ]
   }, [companies, campaignStatsByCompanyId])
 
+  // Each write touches the `companies` table, which subscribeToApprovedCompanies
+  // (below) already catches and reloads from — so these handlers no longer call
+  // loadData() themselves (bug #9: that double-fetched every action). Realtime
+  // is the single refresh path.
   async function handleAddCompany() {
     if (!newCompanyName.trim()) return
     await addApprovedCompany({ name: newCompanyName.trim(), category: newCompanyCategory, status: "active" })
     setNewCompanyName("")
     setNewCompanyCategory("Software")
     setAddOpen(false)
-    void loadData()
   }
 
   function handleEditOpen(company: ApprovedCompany) {
@@ -146,12 +164,31 @@ export default function ApprovedCompaniesPage() {
     })
     setEditOpen(false)
     setSelectedCompany(null)
-    void loadData()
   }
 
-  async function handleToggle(company: ApprovedCompany) {
+  // Reactivating has no downside — do it immediately. Deactivating an active
+  // company needs a confirm (bug #8c) because it strands its already-live forms
+  // (bug #7): the active-company gate only blocks *new* approvals, so live forms
+  // keep collecting responses (and paying TVX) under a company just marked
+  // inactive. We warn how many will keep running rather than silently cascade.
+  function handleToggle(company: ApprovedCompany) {
+    if (company.status === "active") {
+      setSelectedCompany(company)
+      setDeactivateOpen(true)
+      return
+    }
+    void applyToggle(company)
+  }
+
+  async function applyToggle(company: ApprovedCompany) {
     await toggleApprovedCompanyStatus(company.id)
-    void loadData()
+  }
+
+  async function handleConfirmDeactivate() {
+    if (!selectedCompany) return
+    await applyToggle(selectedCompany)
+    setDeactivateOpen(false)
+    setSelectedCompany(null)
   }
 
   function handleHistory(company: ApprovedCompany) {
@@ -184,6 +221,13 @@ export default function ApprovedCompaniesPage() {
           </div>
         ))}
       </div>
+
+      {unlinkedNamedFormsCount > 0 && (
+        <div className="rounded-lg border border-gold/30 bg-gold/[0.06] px-4 py-3 text-xs text-ink-dim">
+          <span className="text-gold font-semibold">Note:</span>{" "}
+          {unlinkedNamedFormsCount} form{unlinkedNamedFormsCount === 1 ? "" : "s"} name{unlinkedNamedFormsCount === 1 ? "s" : ""} a company that exists here but {unlinkedNamedFormsCount === 1 ? "isn't" : "aren't"} linked to it by ID, so {unlinkedNamedFormsCount === 1 ? "it isn't" : "they aren't"} counted in the totals below. Re-linking {unlinkedNamedFormsCount === 1 ? "it" : "them"} to the right company is a data fix, not something to do from this screen.
+        </div>
+      )}
 
       <main className="space-y-4">
         <div className="grid md:grid-cols-[1fr_220px_220px_220px] gap-3">
@@ -329,6 +373,36 @@ export default function ApprovedCompaniesPage() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setHistoryOpen(false)} className="text-ink-dim">Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deactivateOpen} onOpenChange={setDeactivateOpen}>
+        <DialogContent className="bg-surface-raised border-white/10">
+          <DialogHeader>
+            <DialogTitle className="text-ink flex items-center gap-2">
+              <Power size={16} className="text-destructive" /> Deactivate {selectedCompany?.name}?
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-ink-dim">
+              Clients won&apos;t be able to submit new feedback forms under this company, and pending forms can no longer be approved for it.
+            </p>
+            {(() => {
+              const live = selectedCompany ? campaignStatsByCompanyId[selectedCompany.id]?.live ?? 0 : 0
+              return live > 0 ? (
+                <div className="rounded-lg border border-gold/30 bg-gold/[0.06] p-3 text-ink-dim">
+                  <span className="text-gold font-semibold">Heads up:</span>{" "}
+                  {live} live form{live === 1 ? "" : "s"} will keep running — deactivating the company does <span className="text-ink">not</span> close forms that are already published, so {live === 1 ? "it" : "they"} will keep collecting responses and paying TVX. Close {live === 1 ? "it" : "them"} from the client&apos;s forms if you want {live === 1 ? "it" : "them"} stopped.
+                </div>
+              ) : (
+                <p className="text-xs text-ink-muted">This company has no live forms — nothing is left running.</p>
+              )
+            })()}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeactivateOpen(false)} className="text-ink-dim">Cancel</Button>
+            <Button onClick={handleConfirmDeactivate} className="bg-destructive/90 text-white font-semibold hover:bg-destructive">Deactivate</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

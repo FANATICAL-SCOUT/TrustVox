@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button"
 import {
   getForms,
-  getResponsesByFormId,
+  getAllResponses,
   subscribeToFormsUpdates,
   type FeedbackForm,
   type FormResponse,
@@ -88,22 +88,28 @@ export default function AdminCommandCenter() {
     }
   }, [])
 
-  const [responsesByForm, setResponsesByForm] = useState<Map<string, FormResponse[]>>(new Map())
+  const [allResponses, setAllResponses] = useState<FormResponse[]>([])
 
+  // One batched read instead of one query per form (bug #3). Refetches on the
+  // same forms-updates subscription that reloads forms, so a new response (which
+  // fires an INSERT on `responses`) still refreshes the totals below.
   useEffect(() => {
-    let active = true
-    void (async () => {
-      const entries = await Promise.all(
-        forms.map(async (form) => [form.id, await getResponsesByFormId(form.id)] as const),
-      )
-      if (active) setResponsesByForm(new Map(entries))
-    })()
-    return () => {
-      active = false
-    }
-  }, [forms])
+    const loadResponses = () => void getAllResponses().then(setAllResponses)
+    loadResponses()
+    const unsub = subscribeToFormsUpdates(loadResponses)
+    return () => unsub()
+  }, [])
 
-  const allResponses = useMemo(() => Array.from(responsesByForm.values()).flat(), [responsesByForm])
+  // Group the single flat read by form for the per-form derivations below.
+  const responsesByForm = useMemo(() => {
+    const map = new Map<string, FormResponse[]>()
+    for (const response of allResponses) {
+      const bucket = map.get(response.formId)
+      if (bucket) bucket.push(response)
+      else map.set(response.formId, [response])
+    }
+    return map
+  }, [allResponses])
 
   const averageRating = useMemo(() => {
     const ratings: number[] = []
