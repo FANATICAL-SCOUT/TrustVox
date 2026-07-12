@@ -66,19 +66,31 @@ export default function AdminCommandCenter() {
   const [forms, setForms] = useState<FeedbackForm[]>([])
   const [companies, setCompanies] = useState<ApprovedCompany[]>([])
   const [users, setUsers] = useState<ManagedUser[]>([])
+  // One batched read instead of one query per form (bug #3); grouped by form in
+  // `responsesByForm` below.
+  const [allResponses, setAllResponses] = useState<FormResponse[]>([])
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     const loadForms = () => void getForms().then(setForms)
     const loadCompanies = () => void getApprovedCompanies().then(setCompanies)
     const loadUsers = () => void getManagedUsers().then(setUsers)
+    const loadResponses = () => void getAllResponses().then(setAllResponses)
 
     loadForms()
     loadCompanies()
     loadUsers()
+    loadResponses()
     setMounted(true)
 
-    const unsubForms = subscribeToFormsUpdates(loadForms)
+    // A single `forms` subscription (it also fires on `responses` INSERTs) drives
+    // both the forms list and the response totals — one channel, not two, so a
+    // new response doesn't open a duplicate channel or refetch the forms list on
+    // top of the responses (13.7 realtime residue cleanup).
+    const unsubForms = subscribeToFormsUpdates(() => {
+      loadForms()
+      loadResponses()
+    })
     const unsubCompanies = subscribeToApprovedCompanies(loadCompanies)
     const unsubUsers = subscribeToManagedUsers(loadUsers)
     return () => {
@@ -86,18 +98,6 @@ export default function AdminCommandCenter() {
       unsubCompanies()
       unsubUsers()
     }
-  }, [])
-
-  const [allResponses, setAllResponses] = useState<FormResponse[]>([])
-
-  // One batched read instead of one query per form (bug #3). Refetches on the
-  // same forms-updates subscription that reloads forms, so a new response (which
-  // fires an INSERT on `responses`) still refreshes the totals below.
-  useEffect(() => {
-    const loadResponses = () => void getAllResponses().then(setAllResponses)
-    loadResponses()
-    const unsub = subscribeToFormsUpdates(loadResponses)
-    return () => unsub()
   }, [])
 
   // Group the single flat read by form for the per-form derivations below.
