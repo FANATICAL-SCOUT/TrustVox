@@ -12,5 +12,5 @@ export const ROLE_HOME: Record<AppRole, string> = {
   admin: "/admin",
 }
 
-/** Generic, non-enumerating auth failure message (see ARCHITECTURE §5.1). */
+/** Generic, non-enumerating auth failure message. */
 export const GENERIC_AUTH_ERROR = "Invalid credentials, or this account isn't authorized here."

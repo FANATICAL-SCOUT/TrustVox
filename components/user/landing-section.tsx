@@ -79,7 +79,7 @@ export default function LandingSection({
   useEffect(() => {
     let active = true
     const loadForms = async () => {
-      // Forms + user id in parallel, then the user-scoped query (Session 6).
+      // Forms + user id in parallel, then the user-scoped query.
       const [forms, userId] = await Promise.all([getApprovedForms(), resolveCurrentUserId()])
       const ids = new Set(userId ? await getSubmittedFormIdsByUser(userId) : [])
       if (!active) return

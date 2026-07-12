@@ -6,7 +6,7 @@ import type { Database } from "@/lib/supabase/types"
  * Refreshes the Supabase auth cookie on every request and hands back the
  * response (with any refreshed cookies), a request-bound Supabase client, and
  * the current user. The root middleware.ts uses these to enforce the login
- * wall + role routing (ARCHITECTURE §5.4).
+ * wall + role routing.
  *
  * Follows the @supabase/ssr Next.js pattern: nothing runs between creating the
  * client and calling getUser(), and cookie writes are mirrored onto the

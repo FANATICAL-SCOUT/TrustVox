@@ -1,4 +1,4 @@
-// TrustVox — shared auth validation (Phase 9 · Session 1)
+// TrustVox — shared auth validation
 //
 // Single source of truth for the registration password policy, the password
 // strength meter, and the 16+ age gate. Used by BOTH the client-side auth pages

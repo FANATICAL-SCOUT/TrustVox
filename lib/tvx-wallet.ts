@@ -1,11 +1,11 @@
 // ─── TrustVox TVX Wallet ───────────────────────────────────────────────────
-// Supabase-backed wallet (migrated in Phase 8.4 — see ARCHITECTURE.md §4, §6, §8).
-// Balance/totals are DERIVED (the wallet_balances view = SUM of transactions),
-// never stored, so double-credits and drift are structurally impossible.
+// Supabase-backed wallet. Balance/totals are DERIVED (the wallet_balances view
+// = SUM of transactions), never stored, so double-credits and drift are
+// structurally impossible.
 //
-// Both money-moving operations go through trusted SECURITY DEFINER functions
-// (migration 0005), NOT client writes — wallet_transactions has no authenticated
-// INSERT policy, so a user cannot mint or self-discount TVX:
+// Both money-moving operations go through trusted SECURITY DEFINER functions,
+// NOT client writes — wallet_transactions has no authenticated INSERT policy,
+// so a user cannot mint or self-discount TVX:
 //   • creditFeedbackReward → credit_feedback_reward(response_id): amount read
 //     from the form, idempotent per response.
 //   • redeemTVXItem        → redeem_reward(item_id): cost read from the catalog,
@@ -29,8 +29,8 @@ export interface TVXWalletState {
   transactions: TVXTransaction[]
 }
 
-// A single earn event, shown in the profile's "TVX earned" breakdown
-// (Phase 9 · Session 3): which feedback earned it and when.
+// A single earn event, shown in the profile's "TVX earned" breakdown:
+// which feedback earned it and when.
 export interface TVXEarnEntry {
   id: string
   amount: number
@@ -38,9 +38,8 @@ export interface TVXEarnEntry {
   createdAt: string
 }
 
-// A redeemed coupon with its lifecycle state (Phase 9 · Session 3). Backed by
-// the redemptions table (migration 0010) — the single source of truth for a
-// user's coupon history.
+// A redeemed coupon with its lifecycle state. Backed by the redemptions table
+// — the single source of truth for a user's coupon history.
 export interface Redemption {
   id: string
   itemTitle: string
@@ -80,8 +79,8 @@ function mapTransaction(row: Tables<"wallet_transactions">): TVXTransaction {
   }
 }
 
-// Realtime replaces the old same-tab CustomEvent bus (Phase 8.7). New rows on
-// `wallet_transactions` for the signed-in user (the only writes possible —
+// Realtime broadcast for wallet changes. New rows on `wallet_transactions`
+// for the signed-in user (the only writes possible —
 // there's no authenticated INSERT policy, only the trusted SECURITY DEFINER
 // functions) notify every subscriber, across tabs. RLS already scopes reads to
 // the caller's own rows; the `user_id=eq.<uid>` filter here just avoids
@@ -183,8 +182,8 @@ export async function redeemTVXItem(
 // Reason text written by credit_feedback_reward: Feedback submitted for "<title>".
 const FEEDBACK_EARN_REASON = /^Feedback submitted for "(.*)"$/
 
-// Per-feedback earn breakdown for the profile (Session 3, item 4). Derived from
-// the wallet's own earn transactions (positive amount) — no new data needed.
+// Per-feedback earn breakdown for the profile. Derived from the wallet's own
+// earn transactions (positive amount) — no new data needed.
 // Titles are recovered from the transaction reason; anything that doesn't match
 // the feedback-earn shape falls back to a generic label so nothing is dropped.
 export function deriveEarnHistory(transactions: TVXTransaction[]): TVXEarnEntry[] {
@@ -201,8 +200,8 @@ export function deriveEarnHistory(transactions: TVXTransaction[]): TVXEarnEntry[
     })
 }
 
-// The user's redeemed-coupon history (Session 3, items 5–6). RLS scopes this to
-// the caller's own rows; expiry is computed against expires_at so the profile
+// The user's redeemed-coupon history. RLS scopes this to the caller's own
+// rows; expiry is computed against expires_at so the profile
 // shows an honest active/expired state, not a meaningless countdown.
 export async function getRedemptions(): Promise<Redemption[]> {
   const supabase = createClient()

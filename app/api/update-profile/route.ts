@@ -12,7 +12,7 @@ import {
 
 /**
  * POST /api/update-profile — trusted, server-side update of the signed-in user's
- * editable profile (Phase 9 · Session 3).
+ * editable profile.
  *
  * The write uses the session-scoped (RLS-gated) server client, so a user can only
  * ever touch their OWN profile, and `role`/`status` stay pinned by the

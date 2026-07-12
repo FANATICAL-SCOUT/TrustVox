@@ -20,7 +20,7 @@ export async function createClient() {
             )
           } catch {
             // setAll called from a Server Component — safe to ignore
-            // as long as middleware refreshes the session (added in 8.2).
+            // as long as middleware refreshes the session.
           }
         },
       },

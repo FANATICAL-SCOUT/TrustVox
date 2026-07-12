@@ -5,21 +5,21 @@ import { createClient } from "@/lib/supabase/server"
 
 /**
  * POST /api/summarize-responses — AI summary of a form's real submitted
- * responses (Phase 11 · Session 11.6). Reuses the 11.5 route pattern
+ * responses. Reuses the generate-questions route pattern
  * (see app/api/generate-questions/route.ts) with the same shell: auth-gate,
  * zod input validation, per-user daily rate limit, Groq call, honest labelling.
  *
- * Guardrails (see docs/frontend/PHASE-11-CLIENT-REBUILD-AI.md §11.6):
+ * Guardrails:
  *   - auth-gate: signed-in CLIENT only, AND the form must be theirs (RLS on
  *     `responses` already scopes reads to the form's owning client, but this
  *     route also checks `forms.client_id` directly for a clean 403/404
  *     instead of a silent empty summary)
  *   - rate limit: 10 calls / rolling 24h / user, same `ai_generation_log`
- *     table as 11.5 (feature = 'summarize_responses')
+ *     table as generate-questions (feature = 'summarize_responses')
  *   - data-gate: fewer than MIN_RESPONSES real responses → a clean 200 with
  *     `insufficientData: true` instead of asking the model to summarize a
  *     thin sample — the honest "not enough responses yet" case belongs in
- *     the UI, not faked by the model (see the 11.4 plan doc's caveat)
+ *     the UI, not faked by the model
  *   - the model is asked for prose (not JSON — this is display text) and
  *     explicitly told to be honest about small sample sizes
  *

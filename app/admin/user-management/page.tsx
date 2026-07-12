@@ -47,7 +47,7 @@ export default function UserManagementPage() {
   const [activityOpen, setActivityOpen] = useState(false)
   const [activity, setActivity] = useState<UserActivityEvent[]>([])
   const [activityLoading, setActivityLoading] = useState(false)
-  // Block/unblock confirmation (bug #8b): blocking signs the user out
+  // Block/unblock confirmation: blocking signs the user out
   // platform-wide on their next request, so it shouldn't fire on one click.
   const [confirmTarget, setConfirmTarget] = useState<ManagedUser | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -62,7 +62,7 @@ export default function UserManagementPage() {
     return () => unsub()
   }, [])
 
-  // Load the selected user's real activity when the modal opens (bug #4). Keyed
+  // Load the selected user's real activity when the modal opens. Keyed
   // to the user's id so re-opening a different row can't show a stale feed; the
   // read runs under the admin's own RLS (admins may read any user's responses +
   // wallet rows — see getUserActivity).
@@ -84,7 +84,7 @@ export default function UserManagementPage() {
     setTimeout(() => setToastMsg(null), 3000)
   }
 
-  // Self-lockout guard (Phase 13.2, bug #6): the block button is disabled for
+  // Self-lockout guard: the block button is disabled for
   // rows that would strand /admin — the current admin's own row, and the last
   // active admin. `updateManagedUserStatus` re-checks this server-side too.
   const activeAdminCount = useMemo(
@@ -145,7 +145,7 @@ export default function UserManagementPage() {
     ]
   }, [users])
 
-  // Clicking block/unblock now opens a confirm (bug #8b) rather than writing
+  // Clicking block/unblock opens a confirm rather than writing
   // immediately. The self/last-admin guard is re-checked here so a stale render
   // can't even open the dialog for a blocked action.
   function requestToggle(user: ManagedUser) {
@@ -181,13 +181,13 @@ export default function UserManagementPage() {
     }
     // The status write updates `profiles`, which subscribeToManagedUsers (mount
     // effect) already catches and reloads from — no manual loadUsers() here
-    // (bug #9: that double-fetched every block/unblock). Realtime is the single
+    // (that would double-fetch every block/unblock). Realtime is the single
     // refresh path.
   }
 
   return (
     <div className="space-y-6">
-      {/* Toast — surfaces a blocked action (self / last-admin guard, #6) */}
+      {/* Toast — surfaces a blocked action (self / last-admin guard) */}
       {toastMsg && (
         <div className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-xl border border-gold/40 bg-surface-raised px-4 py-3 text-sm font-medium text-gold shadow-2xl">
           <ShieldX size={15} />
@@ -307,7 +307,7 @@ export default function UserManagementPage() {
         </div>
       </main>
 
-      {/* User Activity (bug #4) — real recent activity for the selected user,
+      {/* User Activity — real recent activity for the selected user,
           read live from the DB (see getUserActivity), not a re-dump of the row. */}
       <Dialog open={activityOpen} onOpenChange={setActivityOpen}>
         <DialogContent className="bg-surface-raised border-white/10 max-w-lg max-h-[80vh] overflow-y-auto">
@@ -395,7 +395,7 @@ export default function UserManagementPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Block / unblock confirmation (bug #8b) */}
+      {/* Block / unblock confirmation */}
       <Dialog open={!!confirmTarget} onOpenChange={(o) => { if (!o) setConfirmTarget(null) }}>
         <DialogContent className="bg-surface-raised border-white/10 max-w-md">
           <DialogHeader>

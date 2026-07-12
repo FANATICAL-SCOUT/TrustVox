@@ -1506,8 +1506,7 @@ function ClientAnalyticsPageContent() {
                     </div>
                   </div>
 
-                  {/* AI summary panel (Phase 11 · Session 11.6, extracted as a shared
-                      component in Phase 12 · Step 12.1) — real Groq call over this
+                  {/* AI summary panel (shared component) — real Groq call over this
                       form's actual responses, on demand, data-gated on a minimum
                       response count with an honest empty state below it. */}
                   <AiSummaryPanel formId={singleCampaign.id} />

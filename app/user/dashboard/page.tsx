@@ -39,7 +39,7 @@ export default function UserDashboard() {
     }
   }, [searchParams])
 
-  // Bookmark a form for later (real persistence — bookmarks table, Session 4).
+  // Bookmark a form for later (real persistence — bookmarks table).
   // Used by the landing/company-modal "Bookmark" buttons; Suggested toggles its
   // own via the store. Sends the user to History so they see the saved item.
   const handleBookmarkForm = async (feedback: FeedbackHandoff) => {

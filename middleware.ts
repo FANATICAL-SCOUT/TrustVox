@@ -2,24 +2,22 @@ import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/lib/supabase/middleware"
 import { ROLE_HOME, type AppRole } from "@/lib/auth/roles"
 
-// Login wall + role routing (ARCHITECTURE §5.4).
+// Login wall + role routing.
 //
 // Public: `/`, `/contact`, the auth pages, static assets (see matcher below).
-// Gated by role: the three role groups below (incl. their legacy redirect shims).
+// Gated by role: the three role groups below.
 
 // Auth pages: reachable while logged out; a logged-in user is bounced to their home.
-const AUTH_PAGES = new Set(["/signin", "/login", "/signup", "/client-login", "/client-signup", "/admin-login"])
-
-// Legacy redirect shims still forward to the new role routes, so they're gated too.
-const USER_EXACT = new Set(["/user", "/dashboard", "/wallet", "/store", "/suggested", "/history", "/profile"])
-const CLIENT_EXACT = new Set(["/client-home", "/client-dashboard"])
-const ADMIN_EXACT = new Set(["/admin", "/admin-dashboard"])
+// `/signin` is the exception — it's the role-choice screen, so a logged-in user is
+// allowed through to it (it offers a one-click "continue as X" for their live
+// session AND a door to the other role). It's excluded from AUTH_PAGES for that reason.
+const AUTH_PAGES = new Set(["/login", "/signup", "/client-login", "/client-signup", "/admin-login"])
 
 /** Which role a path belongs to, or null if it's public. */
 function gateFor(path: string): AppRole | null {
-  if (USER_EXACT.has(path) || path.startsWith("/user/")) return "user"
-  if (CLIENT_EXACT.has(path) || path.startsWith("/client/")) return "client"
-  if (ADMIN_EXACT.has(path) || path.startsWith("/admin/")) return "admin"
+  if (path === "/user" || path.startsWith("/user/")) return "user"
+  if (path.startsWith("/client/")) return "client"
+  if (path === "/admin" || path.startsWith("/admin/")) return "admin"
   return null
 }
 
@@ -44,9 +42,9 @@ export async function middleware(request: NextRequest) {
 
   // The role/status lookup only affects the outcome on an auth page (redirect
   // home) or a gated route (enforce role + blocked-status). On a public,
-  // non-auth path the result is unused, so skip that round-trip entirely
-  // (Phase 9 · Session 6 perf fix) — every gated route and auth page still
-  // does the full check, so the blocked-status security control is unchanged.
+  // non-auth path the result is unused, so skip that round-trip entirely —
+  // every gated route and auth page still does the full check, so the
+  // blocked-status security control is unchanged.
   if (!gate && !isAuthPage) return response
 
   // Logged in + a path where role/status matters: resolve them from profiles.

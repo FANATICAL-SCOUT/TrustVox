@@ -1,4 +1,4 @@
-// TrustVox — client helper for the login lockout guard (Phase 9 · Session 1).
+// TrustVox — client helper for the login lockout guard.
 // Thin wrappers around POST /api/login-guard used by both login pages so the
 // lockout call sites stay identical. All the real logic + the secret key live
 // server-side in the route; this just relays the result.

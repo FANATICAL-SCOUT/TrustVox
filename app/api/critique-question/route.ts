@@ -6,12 +6,12 @@ import type { QuestionType } from "@/lib/feedback-store"
 
 /**
  * POST /api/critique-question — AI critique of a single survey question the
- * client typed by hand (Phase 12 · Step 12.3). Distinct from 11.5's
+ * client typed by hand. Distinct from
  * /api/generate-questions: that one *generates* questions from a topic; this one
  * *critiques* one existing question for leading / ambiguous / unclear phrasing
  * and, only when there's a real problem, suggests a neutral rewrite.
  *
- * Reuses the 11.5/11.6 route shell (see app/api/generate-questions/route.ts):
+ * Reuses the generate-questions route shell (see app/api/generate-questions/route.ts):
  *   - auth-gate: signed-in CLIENT only (role read from profiles, not client input)
  *   - input cap: title ≤ 200 chars (matches the Question.title cap in the builder)
  *   - rate limit: per-user rolling-24h cap, same `ai_generation_log` table

@@ -1,8 +1,8 @@
-// TrustVox — Supabase database types (Phase 8.1)
+// TrustVox — Supabase database types
 //
 // Mirrors the schema defined in supabase/migrations/0001–0003 exactly. Shaped to
 // match the output of `supabase gen types typescript` so it can be regenerated
-// with the CLI later (e.g. in 8.8) without churn:
+// with the CLI later without churn:
 //   supabase gen types typescript --project-id <ref> --schema public > lib/supabase/types.ts
 //
 // Column names are snake_case (DB convention); the lib/ store modules map them
@@ -109,16 +109,19 @@ export type Database = {
         Row: {
           id: string
           email: string
+          ip: string
           created_at: string
         }
         Insert: {
           id?: string
           email: string
+          ip?: string
           created_at?: string
         }
         Update: {
           id?: string
           email?: string
+          ip?: string
           created_at?: string
         }
         Relationships: []

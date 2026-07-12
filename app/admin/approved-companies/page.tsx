@@ -74,7 +74,7 @@ export default function ApprovedCompaniesPage() {
   const campaignStatsByCompanyId = useMemo(() => {
     const map: Record<string, CampaignStats> = {}
     for (const company of companies) {
-      // Match strictly on the real foreign key (bug #5): the old
+      // Match strictly on the real foreign key: the old
       // `clientName === company.name` fallback double-attributed forms whenever
       // two companies shared a display name. Forms now carry a real companyId
       // (forms.company_id → companies.id), so that's the only correct link.
@@ -96,7 +96,7 @@ export default function ApprovedCompaniesPage() {
     return map
   }, [companies, forms])
 
-  // Honesty guard for the bug #5 fix: a form whose free-text clientName matches
+  // Honesty guard: a form whose free-text clientName matches
   // a company by name but which has NO companyId would have been *counted* under
   // the old fuzzy match and now silently drops to zero. Rather than let it
   // vanish without a trace, surface how many there are so the state is visible
@@ -139,7 +139,7 @@ export default function ApprovedCompaniesPage() {
 
   // Each write touches the `companies` table, which subscribeToApprovedCompanies
   // (below) already catches and reloads from — so these handlers no longer call
-  // loadData() themselves (bug #9: that double-fetched every action). Realtime
+  // loadData() themselves (that would double-fetch every action). Realtime
   // is the single refresh path.
   async function handleAddCompany() {
     if (!newCompanyName.trim()) return
@@ -167,8 +167,8 @@ export default function ApprovedCompaniesPage() {
   }
 
   // Reactivating has no downside — do it immediately. Deactivating an active
-  // company needs a confirm (bug #8c) because it strands its already-live forms
-  // (bug #7): the active-company gate only blocks *new* approvals, so live forms
+  // company needs a confirm because it strands its already-live forms:
+  // the active-company gate only blocks *new* approvals, so live forms
   // keep collecting responses (and paying TVX) under a company just marked
   // inactive. We warn how many will keep running rather than silently cascade.
   function handleToggle(company: ApprovedCompany) {

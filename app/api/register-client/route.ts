@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { isPasswordValid, PASSWORD_POLICY_MESSAGE } from "@/lib/auth/validation"
 
 /**
- * POST /api/register-client — trusted, server-side client signup (ARCHITECTURE §5.2).
+ * POST /api/register-client — trusted, server-side client signup.
  *
  * Creates a pre-confirmed account (trigger sets role='user'), then elevates it
  * to role='client' and fills the company fields using the secret key. That

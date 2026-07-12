@@ -1,11 +1,18 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Building2, UserRound } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Building2, UserRound, ArrowRight } from "lucide-react"
 import BrandLogo from "@/components/brand-logo"
+import { createClient } from "@/lib/supabase/client"
+import { ROLE_HOME, type AppRole } from "@/lib/auth/roles"
 
 // Only User and Client self-serve. Admin is sign-in only and unadvertised —
-// there is no admin card here and no admin signup anywhere (ARCHITECTURE §5.1/§5.3).
+// there is no admin card here and no admin signup anywhere.
 const roles = [
   {
+    role: "user" as AppRole,
     title: "User",
     description: "Submit feedback, track rewards, and manage your contributor profile.",
     highlight: "Earn rewards and share insights",
@@ -14,6 +21,7 @@ const roles = [
     icon: UserRound,
   },
   {
+    role: "client" as AppRole,
     title: "Client",
     description: "Launch campaigns, review insights, and scale decision-making.",
     highlight: "Launch campaigns and gather insights",
@@ -28,7 +36,50 @@ const ctaPrimary =
 const ctaGhost =
   "inline-flex flex-1 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 font-medium text-ink transition-all hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]"
 
+// The live session for whichever role the browser is currently signed in as
+// (admin is never surfaced on this screen, so it's ignored here).
+type ActiveSession = { role: AppRole; displayName: string }
+
 export default function SignInPage() {
+  const router = useRouter()
+  const [session, setSession] = useState<ActiveSession | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const supabase = createClient()
+
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Resolve the real role + a friendly name from profiles (never trust
+      // client-held metadata for role — same rule as every login door).
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, status, display_name, contact_name, company_name")
+        .eq("id", user.id)
+        .single()
+
+      if (cancelled || !profile || profile.status === "blocked") return
+      if (profile.role !== "user" && profile.role !== "client") return // admin: no card here
+
+      const displayName =
+        profile.display_name?.trim() ||
+        profile.contact_name?.trim() ||
+        profile.company_name?.trim() ||
+        user.email ||
+        "your account"
+
+      setSession({ role: profile.role, displayName })
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <main className="min-h-screen bg-background text-ink">
       <header className="border-b border-white/[0.06] bg-background/70 backdrop-blur-xl">
@@ -63,6 +114,7 @@ export default function SignInPage() {
         <div className="mx-auto mt-12 grid w-full max-w-3xl gap-4 md:grid-cols-2">
           {roles.map((role) => {
             const Icon = role.icon
+            const isActive = session?.role === role.role
             return (
               <article
                 key={role.title}
@@ -74,14 +126,33 @@ export default function SignInPage() {
                 <h2 className="mt-4 font-display text-xl font-bold text-ink">{role.title}</h2>
                 <p className="mt-2 min-h-[3.5rem] text-sm leading-relaxed text-ink-muted">{role.description}</p>
                 <p className="mt-1 text-xs font-medium text-gold">{role.highlight}</p>
-                <div className="mt-5 flex gap-2.5">
-                  <Link href={role.loginHref} className={ctaPrimary}>
-                    Login
-                  </Link>
-                  <Link href={role.registerHref} className={ctaGhost}>
-                    Register
-                  </Link>
-                </div>
+
+                {isActive ? (
+                  // Live session for this role → one-click continue (reuses the cookie),
+                  // plus a way to switch to a different account on this same side.
+                  <div className="mt-5 space-y-2.5">
+                    <button
+                      type="button"
+                      onClick={() => router.replace(ROLE_HOME[role.role])}
+                      className={`${ctaPrimary} w-full`}
+                    >
+                      Continue as {session?.displayName}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </button>
+                    <Link href={role.loginHref} className={`${ctaGhost} w-full`}>
+                      Use a different account
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="mt-5 flex gap-2.5">
+                    <Link href={role.loginHref} className={ctaPrimary}>
+                      Login
+                    </Link>
+                    <Link href={role.registerHref} className={ctaGhost}>
+                      Register
+                    </Link>
+                  </div>
+                )}
               </article>
             )
           })}

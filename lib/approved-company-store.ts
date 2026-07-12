@@ -1,13 +1,11 @@
 // ─── TrustVox Approved-Company & Managed-User Store ────────────────────────
-// Supabase-backed store for the admin company directory + user management
-// (migrated in Phase 8.5 — see docs/backend/ARCHITECTURE.md §4, §6, §8).
+// Supabase-backed store for the admin company directory + user management.
 // Companies map to the `companies` table; managed users are the `profiles`
 // table read through the admin lens. All functions are async and run through
 // the RLS-gated browser client.
 import { createClient, getCachedUser, nextChannelId } from "@/lib/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { logStore } from "@/lib/debug-log";
 
 export type CompanyStatus = "active" | "inactive";
 
@@ -92,7 +90,6 @@ export async function addApprovedCompany(input: Omit<ApprovedCompany, "id" | "da
   const { data, error } = await supabase.from("companies").insert(insertRow).select("*").single();
   if (error) throw error;
   const mapped = mapCompanyRow(data);
-  logStore("company-added", { id: mapped.id, name: mapped.name });
   return mapped;
 }
 
@@ -107,7 +104,6 @@ export async function updateApprovedCompany(id: string, updates: Partial<Approve
   if (error) throw error;
   if (!data) return null;
   const mapped = mapCompanyRow(data);
-  logStore("company-updated", { id: mapped.id });
   return mapped;
 }
 
@@ -128,8 +124,8 @@ export async function getCurrentUserId(): Promise<string | null> {
   return user?.id ?? null;
 }
 
-// Self-lockout guard (Phase 13.2, bug #6). RLS lets an admin flip any
-// profile's status — including their own or the last remaining admin — which
+// Self-lockout guard. RLS lets an admin flip any profile's status —
+// including their own or the last remaining admin — which
 // would sign everyone out of /admin with no in-UI way back. The block button
 // is disabled for those rows in the UI, but this is the trusted backstop: any
 // caller (now or later) that tries to *block* the current admin or the last
@@ -215,7 +211,6 @@ export async function updateManagedUserStatus(id: string, status: UserStatus): P
   if (error) throw error;
   if (!data) return null;
 
-  logStore("user-status-updated", { id, status });
   return {
     id: data.id,
     name: data.display_name || data.email || "Unknown",
@@ -227,9 +222,9 @@ export async function updateManagedUserStatus(id: string, status: UserStatus): P
   };
 }
 
-// Realtime replaces the old same-tab CustomEvent bus (Phase 8.7): any
-// insert/update/delete on `companies` notifies every subscriber, across
-// tabs and users. RLS already scopes reads (active-only for non-admins).
+// Realtime broadcast for company changes: any insert/update/delete on
+// `companies` notifies every subscriber, across tabs and users. RLS already
+// scopes reads (active-only for non-admins).
 export function subscribeToApprovedCompanies(onUpdate: () => void) {
   if (typeof window === "undefined") return () => {};
 
@@ -248,7 +243,7 @@ export function subscribeToApprovedCompanies(onUpdate: () => void) {
 // Admin-only surface: consumers of this subscription (admin dashboard, user
 // management) already sit behind the admin role gate, so an unfiltered
 // `profiles` subscription is fine — RLS still only lets an admin session
-// actually receive rows (self-or-admin read policy, §6).
+// actually receive rows (self-or-admin read policy).
 export function subscribeToManagedUsers(onUpdate: () => void) {
   if (typeof window === "undefined") return () => {};
 

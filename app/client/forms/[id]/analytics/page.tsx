@@ -138,8 +138,8 @@ export default function FormAnalyticsPage() {
           </div>
         </section>
 
-        {/* AI summary panel (Phase 12 · Step 12.1) — shares the exact component
-            11.6 built for client/analytics, pointed at this single form's own
+        {/* AI summary panel — shares the exact component built for
+            client/analytics, pointed at this single form's own
             page instead. Same route, same data-gate, no changes to either. */}
         <section className="mb-6">
           <AiSummaryPanel formId={form.id} />

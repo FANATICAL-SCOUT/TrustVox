@@ -1,4 +1,4 @@
-// TrustVox — Phase 8.1 · Seed script (honest-by-construction)
+// TrustVox — Seed script (honest-by-construction)
 //
 // Ports the existing SEED_* constants from lib/*.ts into the real database:
 //   • demo login accounts (1 per role) + responder accounts for historical feedback
@@ -223,8 +223,8 @@ async function createAccount({ email, role, displayName }) {
   if (error) throw error
   // The handle_new_user trigger creates the profile as 'user' (least privilege;
   // it deliberately ignores client-supplied role). Elevate privileged roles here
-  // through the trusted service-role path — the same shape 8.2 uses for real
-  // client registration. 'user' accounts need no change.
+  // through the trusted service-role path — the same shape real client
+  // registration uses. 'user' accounts need no change.
   if (role !== "user") {
     const { error: roleErr } = await admin.from("profiles").update({ role }).eq("id", data.user.id)
     if (roleErr) throw roleErr

@@ -1,12 +1,10 @@
 // ─── TrustVox Feedback Store ───────────────────────────────────────────────
-// Supabase-backed store for the feedback builder / distribution system
-// (migrated in Phase 8.3 — see docs/backend/ARCHITECTURE.md §4, §6, §8).
+// Supabase-backed store for the feedback builder / distribution system.
 // All functions are async and run through the RLS-gated browser client;
 // column names are snake_case in the DB and mapped to the camelCase shape
 // the UI expects at the boundary in this file.
 import { createClient, getCachedUser, nextChannelId } from "@/lib/supabase/client";
 import type { Json, Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
-import { logFlow } from "@/lib/debug-log";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export type QuestionType =
@@ -92,9 +90,8 @@ export interface FormResponse {
 
 const DEFAULT_FORM_REWARD_TOKENS = 24;
 // Upper bound on a form's per-response reward. Mirrors the `reward_tokens
-// between 1 and 1000` CHECK in migration 0008 — the DB is authoritative, this
-// keeps the app from ever sending a value the insert would reject. See the 8.8
-// self-mint remediation in docs/backend/ARCHITECTURE.md §4.
+// between 1 and 1000` CHECK constraint in the DB — the DB is authoritative,
+// this keeps the app from ever sending a value the insert would reject.
 const MAX_FORM_REWARD_TOKENS = 1000;
 
 type FormRow = Tables<"forms">;
@@ -240,10 +237,6 @@ export async function getApprovedForms(): Promise<FeedbackForm[]> {
   const rows = data ?? [];
   const counts = await fetchResponseCounts(supabase, rows.map((row) => row.id));
   const sorted = sortFormsByLatest(rows.map((row) => mapFormRow(row, counts.get(row.id) ?? 0)));
-  logFlow("query-approved-forms", {
-    approvedCount: sorted.length,
-    approvedFormIds: sorted.map((form) => form.id),
-  });
   return sorted;
 }
 
@@ -282,7 +275,6 @@ export async function createForm(partial: Partial<FeedbackForm>): Promise<Feedba
 
   const resolvedCompanyId = await resolveActiveCompanyId(supabase, partial.companyId);
   if (!resolvedCompanyId) {
-    logFlow("create-blocked-invalid-company", { companyId: partial.companyId });
     throw new Error("No active approved company selected. Cannot create form.");
   }
 
@@ -291,7 +283,6 @@ export async function createForm(partial: Partial<FeedbackForm>): Promise<Feedba
   if (error) throw error;
 
   const mapped = mapFormRow(data, 0);
-  logFlow("client-created-form", { formId: mapped.id, status: mapped.status, title: mapped.title });
   return mapped;
 }
 
@@ -325,7 +316,6 @@ export async function updateForm(id: string, updates: Partial<FeedbackForm>): Pr
 
   const counts = await fetchResponseCounts(supabase, [data.id]);
   const mapped = mapFormRow(data, counts.get(data.id) ?? 0);
-  logFlow("form-updated", { formId: id, nextStatus: mapped.status });
   return mapped;
 }
 
@@ -334,9 +324,6 @@ export async function deleteForm(id: string): Promise<boolean> {
   const { data, error } = await supabase.from("forms").delete().eq("id", id).select("id");
   if (error) throw error;
   const deleted = (data?.length ?? 0) > 0;
-  if (deleted) {
-    logFlow("form-deleted", { formId: id });
-  }
   return deleted;
 }
 
@@ -347,7 +334,6 @@ export async function submitFormForApproval(id: string): Promise<FeedbackForm | 
 
   const resolvedCompanyId = await resolveActiveCompanyId(supabase, existing.companyId);
   if (!resolvedCompanyId) {
-    logFlow("submit-blocked-invalid-company", { formId: id, reason: "Company is not active/approved" });
     return null;
   }
 
@@ -357,13 +343,6 @@ export async function submitFormForApproval(id: string): Promise<FeedbackForm | 
     rejectionReason: undefined,
     requestChangesNote: undefined,
   });
-  if (updated) {
-    logFlow("client-submitted-to-admin", {
-      formId: updated.id,
-      status: updated.status,
-      submittedAt: updated.submittedAt,
-    });
-  }
   return updated;
 }
 
@@ -374,11 +353,6 @@ export async function approveForm(id: string): Promise<FeedbackForm | null> {
 
   const resolvedCompanyId = await resolveActiveCompanyId(supabase, existing.companyId);
   if (!resolvedCompanyId) {
-    logFlow("approve-blocked-invalid-company", {
-      formId: id,
-      reason: "Company is not active/approved",
-      companyId: existing.companyId,
-    });
     return null;
   }
 
@@ -387,15 +361,6 @@ export async function approveForm(id: string): Promise<FeedbackForm | null> {
     approvedAt: new Date().toISOString(),
     rejectionReason: undefined,
   });
-  if (updated) {
-    logFlow("admin-approved-form", {
-      formId: updated.id,
-      status: updated.status,
-      companyId: updated.companyId,
-      clientName: updated.clientName,
-      approvedAt: updated.approvedAt,
-    });
-  }
   return updated;
 }
 
@@ -407,9 +372,6 @@ export async function rejectForm(id: string, reason: string): Promise<FeedbackFo
     // request-changes → resubmit → reject doesn't show both banners at once.
     requestChangesNote: undefined,
   });
-  if (updated) {
-    logFlow("admin-rejected-form", { formId: updated.id, status: updated.status, reason });
-  }
   return updated;
 }
 
@@ -419,9 +381,6 @@ export async function requestChanges(id: string, note: string): Promise<Feedback
     requestChangesNote: note,
     rejectionReason: undefined,
   });
-  if (updated) {
-    logFlow("admin-requested-changes", { formId: updated.id, status: updated.status, note });
-  }
   return updated;
 }
 
@@ -441,22 +400,15 @@ export async function addResponse(
   if (form?.autoCloseDate) {
     const closeAt = Date.parse(form.autoCloseDate);
     if (!Number.isNaN(closeAt) && Date.now() > closeAt) {
-      logFlow("response-blocked-autoclose", { formId, autoCloseDate: form.autoCloseDate });
       throw new Error("This feedback form is closed.");
     }
   }
 
   if (form?.responseLimit && form.responseCount >= form.responseLimit) {
-    logFlow("response-blocked-response-limit", {
-      formId,
-      responseCount: form.responseCount,
-      responseLimit: form.responseLimit,
-    });
     throw new Error("This feedback form reached its response limit.");
   }
 
   if (await hasUserSubmittedForm(formId, userId)) {
-    logFlow("response-blocked-duplicate", { formId, userId, reason: "user-already-submitted" });
     throw new Error("Feedback already submitted by this account.");
   }
 
@@ -480,7 +432,6 @@ export async function addResponse(
   }
 
   const mapped = mapResponseRow(data);
-  logFlow("user-submitted-response", { formId, responseId: mapped.id });
   return mapped;
 }
 
@@ -495,11 +446,11 @@ export async function getResponsesByFormId(formId: string): Promise<FormResponse
   return (data ?? []).map(mapResponseRow);
 }
 
-// All responses the caller can see, in one round-trip (Phase 13.5, bug #3). The
-// admin command center used to fan out one getResponsesByFormId per form — a
-// genuine N+1 — to compute totals / average rating / TVX paid. RLS scopes the
-// read (an admin session sees every response; a user sees only their own), so
-// this is a drop-in single query for any consumer that needs the whole set.
+// All responses the caller can see, in one round-trip. The admin command
+// center used to fan out one getResponsesByFormId per form — a genuine N+1 —
+// to compute totals / average rating / TVX paid. RLS scopes the read (an admin
+// session sees every response; a user sees only their own), so this is a
+// drop-in single query for any consumer that needs the whole set.
 export async function getAllResponses(): Promise<FormResponse[]> {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -512,8 +463,8 @@ export async function getAllResponses(): Promise<FormResponse[]> {
 
 // The signed-in user's own submitted response for a given form, if any. RLS
 // already scopes `responses` to the caller's rows, so this returns only the
-// user's own answers — used by the read-only "View" mode on feedback/[id]
-// (Phase 9 · Session 4, item 7). Returns null when they haven't submitted.
+// user's own answers — used by the read-only "View" mode on feedback/[id].
+// Returns null when they haven't submitted.
 export async function getUserResponseForForm(formId: string, userId: string): Promise<FormResponse | null> {
   const normalizedUserId = String(userId || "").trim();
   if (!formId || !normalizedUserId) return null;
@@ -566,8 +517,8 @@ export async function hasUserSubmittedForm(formId: string, userId: string): Prom
   return Boolean(data);
 }
 
-// One real activity event for the admin "User Activity" modal (Phase 13.6,
-// bug #4). Two honest kinds, both derived from real rows — never fabricated:
+// One real activity event for the admin "User Activity" modal. Two honest
+// kinds, both derived from real rows — never fabricated:
 //   • "feedback" — a response the user submitted (with the form title and, if
 //     the form had a star-rating question, the star value they gave).
 //   • "earn"     — a TVX reward credited for accepted feedback.
@@ -580,13 +531,12 @@ export interface UserActivityEvent {
   amount?: number;
 }
 
-// The real recent activity of one user, for the admin user-management modal
-// (Phase 13.6, bug #4). Every row is read straight from the DB under the
-// caller's RLS: an admin session may read any user's `responses` (0002
-// responses_select_own_owner_admin → is_admin()) and `wallet_transactions`
-// (0002 wallet_select_own_or_admin → is_admin()), so this works from the admin
-// surface without a service-role path. No fabricated activity to fill the modal
-// (CLAUDE.md) — an inactive user honestly returns an empty feed. Newest first.
+// The real recent activity of one user, for the admin user-management modal.
+// Every row is read straight from the DB under the caller's RLS: an admin
+// session may read any user's `responses` and `wallet_transactions` (both have
+// a self-or-admin select policy), so this works from the admin surface without
+// a service-role path. No fabricated activity to fill the modal — an inactive
+// user honestly returns an empty feed. Newest first.
 export async function getUserActivity(userId: string): Promise<UserActivityEvent[]> {
   const normalizedUserId = String(userId || "").trim();
   if (!normalizedUserId) return [];
@@ -667,12 +617,11 @@ export function newQuestionId() {
   return `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
-// Realtime replaces the old same-tab CustomEvent bus (Phase 8.7): any insert/
-// update/delete on `forms`, or new rows on `responses` (which move the derived
-// response_count), notifies every subscriber — across tabs and users, gated by
-// the same RLS policies that already scope reads (§6). `postgres_changes`
-// requires these tables to be added to the `supabase_realtime` publication in
-// the dashboard (see docs/backend/TRACKER.md).
+// Realtime broadcast for form/response changes: any insert/update/delete on
+// `forms`, or new rows on `responses` (which move the derived response_count),
+// notifies every subscriber — across tabs and users, gated by the same RLS
+// policies that already scope reads. `postgres_changes` requires these tables
+// to be added to the `supabase_realtime` publication.
 export function subscribeToFormsUpdates(onUpdate: () => void) {
   if (typeof window === "undefined") return () => {};
 

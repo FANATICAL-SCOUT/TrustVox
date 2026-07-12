@@ -19,7 +19,6 @@ import {
   type FeedbackForm,
   type Question,
 } from "@/lib/feedback-store"
-import { logFlow } from "@/lib/debug-log"
 import { subscribeToApprovedCompanies } from "@/lib/approved-company-store"
 import { consumeFeedbackQuota, getFeedbackQuota } from "@/lib/feedback-quota"
 import { recordFeedbackSubmittedNotification } from "@/lib/user-notifications"
@@ -310,8 +309,8 @@ function QuestionField({
 }
 
 // ── Read-only answer renderer (View mode) ───────────────────────────────────────
-// Renders the user's own stored answer for one question, non-editable. Session 4
-// item 7: clicking "View" on a completed feedback must show what they submitted,
+// Renders the user's own stored answer for one question, non-editable.
+// Clicking "View" on a completed feedback must show what they submitted,
 // not the "Submission blocked" screen.
 function ReadOnlyAnswer({ question, value }: { question: Question; value: AnswerValue | undefined }) {
   const { type, title } = question
@@ -385,20 +384,10 @@ export default function FeedbackSubmitPage() {
   useEffect(() => {
     if (!id) return
 
-    const loadForm = async (reason = "manual") => {
+    const loadForm = async () => {
       try {
         const found = await getFormById(id)
         const isApproved = Boolean(found && String(found.status).toLowerCase() === "approved")
-
-        logFlow("user-open-form", {
-          reason,
-          formId: id,
-          found: Boolean(found),
-          status: found?.status,
-          companyId: found?.companyId,
-          clientName: found?.clientName,
-          isApproved,
-        })
 
         // Viewing your own past submission is read-only history, so it must work
         // even if the form has since closed / hit its limit — those gates block
@@ -444,21 +433,20 @@ export default function FeedbackSubmitPage() {
         setAlreadySubmitted(false)
         setNotFound(false)
         setForm(found || null)
-      } catch (error) {
-        logFlow("user-open-form-error", { reason, formId: id, error: String(error) })
+      } catch {
         setNotFound(true)
         setForm(null)
       }
     }
 
-    void loadForm("mount")
-    const unsubscribeForms = subscribeToFormsUpdates(() => void loadForm("forms-updated"))
-    const unsubscribeCompanies = subscribeToApprovedCompanies(() => void loadForm("companies-updated"))
+    void loadForm()
+    const unsubscribeForms = subscribeToFormsUpdates(() => void loadForm())
+    const unsubscribeCompanies = subscribeToApprovedCompanies(() => void loadForm())
 
-    const handleFocus = () => void loadForm("window-focus")
+    const handleFocus = () => void loadForm()
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        void loadForm("tab-visible")
+        void loadForm()
       }
     }
 
@@ -581,7 +569,7 @@ export default function FeedbackSubmitPage() {
     )
   }
 
-  // Read-only "View" of the user's own submitted answers (Session 4 item 7).
+  // Read-only "View" of the user's own submitted answers.
   // Reached from every completed-form "View" button (Suggested, Trending,
   // History) via ?view=1. Renders the stored answers, never the block screen.
   if (alreadySubmitted && form && viewMode && viewAnswers) {

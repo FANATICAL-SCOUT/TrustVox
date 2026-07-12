@@ -26,11 +26,10 @@ import {
   getApprovedCompanies, subscribeToApprovedCompanies,
   type ApprovedCompany,
 } from "@/lib/approved-company-store"
-import { logFlow } from "@/lib/debug-log"
 
 type ApprovalFilterKey = "all" | "pending" | "changes" | "approved" | "rejected"
 
-// Why a pending form can't be approved (bug #10). approveForm() returns null
+// Why a pending form can't be approved. approveForm() returns null
 // when the form's company is missing or not active — mirror that check here so
 // the card can say *why* up-front instead of the admin re-clicking into a
 // transient "blocked" toast. Returns null when the form is approvable.
@@ -382,7 +381,7 @@ function ReviewCard({
           </div>
         )}
 
-        {/* Blocked-from-approval notice (bug #10): a pending form whose company
+        {/* Blocked-from-approval notice: a pending form whose company
             is missing/inactive can't be published — say so here instead of a
             transient toast the admin only sees after clicking. */}
         {isPending && blockedReason && (
@@ -442,15 +441,10 @@ export default function AdminApprovalsPage() {
 
   const loadForms = async () => {
     const allForms = await getForms()
-    logFlow("admin-page-load-forms", {
-      total: allForms.length,
-      pending: allForms.filter((f) => f.status === "pending").length,
-      approved: allForms.filter((f) => f.status === "approved").length,
-    })
     setForms(allForms)
   }
 
-  // Companies drive the per-card blocked-from-approval notice (bug #10). Loaded
+  // Companies drive the per-card blocked-from-approval notice. Loaded
   // + subscribed alongside forms so deactivating a company reflects live.
   const loadCompanies = async () => {
     setCompanies(await getApprovedCompanies())
@@ -486,7 +480,7 @@ export default function AdminApprovalsPage() {
     rejected: forms.filter((f) => f.status === "rejected").length,
   }
 
-  // Open the confirm step (bug #8a). A blocked form never gets here — the card's
+  // Open the confirm step. A blocked form never gets here — the card's
   // Approve button is disabled — but guard anyway so a stale click can't slip a
   // blocked form into the dialog.
   function requestApprove(form: FeedbackForm) {
@@ -496,18 +490,14 @@ export default function AdminApprovalsPage() {
 
   // Each action writes to `forms`, which the subscribeToFormsUpdates
   // subscription (below) already catches and reloads from — so these handlers
-  // no longer call loadForms() themselves (bug #9: that double-fetched every
-  // action and re-rendered the list twice). Realtime is the single refresh path;
+  // no longer call loadForms() themselves (that would double-fetch every
+  // action and re-render the list twice). Realtime is the single refresh path;
   // the manual Refresh button stays for an explicit reload.
   async function handleApprove() {
     if (!approveTarget) return
     const id = approveTarget.id
     setApproveTarget(null)
     const updated = await approveForm(id)
-    logFlow("admin-approve-click", {
-      formId: id,
-      statusAfter: updated?.status,
-    })
     if (!updated) {
       // approveForm re-checks the company server-side; if it refuses, the
       // company changed since the card rendered — reload so the notice appears.
@@ -627,7 +617,7 @@ export default function AdminApprovalsPage() {
         onClose={() => setPreviewForm(null)}
       />
 
-      {/* Approve confirmation (bug #8a) */}
+      {/* Approve confirmation */}
       <ApproveConfirmDialog
         form={approveTarget}
         open={!!approveTarget}

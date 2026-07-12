@@ -1,6 +1,6 @@
 // ─── TrustVox Store Catalog ────────────────────────────────────────────────
-// Supabase-backed reward catalog (added in Phase 8.4 — see ARCHITECTURE.md §4).
-// Costs live in the DB so the server is authoritative on price; the browser
+// Supabase-backed reward catalog. Costs live in the DB so the server is
+// authoritative on price; the browser
 // only displays it. The redeem trusted path (redeem_reward) re-reads the cost
 // from this table and ignores any client-supplied number.
 import { createClient } from "@/lib/supabase/client";

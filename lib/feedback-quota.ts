@@ -1,7 +1,6 @@
 // ─── TrustVox Feedback Quota ────────────────────────────────────────────────
-// Supabase-backed daily submission quota (migrated in Phase 8.6 — see
-// ARCHITECTURE.md §4, §8). Every field is DERIVED from the user's own
-// `responses` rows on every call — there is no separate quota table and
+// Supabase-backed daily submission quota. Every field is DERIVED from the
+// user's own `responses` rows on every call — there is no separate quota table and
 // nothing is cached locally, so the numbers can never drift from what was
 // actually submitted.
 import { createClient, getCachedUser, nextChannelId } from "@/lib/supabase/client"
@@ -104,8 +103,8 @@ export async function consumeFeedbackQuota(): Promise<{ ok: boolean; quota: Feed
   return { ok: quota.canSubmit, quota }
 }
 
-// Realtime replaces the old same-tab CustomEvent bus (Phase 8.7). Quota has no
-// table of its own — it's derived from `responses` — so a new response row
+// Realtime broadcast for quota changes. Quota has no table of its own — it's
+// derived from `responses` — so a new response row
 // for the signed-in user triggers a fresh `getFeedbackQuota()` recompute,
 // across tabs. RLS already scopes reads to the caller's own rows.
 export function subscribeToFeedbackQuotaUpdates(onUpdate: (quota: FeedbackQuotaResult) => void) {

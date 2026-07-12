@@ -152,7 +152,7 @@ const SuggestedFeedbacks = ({ handleStartFeedbackFromSuggested }: SuggestedFeedb
 
   const loadForms = useCallback(async () => {
     // Forms + user-id resolve in parallel; the user-scoped queries then run
-    // together (Phase 9 · Session 6 — was a 3-deep waterfall).
+    // together (was a 3-deep waterfall).
     const [forms, userId] = await Promise.all([getApprovedForms(), resolveCurrentUserId()])
     const [ids, bookmarks] = await Promise.all([
       userId ? getSubmittedFormIdsByUser(userId) : Promise.resolve<string[]>([]),

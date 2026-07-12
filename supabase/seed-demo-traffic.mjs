@@ -1,4 +1,4 @@
-// TrustVox — Phase 11.4 · Demo-traffic seed (HONEST — real submit path)
+// TrustVox — Demo-traffic seed (HONEST — real submit path)
 //
 // Unlike supabase/seed.mjs (which inserts historical response rows directly
 // via service_role to bootstrap the initial demo), this script generates

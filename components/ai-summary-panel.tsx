@@ -3,11 +3,10 @@
 import { useEffect, useState } from "react"
 import { AlertCircle, Loader2, Sparkles } from "lucide-react"
 
-// Shared AI summary panel (Phase 11 · Session 11.6, extracted Phase 12 · Step
-// 12.1 for reuse on the per-form analytics page). Owns its own request state,
-// keyed internally by formId so switching forms never shows a stale read —
-// callers just render it with the form they want summarized. Calls the
-// existing /api/summarize-responses route unchanged.
+// Shared AI summary panel, reused on the per-form analytics page. Owns its
+// own request state, keyed internally by formId so switching forms never
+// shows a stale read — callers just render it with the form they want
+// summarized. Calls the existing /api/summarize-responses route unchanged.
 export default function AiSummaryPanel({ formId }: { formId: string }) {
   const [resultFormId, setResultFormId] = useState<string | null>(null)
   const [summary, setSummary] = useState<string | null>(null)

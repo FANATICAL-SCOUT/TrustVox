@@ -1,5 +1,5 @@
 // ─── TrustVox Bookmark Store ───────────────────────────────────────────────
-// Supabase-backed "save a feedback form for later" store (Phase 9 · Session 4).
+// Supabase-backed "save a feedback form for later" store.
 // A bookmark is plain user-owned data (unlike the wallet/redemptions trusted
 // paths): the user directly creates and removes their own rows, gated by the
 // per-user RLS policies in migration 0011. All functions are async and run

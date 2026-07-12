@@ -18,7 +18,7 @@ export function createClient(): SupabaseClient<Database> {
   return browserClient
 }
 
-// ── Cached auth lookup (Phase 9 · Session 6 perf fix) ───────────────────────
+// ── Cached auth lookup ───────────────────────────────────────────────────────
 // supabase.auth.getUser() is a NETWORK round-trip: it validates the JWT against
 // the Auth server (~135ms each), not a local cookie read. Store functions each
 // called it independently, so one dashboard mount fired it 8–10 times serially

@@ -1,15 +1,14 @@
 // ─── TrustVox User Notifications ────────────────────────────────────────────
-// Supabase-backed notifications (migrated in Phase 8.6 — see
-// ARCHITECTURE.md §4, §6, §8). Rows map straight to the `notifications` table;
-// dedup for system-generated notices (which forms already got a
+// Supabase-backed notifications. Rows map straight to the `notifications`
+// table; dedup for system-generated notices (which forms already got a
 // "new opportunity" notice, whether today's streak warning already fired) is
 // derived by reading the user's own existing rows instead of separate local
 // bookkeeping.
 //
 // Reward timing note: the TVX credit for a submitted response happens
-// immediately via the trusted `credit_feedback_reward` path (Phase 8.4), so
-// this fires a single honest "reward credited" notification right after
-// submission — there is no simulated pending/24h-delay step anymore.
+// immediately via the trusted `credit_feedback_reward` path, so this fires a
+// single honest "reward credited" notification right after submission — there
+// is no simulated pending/24h-delay step anymore.
 import { createClient, getCachedUser, nextChannelId } from "@/lib/supabase/client"
 import type { Tables } from "@/lib/supabase/types"
 import type { RealtimeChannel } from "@supabase/supabase-js"
@@ -169,8 +168,8 @@ async function doRefreshSystemNotifications(): Promise<UserNotification[]> {
   if (!userId) return []
 
   // These three reads are independent — fetch them in parallel instead of
-  // waterfalling (Phase 9 · Session 6 perf fix). Was: existing → forms → quota
-  // serially, ~3 extra round-trips deep.
+  // waterfalling (was existing → forms → quota serially, ~3 extra round-trips
+  // deep).
   const [existing, approvedForms, quota] = await Promise.all([
     getUserNotifications(),
     getApprovedForms(),
@@ -226,8 +225,8 @@ async function doRefreshSystemNotifications(): Promise<UserNotification[]> {
   return existing
 }
 
-// Realtime replaces the old same-tab CustomEvent bus (Phase 8.7): any insert
-// or update on the caller's own `notifications` rows notifies every
+// Realtime broadcast for notification changes: any insert or update on the
+// caller's own `notifications` rows notifies every
 // subscriber, across tabs. RLS already scopes reads to `auth.uid()`; the
 // `user_id=eq.<uid>` filter here just avoids subscribing to a broader stream.
 export function subscribeToUserNotifications(onUpdate: (notifications: UserNotification[]) => void) {

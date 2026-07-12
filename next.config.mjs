@@ -7,14 +7,6 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'via.placeholder.com',
-        port: '',
-        pathname: '/**',
-      },
-    ],
     unoptimized: true,
   },
   async redirects() {

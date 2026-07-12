@@ -1,6 +1,6 @@
-// TrustVox — Manual admin provisioning (Phase 8.2)
+// TrustVox — Manual admin provisioning
 //
-// Admins are NEVER self-service (ARCHITECTURE §5.3): there is no admin signup,
+// Admins are NEVER self-service: there is no admin signup,
 // and role='admin' can only be set by a holder of the secret key. This script
 // is that holder. It creates one admin account from human-chosen credentials in
 // the git-ignored .env.local — nothing is auto-generated and nothing is committed.

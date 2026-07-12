@@ -333,7 +333,7 @@ export default function UserProfile({ router }: UserProfileProps) {
             </div>
           </div>
 
-          {/* Interests — separate section (Session 3 item 3) */}
+          {/* Interests — separate section */}
           <div data-reveal-card className={cardCls}>
             <h3 className="flex items-center gap-2 font-display text-lg font-bold text-ink">
               <Tag className="h-5 w-5 text-gold" /> Interests
@@ -370,7 +370,7 @@ export default function UserProfile({ router }: UserProfileProps) {
             </p>
           </div>
 
-          {/* TVX earned — per feedback (Session 3 item 4) */}
+          {/* TVX earned — per feedback */}
           <div data-reveal-card className={cardCls}>
             <h3 className="flex items-center gap-2 font-display text-lg font-bold text-ink">
               <Coins className="h-5 w-5 text-gold" /> TVX earned
@@ -400,7 +400,7 @@ export default function UserProfile({ router }: UserProfileProps) {
             )}
           </div>
 
-          {/* Redeemed rewards — coupon history (Session 3 items 5–6) */}
+          {/* Redeemed rewards — coupon history */}
           <div data-reveal-card className={cardCls}>
             <h3 className="flex items-center gap-2 font-display text-lg font-bold text-ink">
               <Ticket className="h-5 w-5 text-gold" /> Redeemed rewards
@@ -499,7 +499,7 @@ export default function UserProfile({ router }: UserProfileProps) {
 
       {/* Universal sticky Save bar — appears only when there are unsaved changes,
           so name/bio/interests can be saved from anywhere without scrolling back
-          up to the form (Phase 9 follow-up). */}
+          up to the form. */}
       {dirty ? (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4 sm:pb-6">
           <div className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-white/[0.1] bg-surface-raised/95 px-4 py-3 shadow-2xl backdrop-blur-xl">

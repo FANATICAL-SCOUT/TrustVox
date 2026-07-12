@@ -203,7 +203,7 @@ export default function ClientFormsPage() {
   }
 
   function handleEdit(id: string) {
-    router.push(`/client/create-feedback?edit=${id}`)
+    router.push(`/client/create?edit=${id}`)
   }
 
   function handleDelete(id: string) {

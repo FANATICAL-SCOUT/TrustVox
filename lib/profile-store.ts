@@ -1,7 +1,5 @@
 // ─── TrustVox User Profile Store ───────────────────────────────────────────
-// Read/update the signed-in user's editable profile (Phase 9 · Session 3).
-// See docs/backend/ARCHITECTURE.md §4 (profiles) and docs/frontend/
-// PHASE-9-QA-REDESIGN.md Session 3.
+// Read/update the signed-in user's editable profile.
 //
 // Reads go through the RLS-gated browser client (a user can only read their own
 // profile row). Writes go through the trusted /api/update-profile route so the
@@ -10,7 +8,7 @@
 import { createClient, getCachedUser } from "@/lib/supabase/client"
 
 // Selectable interest tags = the feedback categories the app actually uses
-// (from create-feedback's CATEGORIES), minus the "Other"/"Others" placeholders
+// (from the create-form page's CATEGORIES), minus the "Other"/"Others" placeholders
 // which aren't meaningful interests. Keeping this aligned with the real form
 // categories means interests can drive recommendations later without a mismatch.
 export const INTEREST_OPTIONS = [

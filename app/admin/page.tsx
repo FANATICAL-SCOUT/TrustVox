@@ -66,7 +66,7 @@ export default function AdminCommandCenter() {
   const [forms, setForms] = useState<FeedbackForm[]>([])
   const [companies, setCompanies] = useState<ApprovedCompany[]>([])
   const [users, setUsers] = useState<ManagedUser[]>([])
-  // One batched read instead of one query per form (bug #3); grouped by form in
+  // One batched read instead of one query per form; grouped by form in
   // `responsesByForm` below.
   const [allResponses, setAllResponses] = useState<FormResponse[]>([])
   const [mounted, setMounted] = useState(false)

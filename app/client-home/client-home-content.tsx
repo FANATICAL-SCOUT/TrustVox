@@ -780,7 +780,7 @@ export default function ClientHomePage() {
                       <span className="text-xs text-ink-muted">{timeAgo(getLastUpdated(form))}</span>
                       <button
                         onClick={() =>
-                          canEdit ? router.push(`/client/create-feedback?edit=${form.id}`) : router.push("/client/forms")
+                          canEdit ? router.push(`/client/create?edit=${form.id}`) : router.push("/client/forms")
                         }
                         className="rounded-md px-2 py-1 text-xs font-medium text-mint hover:bg-mint/10"
                       >

@@ -11,17 +11,17 @@ import {
 } from "@/lib/auth/validation"
 
 /**
- * POST /api/register-user — trusted, server-side user signup (ARCHITECTURE §5.2).
+ * POST /api/register-user — trusted, server-side user signup.
  *
  * Creates a pre-confirmed account with the secret key. The `handle_new_user`
- * DB trigger creates the profiles row with role='user' (0004 hardening — it
- * ignores any client-supplied role), so nothing here can elevate privilege.
+ * DB trigger creates the profiles row with role='user' and
+ * ignores any client-supplied role, so nothing here can elevate privilege.
  * DOB + gender are written to the profile from here with the secret key (the
  * trigger only fills id/email/display_name/role). The browser establishes the
  * session afterwards via signInWithPassword.
  *
  * Password policy + the 16+ age gate are validated HERE too, not just in the
- * browser — the client checks are for UX; this is the real gate (§security-first).
+ * browser — the client checks are for UX; this is the real gate.
  */
 const schema = z.object({
   name: z.string().trim().min(1, "Please enter your name.").max(120),

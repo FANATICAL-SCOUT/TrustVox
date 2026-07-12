@@ -12,7 +12,7 @@ import type { Database } from "@/lib/supabase/types"
  * No session is persisted or refreshed — this client acts as the trusted
  * server identity, not a logged-in user. It is what makes the "role elevation"
  * path trusted: RLS pins `profiles.role`, so setting role='client'/'admin' can
- * only happen through a holder of the secret key (see ARCHITECTURE §5.2–§5.3).
+ * only happen through a holder of the secret key.
  */
 export function createAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL

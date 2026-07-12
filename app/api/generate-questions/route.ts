@@ -6,11 +6,11 @@ import type { QuestionType } from "@/lib/feedback-store"
 
 /**
  * POST /api/generate-questions — AI-assisted question drafting for the create-form
- * builder (Phase 11 · Session 11.5). Honest replacement for the fake "AI Suggested
- * Templates" removed in Phase 9 Session 8: this one is a real model call, clearly
+ * builder. Honest replacement for the earlier fake "AI Suggested
+ * Templates": this one is a real model call, clearly
  * labelled in the UI as AI-generated + editable, never auto-submitted.
  *
- * Guardrails (see docs/frontend/PHASE-11-CLIENT-REBUILD-AI.md §11.5):
+ * Guardrails:
  *   - auth-gate: signed-in CLIENT only (role read from profiles, not client input)
  *   - input cap: prompt ≤ 500 chars
  *   - rate limit: 10 calls / rolling 24h / user, backed by migration 0014
