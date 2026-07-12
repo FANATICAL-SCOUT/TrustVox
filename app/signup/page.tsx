@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { UserRound, UserPlus } from "lucide-react"
 import AuthShell, { authFieldLabelClass, authInputClass } from "@/components/auth/auth-shell"
 import PasswordField from "@/components/auth/password-field"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { createClient } from "@/lib/supabase/client"
 import { ROLE_HOME } from "@/lib/auth/roles"
 import {
@@ -161,22 +162,16 @@ export default function UserSignupPage() {
           <label htmlFor="gender" className={authFieldLabelClass}>
             Gender
           </label>
-          <select
+          <SearchableSelect
             id="gender"
+            aria-label="Gender"
+            options={GENDER_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
             value={gender}
-            onChange={(e) => setGender(e.target.value)}
-            className={`${authInputClass} [color-scheme:dark]`}
+            onChange={setGender}
+            placeholder="Select…"
+            searchPlaceholder="Type to search…"
             disabled={isSubmitting}
-          >
-            <option value="" disabled>
-              Select…
-            </option>
-            {GENDER_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          />
         </div>
       </div>
       <PasswordField

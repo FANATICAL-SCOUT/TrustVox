@@ -24,7 +24,12 @@ import {
 } from "@/lib/feedback-store"
 import { logFlow } from "@/lib/debug-log"
 
-type ApprovalFilterKey = "all" | "pending" | "approved" | "rejected"
+type ApprovalFilterKey = "all" | "pending" | "changes" | "approved" | "rejected"
+
+// A form the admin sent back for changes: it goes to "draft" status but keeps
+// its requestChangesNote. Without this, those forms only showed under "All"
+// and dropped out of every other tab + stat card after the admin acted.
+const isChangesRequested = (f: FeedbackForm) => f.status === "draft" && !!f.requestChangesNote
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -57,6 +62,7 @@ const QT_LABELS: Record<QuestionType, string> = {
 const FILTER_TABS: Array<{ key: ApprovalFilterKey; label: string }> = [
   { key: "all",      label: "All" },
   { key: "pending",  label: "Pending" },
+  { key: "changes",  label: "Changes Requested" },
   { key: "approved", label: "Approved" },
   { key: "rejected", label: "Rejected" },
 ]
@@ -366,11 +372,17 @@ export default function AdminApprovalsPage() {
     setTimeout(() => setToastMsg(null), 3000)
   }
 
-  const filtered = filter === "all" ? forms : forms.filter((f) => f.status === filter)
+  const filtered =
+    filter === "all"
+      ? forms
+      : filter === "changes"
+        ? forms.filter(isChangesRequested)
+        : forms.filter((f) => f.status === filter)
 
   const counts: Record<ApprovalFilterKey, number> = {
     all:      forms.length,
     pending:  forms.filter((f) => f.status === "pending").length,
+    changes:  forms.filter(isChangesRequested).length,
     approved: forms.filter((f) => f.status === "approved").length,
     rejected: forms.filter((f) => f.status === "rejected").length,
   }
@@ -472,7 +484,9 @@ export default function AdminApprovalsPage() {
           <p className="text-sm text-ink-muted">
             {filter === "pending"
               ? "All caught up! No pending forms right now."
-              : `No ${filter} forms found.`}
+              : filter === "changes"
+                ? "No forms are waiting on client changes."
+                : `No ${filter} forms found.`}
           </p>
         </div>
       ) : (

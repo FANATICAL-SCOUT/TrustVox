@@ -7,6 +7,13 @@
     @apply border-border;
   }
 
+  html {
+    /* Fill the viewport so the dark root background covers the whole canvas,
+       leaving no light gap for overscroll to reveal. */
+    min-height: 100%;
+    background-color: #0b0c11;
+  }
+
   body {
     @apply bg-background text-foreground;
     min-height: 100vh;
@@ -138,8 +145,20 @@ html {
   html,
   body {
     background: #0b0c11;
+    background-color: #0b0c11;
     color: #eceef4;
     font-family: var(--font-body), "DM Sans", sans-serif;
+    /* Tell the browser this is a dark surface so the overscroll / rubber-band
+       canvas paints dark instead of the default white. Without this, hard
+       scrolling past the page bounds flashes a white edge (top/bottom). */
+    color-scheme: dark;
+    /* Kill the rubber-band overscroll glow entirely so no root canvas can peek
+       through beyond the page — the white-edge bug on hard scroll, both axes. */
+    overscroll-behavior: none;
+    /* Belt-and-braces guard against a stray full-bleed element pushing the
+       document wider than the viewport (the horizontal white gutter on hard
+       left/right scroll). The page body should never scroll sideways. */
+    overflow-x: hidden;
   }
 
   h1,

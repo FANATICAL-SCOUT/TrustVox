@@ -4,11 +4,12 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react"
 import {
   BarChart3,
   Check,
-  ChevronDown,
   Download,
   FileText,
   Layers,
+  Search,
   TrendingUp,
+  X,
 } from "lucide-react"
 import {
   Area,
@@ -32,10 +33,23 @@ import {
 import { getClientForms, getResponsesByFormId, subscribeToFormsUpdates, type FeedbackForm, type FormResponse } from "@/lib/feedback-store"
 import AnalyticsPDFTemplate from "@/components/analytics-pdf-template"
 import AiSummaryPanel from "@/components/ai-summary-panel"
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select"
 import { useSearchParams } from "next/navigation"
 
 const REPORTS_STORAGE_KEY = "trustvox.client.analytics.reports.v1"
 const MAX_COMPARE_FORMS = 3
+
+// Date-range presets for filtering the compare-form list as the form count
+// grows. `null` days means "All time" (no cutoff).
+type DateRangeKey = "24h" | "7d" | "30d" | "90d" | "1y" | "all"
+const DATE_RANGE_OPTIONS: Array<{ key: DateRangeKey; label: string; days: number | null }> = [
+  { key: "24h", label: "24h", days: 1 },
+  { key: "7d", label: "7 days", days: 7 },
+  { key: "30d", label: "30 days", days: 30 },
+  { key: "90d", label: "90 days", days: 90 },
+  { key: "1y", label: "1 year", days: 365 },
+  { key: "all", label: "All", days: null },
+]
 // Single-accent Ledger palette for series that need to stay distinguishable
 // (compare mode caps out at 3 form slots).
 const LEDGER_SERIES_COLORS = ["#EBBC6B", "#5FD0A6", "#B6BACB"]
@@ -689,6 +703,8 @@ function ClientAnalyticsPageContent() {
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("single")
   const [singleCampaignId, setSingleCampaignId] = useState<string>("")
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<CampaignSlots>([null, null, null])
+  const [compareSearch, setCompareSearch] = useState("")
+  const [compareRange, setCompareRange] = useState<DateRangeKey>("all")
   const [warning, setWarning] = useState("")
   const [reports, setReports] = useState<AnalyticsReport[]>([])
   const [activeReportId, setActiveReportId] = useState<string | null>(null)
@@ -697,6 +713,18 @@ function ClientAnalyticsPageContent() {
   const [isHydrated, setIsHydrated] = useState(false)
 
   const campaignMap = useMemo(() => new Map(campaigns.map((campaign) => [campaign.id, campaign])), [campaigns])
+
+  // Options for the single-form searchable picker — each form is findable by
+  // typing its name, with the created-date shown as a secondary hint.
+  const singleFormOptions = useMemo<SearchableSelectOption[]>(
+    () =>
+      campaigns.map((campaign) => ({
+        value: campaign.id,
+        label: campaign.name,
+        hint: `Created ${formatDateLabel(campaign.date)}`,
+      })),
+    [campaigns],
+  )
 
   useEffect(() => {
     let active = true
@@ -948,6 +976,25 @@ function ClientAnalyticsPageContent() {
   // param continue to work unchanged.
   const compareCount = selectedCampaignIds.filter((id): id is string => Boolean(id)).length
 
+  // Compare-form list filtered by the search text + date-range preset so the
+  // picker scales past a handful of forms. Already-selected forms are always
+  // kept visible — a filter must never hide something the user already picked.
+  const visibleCompareCampaigns = useMemo(() => {
+    const query = compareSearch.trim().toLowerCase()
+    const rangeDays = DATE_RANGE_OPTIONS.find((option) => option.key === compareRange)?.days ?? null
+    const cutoff = rangeDays === null ? null : Date.now() - rangeDays * 24 * 60 * 60 * 1000
+
+    return campaigns.filter((campaign) => {
+      if (selectedCampaignIds.includes(campaign.id)) return true
+      if (query && !campaign.name.toLowerCase().includes(query)) return false
+      if (cutoff !== null) {
+        const created = Date.parse(campaign.date)
+        if (!Number.isNaN(created) && created < cutoff) return false
+      }
+      return true
+    })
+  }, [campaigns, compareSearch, compareRange, selectedCampaignIds])
+
   const toggleCompareForm = (formId: string) => {
     setSelectedCampaignIds((current) => {
       const chosen = current.filter((id): id is string => Boolean(id))
@@ -1170,42 +1217,94 @@ function ClientAnalyticsPageContent() {
                   No forms yet — create a form to unlock analytics.
                 </div>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {campaigns.map((campaign) => {
-                    const totalResponses = getCampaignTotalResponses(campaign)
-                    const isSelected = selectedCampaignIds.includes(campaign.id)
-                    const atLimit = compareCount >= MAX_COMPARE_FORMS && !isSelected
-
-                    return (
-                      <button
-                        key={campaign.id}
-                        type="button"
-                        onClick={() => toggleCompareForm(campaign.id)}
-                        disabled={atLimit}
-                        aria-pressed={isSelected}
-                        className={`group relative rounded-xl border p-4 text-left transition-all ${
-                          isSelected
-                            ? "border-gold/50 bg-gold/[0.07]"
-                            : atLimit
-                            ? "cursor-not-allowed border-white/[0.06] bg-white/[0.01] opacity-50"
-                            : "border-white/[0.07] bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
-                        }`}
-                      >
-                        <span
-                          className={`absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
-                            isSelected ? "border-gold bg-gold text-[#241a06]" : "border-white/20 text-transparent"
+                <>
+                  {/* Search + date-range filter — keeps the picker usable as the
+                      form count grows past a handful. Type to find by name, or
+                      narrow by when the form was created. */}
+                  <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="relative w-full lg:max-w-xs">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+                      <input
+                        type="text"
+                        value={compareSearch}
+                        onChange={(event) => setCompareSearch(event.target.value)}
+                        placeholder="Type a form name…"
+                        aria-label="Search forms to compare"
+                        className="h-10 w-full rounded-lg border border-white/15 bg-white/[0.04] pl-9 pr-9 text-sm text-ink outline-none transition-colors focus:border-gold/60 focus:ring-2 focus:ring-gold/20"
+                      />
+                      {compareSearch ? (
+                        <button
+                          type="button"
+                          onClick={() => setCompareSearch("")}
+                          aria-label="Clear search"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-ink-muted transition-colors hover:text-ink"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {DATE_RANGE_OPTIONS.map((option) => (
+                        <button
+                          key={option.key}
+                          type="button"
+                          onClick={() => setCompareRange(option.key)}
+                          aria-pressed={compareRange === option.key}
+                          className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                            compareRange === option.key
+                              ? "border-gold/50 bg-gold/[0.1] text-gold"
+                              : "border-white/10 bg-white/[0.03] text-ink-muted hover:border-white/20 hover:text-ink-dim"
                           }`}
                         >
-                          <Check className="h-3 w-3" />
-                        </span>
-                        <p className="pr-6 font-semibold text-ink">{campaign.name}</p>
-                        <p className="mt-0.5 text-xs text-ink-muted">Created {formatDateLabel(campaign.date)}</p>
-                        <p className="mt-3 tvx-num text-2xl font-semibold text-ink">{totalResponses}</p>
-                        <p className="text-[11px] uppercase tracking-wide text-ink-muted">Responses</p>
-                      </button>
-                    )
-                  })}
-                </div>
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {visibleCompareCampaigns.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-white/[0.1] bg-white/[0.02] py-10 text-center text-sm text-ink-muted">
+                      No forms match your search or date range.
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      {visibleCompareCampaigns.map((campaign) => {
+                        const totalResponses = getCampaignTotalResponses(campaign)
+                        const isSelected = selectedCampaignIds.includes(campaign.id)
+                        const atLimit = compareCount >= MAX_COMPARE_FORMS && !isSelected
+
+                        return (
+                          <button
+                            key={campaign.id}
+                            type="button"
+                            onClick={() => toggleCompareForm(campaign.id)}
+                            disabled={atLimit}
+                            aria-pressed={isSelected}
+                            className={`group relative rounded-xl border p-4 text-left transition-all ${
+                              isSelected
+                                ? "border-gold/50 bg-gold/[0.07]"
+                                : atLimit
+                                ? "cursor-not-allowed border-white/[0.06] bg-white/[0.01] opacity-50"
+                                : "border-white/[0.07] bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                            }`}
+                          >
+                            <span
+                              className={`absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+                                isSelected ? "border-gold bg-gold text-[#241a06]" : "border-white/20 text-transparent"
+                              }`}
+                            >
+                              <Check className="h-3 w-3" />
+                            </span>
+                            <p className="pr-6 font-semibold text-ink">{campaign.name}</p>
+                            <p className="mt-0.5 text-xs text-ink-muted">Created {formatDateLabel(campaign.date)}</p>
+                            <p className="mt-3 tvx-num text-2xl font-semibold text-ink">{totalResponses}</p>
+                            <p className="text-[11px] uppercase tracking-wide text-ink-muted">Responses</p>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
               )}
 
               <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/[0.06] pt-4">
@@ -1237,23 +1336,20 @@ function ClientAnalyticsPageContent() {
                 <h2 className="text-base font-semibold">Choose a form to analyze</h2>
               </div>
               <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                <div className="relative w-full md:max-w-md">
-                  <select
+                <div className="w-full md:max-w-md">
+                  <SearchableSelect
+                    aria-label="Choose a form to analyze"
+                    options={singleFormOptions}
                     value={singleCampaignId}
-                    onChange={(event) => {
-                      setSingleCampaignId(event.target.value)
+                    onChange={(next) => {
+                      setSingleCampaignId(next)
                       setWarning("")
                     }}
-                    className="h-11 w-full appearance-none rounded-lg border border-white/15 bg-white/[0.04] px-3 pr-10 text-sm text-ink outline-none transition-colors focus:border-gold/60 focus:ring-2 focus:ring-gold/20"
-                  >
-                    <option value="">Select a form…</option>
-                    {campaigns.map((campaign) => (
-                      <option key={campaign.id} value={campaign.id}>
-                        {campaign.name} ({formatDateLabel(campaign.date)})
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+                    placeholder="Select a form…"
+                    searchPlaceholder="Type a form name…"
+                    emptyText="No matching forms."
+                    disabled={campaigns.length === 0}
+                  />
                 </div>
                 <button
                   onClick={analyzeSingleCampaign}

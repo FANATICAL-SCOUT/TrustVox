@@ -403,6 +403,9 @@ export async function rejectForm(id: string, reason: string): Promise<FeedbackFo
   const updated = await updateForm(id, {
     status: "rejected",
     rejectionReason: reason,
+    // Clear any prior "changes requested" note so a form that went
+    // request-changes → resubmit → reject doesn't show both banners at once.
+    requestChangesNote: undefined,
   });
   if (updated) {
     logFlow("admin-rejected-form", { formId: updated.id, status: updated.status, reason });

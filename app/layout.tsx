@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Bricolage_Grotesque, DM_Sans, JetBrains_Mono } from "next/font/google"
 import { Providers } from "./providers"
 import GlobalScrollEffects from "@/components/global-scroll-effects"
@@ -31,6 +31,13 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "TrustVox — Feedback that pays you back",
   description: "Share feedback on the products you use, earn TVX tokens, and redeem them for rewards.",
+}
+
+// Dark theme-color so mobile browser chrome + the overscroll canvas match the
+// app's dark ground instead of flashing white at the page edges.
+export const viewport: Viewport = {
+  themeColor: "#0b0c11",
+  colorScheme: "dark",
 }
 
 export default function RootLayout({
