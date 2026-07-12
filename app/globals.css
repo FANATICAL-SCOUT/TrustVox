@@ -12,6 +12,14 @@
        leaving no light gap for overscroll to reveal. */
     min-height: 100%;
     background-color: #0b0c11;
+    /* Guard against a stray full-bleed element widening the document (the
+       horizontal white gutter on hard left/right scroll). `clip` — NOT
+       `hidden` — because `clip` prevents the sideways overflow without making
+       this a scroll container, so vertical wheel/touchpad scrolling still works
+       normally. `overflow-y: visible` is set explicitly so the browser can't
+       compute overflow-y as `auto` (which would re-create a scroll container). */
+    overflow-x: clip;
+    overflow-y: visible;
   }
 
   body {
@@ -152,13 +160,14 @@ html {
        canvas paints dark instead of the default white. Without this, hard
        scrolling past the page bounds flashes a white edge (top/bottom). */
     color-scheme: dark;
-    /* Kill the rubber-band overscroll glow entirely so no root canvas can peek
-       through beyond the page — the white-edge bug on hard scroll, both axes. */
+    /* Kill the rubber-band overscroll glow so no root canvas can peek through
+       beyond the page — the white-edge bug on hard scroll.
+       NOTE: intentionally NOT setting overflow-x here. Putting overflow on
+       html/body turns the body into the scroll container and breaks normal
+       wheel/touchpad scrolling. The horizontal guard is `overflow-x: clip` on
+       `html` only (see the base `html {}` rule above), which clips sideways
+       overflow WITHOUT creating a scroll container. */
     overscroll-behavior: none;
-    /* Belt-and-braces guard against a stray full-bleed element pushing the
-       document wider than the viewport (the horizontal white gutter on hard
-       left/right scroll). The page body should never scroll sideways. */
-    overflow-x: hidden;
   }
 
   h1,
