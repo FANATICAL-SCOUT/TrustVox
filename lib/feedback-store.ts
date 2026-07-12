@@ -566,6 +566,102 @@ export async function hasUserSubmittedForm(formId: string, userId: string): Prom
   return Boolean(data);
 }
 
+// One real activity event for the admin "User Activity" modal (Phase 13.6,
+// bug #4). Two honest kinds, both derived from real rows — never fabricated:
+//   • "feedback" — a response the user submitted (with the form title and, if
+//     the form had a star-rating question, the star value they gave).
+//   • "earn"     — a TVX reward credited for accepted feedback.
+export interface UserActivityEvent {
+  id: string;
+  kind: "feedback" | "earn";
+  title: string;
+  at: string;
+  rating?: number;
+  amount?: number;
+}
+
+// The real recent activity of one user, for the admin user-management modal
+// (Phase 13.6, bug #4). Every row is read straight from the DB under the
+// caller's RLS: an admin session may read any user's `responses` (0002
+// responses_select_own_owner_admin → is_admin()) and `wallet_transactions`
+// (0002 wallet_select_own_or_admin → is_admin()), so this works from the admin
+// surface without a service-role path. No fabricated activity to fill the modal
+// (CLAUDE.md) — an inactive user honestly returns an empty feed. Newest first.
+export async function getUserActivity(userId: string): Promise<UserActivityEvent[]> {
+  const normalizedUserId = String(userId || "").trim();
+  if (!normalizedUserId) return [];
+
+  const supabase = createClient();
+
+  // Responses the user submitted + their earn transactions, in parallel.
+  const [responsesResult, earnResult] = await Promise.all([
+    supabase
+      .from("responses")
+      .select("*")
+      .eq("user_id", normalizedUserId)
+      .order("submitted_at", { ascending: false }),
+    supabase
+      .from("wallet_transactions")
+      .select("id, amount, reason, created_at")
+      .eq("user_id", normalizedUserId)
+      .gt("amount", 0)
+      .order("created_at", { ascending: false }),
+  ]);
+  if (responsesResult.error) throw responsesResult.error;
+  if (earnResult.error) throw earnResult.error;
+
+  const responses = (responsesResult.data ?? []).map(mapResponseRow);
+
+  // Fetch the forms those responses belong to, once, so each event can show a
+  // real title + know which question (if any) was the star rating.
+  const formIds = Array.from(new Set(responses.map((r) => r.formId)));
+  const formsById = new Map<string, FeedbackForm>();
+  if (formIds.length > 0) {
+    const { data: formRows, error: formError } = await supabase
+      .from("forms")
+      .select("*")
+      .in("id", formIds);
+    if (formError) throw formError;
+    const counts = await fetchResponseCounts(supabase, formIds);
+    for (const row of formRows ?? []) {
+      formsById.set(row.id, mapFormRow(row, counts.get(row.id) ?? 0));
+    }
+  }
+
+  const ratingOf = (response: FormResponse, form?: FeedbackForm): number | undefined => {
+    if (!form) return undefined;
+    for (const q of form.questions) {
+      if (q.type !== "star-rating") continue;
+      const value = Number(response.answers?.[q.id]);
+      if (Number.isFinite(value) && value > 0) return value;
+    }
+    return undefined;
+  };
+
+  const feedbackEvents: UserActivityEvent[] = responses.map((response) => {
+    const form = formsById.get(response.formId);
+    return {
+      id: `feedback-${response.id}`,
+      kind: "feedback",
+      title: form?.title || "a feedback form",
+      at: response.submittedAt,
+      rating: ratingOf(response, form),
+    };
+  });
+
+  const earnEvents: UserActivityEvent[] = (earnResult.data ?? []).map((row) => ({
+    id: `earn-${row.id}`,
+    kind: "earn",
+    title: row.reason,
+    at: row.created_at,
+    amount: row.amount,
+  }));
+
+  return [...feedbackEvents, ...earnEvents].sort(
+    (a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0),
+  );
+}
+
 // Utility: generate a unique question id
 export function newQuestionId() {
   return `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;

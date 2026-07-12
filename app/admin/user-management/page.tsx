@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Users, Search, ShieldCheck, ShieldX, Eye, UserCheck, UserX, MessageSquare } from "lucide-react"
+import { Users, Search, ShieldCheck, ShieldX, Eye, UserCheck, UserX, MessageSquare, Star, Coins, Loader2, Activity } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -16,6 +16,7 @@ import {
   type UserRole,
   type UserStatus,
 } from "@/lib/approved-company-store"
+import { getUserActivity, type UserActivityEvent } from "@/lib/feedback-store"
 
 function RoleBadge({ role }: { role: UserRole }) {
   const map: Record<UserRole, string> = {
@@ -44,6 +45,11 @@ export default function UserManagementPage() {
   const [query, setQuery] = useState("")
   const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null)
   const [activityOpen, setActivityOpen] = useState(false)
+  const [activity, setActivity] = useState<UserActivityEvent[]>([])
+  const [activityLoading, setActivityLoading] = useState(false)
+  // Block/unblock confirmation (bug #8b): blocking signs the user out
+  // platform-wide on their next request, so it shouldn't fire on one click.
+  const [confirmTarget, setConfirmTarget] = useState<ManagedUser | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
 
@@ -55,6 +61,23 @@ export default function UserManagementPage() {
     const unsub = subscribeToManagedUsers(() => void loadUsers())
     return () => unsub()
   }, [])
+
+  // Load the selected user's real activity when the modal opens (bug #4). Keyed
+  // to the user's id so re-opening a different row can't show a stale feed; the
+  // read runs under the admin's own RLS (admins may read any user's responses +
+  // wallet rows — see getUserActivity).
+  useEffect(() => {
+    if (!activityOpen || !selectedUser) return
+    const userId = selectedUser.id
+    let cancelled = false
+    setActivity([])
+    setActivityLoading(true)
+    getUserActivity(userId)
+      .then((events) => { if (!cancelled) setActivity(events) })
+      .catch(() => { if (!cancelled) setActivity([]) })
+      .finally(() => { if (!cancelled) setActivityLoading(false) })
+    return () => { cancelled = true }
+  }, [activityOpen, selectedUser])
 
   const showToast = (msg: string) => {
     setToastMsg(msg)
@@ -122,7 +145,24 @@ export default function UserManagementPage() {
     ]
   }, [users])
 
-  async function toggleStatus(user: ManagedUser) {
+  // Clicking block/unblock now opens a confirm (bug #8b) rather than writing
+  // immediately. The self/last-admin guard is re-checked here so a stale render
+  // can't even open the dialog for a blocked action.
+  function requestToggle(user: ManagedUser) {
+    if (user.status === "Active") {
+      const reason = blockDisabledReason(user)
+      if (reason) {
+        showToast(reason)
+        return
+      }
+    }
+    setConfirmTarget(user)
+  }
+
+  async function confirmToggle() {
+    const user = confirmTarget
+    if (!user) return
+    setConfirmTarget(null)
     const next: UserStatus = user.status === "Active" ? "Blocked" : "Active"
     // UI already disables these, but re-check so a stale render can't slip past.
     if (next === "Blocked") {
@@ -247,7 +287,7 @@ export default function UserManagementPage() {
                             ? "border-destructive/25 text-destructive hover:border-destructive/45 hover:bg-destructive/15"
                             : "border-mint/25 text-mint hover:border-mint/45 hover:bg-mint/15"
                         }`}
-                        onClick={() => toggleStatus(user)}
+                        onClick={() => requestToggle(user)}
                       >
                         {user.status === "Active" ? <ShieldX size={14} /> : <ShieldCheck size={14} />}
                       </Button>
@@ -267,21 +307,138 @@ export default function UserManagementPage() {
         </div>
       </main>
 
+      {/* User Activity (bug #4) — real recent activity for the selected user,
+          read live from the DB (see getUserActivity), not a re-dump of the row. */}
       <Dialog open={activityOpen} onOpenChange={setActivityOpen}>
-        <DialogContent className="bg-surface-raised border-white/10">
+        <DialogContent className="bg-surface-raised border-white/10 max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-ink">User Activity</DialogTitle>
+            <DialogTitle className="text-ink flex items-center gap-2">
+              <Activity size={18} className="text-gold" />
+              User Activity
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 text-sm">
-            <p className="text-ink"><span className="text-ink-dim">Name:</span> {selectedUser?.name}</p>
-            <p className="text-ink"><span className="text-ink-dim">Email:</span> {selectedUser?.email}</p>
-            <p className="text-ink"><span className="text-ink-dim">Role:</span> {selectedUser?.role}</p>
-            <p className="text-ink"><span className="text-ink-dim">Status:</span> {selectedUser?.status}</p>
-            <p className="text-ink"><span className="text-ink-dim">Feedback submitted:</span> {selectedUser?.feedbackSubmittedCount}</p>
-            <p className="text-ink"><span className="text-ink-dim">Joined:</span> {selectedUser ? new Date(selectedUser.joinedAt).toLocaleDateString() : "-"}</p>
+
+          {/* Identity header */}
+          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-ink truncate">{selectedUser?.name}</p>
+                <p className="text-xs text-ink-dim truncate">{selectedUser?.email}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {selectedUser && <RoleBadge role={selectedUser.role} />}
+                {selectedUser && <StatusBadge status={selectedUser.status} />}
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-ink-muted">
+              Joined {selectedUser ? new Date(selectedUser.joinedAt).toLocaleDateString() : "-"}
+              {" · "}
+              {selectedUser?.feedbackSubmittedCount ?? 0} feedback submitted
+            </p>
           </div>
+
+          {/* Activity feed */}
+          <div className="mt-1">
+            <p className="text-[11px] uppercase tracking-[0.12em] text-ink-muted mb-2">Recent activity</p>
+            {activityLoading ? (
+              <div className="flex items-center gap-2 py-8 text-sm text-ink-muted">
+                <Loader2 size={15} className="animate-spin" />
+                Loading activity…
+              </div>
+            ) : activity.length === 0 ? (
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-8 text-center text-sm text-ink-muted">
+                No activity yet — this user hasn&apos;t submitted feedback or earned TVX.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {activity.map((event) => (
+                  <div
+                    key={event.id}
+                    className="flex items-start gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"
+                  >
+                    <span
+                      className={`inline-flex shrink-0 rounded-lg border p-2 ${
+                        event.kind === "earn"
+                          ? "border-gold/25 bg-gold/10 text-gold"
+                          : "border-white/15 bg-white/[0.04] text-ink-dim"
+                      }`}
+                    >
+                      {event.kind === "earn" ? <Coins className="h-3.5 w-3.5" /> : <MessageSquare className="h-3.5 w-3.5" />}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-ink">
+                        {event.kind === "earn" ? (
+                          <>Earned <span className="tvx-num font-semibold text-gold">+{event.amount} TVX</span></>
+                        ) : (
+                          <>Submitted feedback for <span className="text-ink-dim">{event.title}</span></>
+                        )}
+                      </p>
+                      <div className="mt-0.5 flex items-center gap-2 text-xs text-ink-muted">
+                        <span>{new Date(event.at).toLocaleString()}</span>
+                        {event.kind === "feedback" && typeof event.rating === "number" && (
+                          <span className="flex items-center gap-0.5 text-gold">
+                            <Star size={11} className="fill-gold" />
+                            {event.rating}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <DialogFooter>
             <Button variant="ghost" onClick={() => setActivityOpen(false)} className="text-ink-dim">Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Block / unblock confirmation (bug #8b) */}
+      <Dialog open={!!confirmTarget} onOpenChange={(o) => { if (!o) setConfirmTarget(null) }}>
+        <DialogContent className="bg-surface-raised border-white/10 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-ink flex items-center gap-2">
+              {confirmTarget?.status === "Active" ? (
+                <ShieldX size={18} className="text-destructive" />
+              ) : (
+                <ShieldCheck size={18} className="text-mint" />
+              )}
+              {confirmTarget?.status === "Active" ? "Block user" : "Unblock user"}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-ink-dim">
+            {confirmTarget?.status === "Active" ? (
+              <>
+                Block <span className="text-ink font-medium">{confirmTarget?.name}</span>? They&apos;ll be signed
+                out platform-wide on their next request and can&apos;t sign back in until unblocked.
+              </>
+            ) : (
+              <>
+                Unblock <span className="text-ink font-medium">{confirmTarget?.name}</span>? They&apos;ll be able
+                to sign in again immediately.
+              </>
+            )}
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setConfirmTarget(null)} className="text-ink-dim">
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmToggle}
+              className={
+                confirmTarget?.status === "Active"
+                  ? "bg-destructive/20 hover:bg-destructive/30 text-destructive border border-destructive/30"
+                  : "bg-mint/20 hover:bg-mint/30 text-mint border border-mint/30"
+              }
+            >
+              {confirmTarget?.status === "Active" ? (
+                <><ShieldX size={14} className="mr-1.5" />Block user</>
+              ) : (
+                <><ShieldCheck size={14} className="mr-1.5" />Unblock user</>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
