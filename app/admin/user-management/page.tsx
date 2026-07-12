@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
+  AdminLockoutError,
+  getCurrentUserId,
   getManagedUsers,
   subscribeToManagedUsers,
   updateManagedUserStatus,
@@ -42,14 +44,38 @@ export default function UserManagementPage() {
   const [query, setQuery] = useState("")
   const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null)
   const [activityOpen, setActivityOpen] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [toastMsg, setToastMsg] = useState<string | null>(null)
 
   const loadUsers = async () => setUsers(await getManagedUsers())
 
   useEffect(() => {
     void loadUsers()
+    void getCurrentUserId().then(setCurrentUserId)
     const unsub = subscribeToManagedUsers(() => void loadUsers())
     return () => unsub()
   }, [])
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg)
+    setTimeout(() => setToastMsg(null), 3000)
+  }
+
+  // Self-lockout guard (Phase 13.2, bug #6): the block button is disabled for
+  // rows that would strand /admin — the current admin's own row, and the last
+  // active admin. `updateManagedUserStatus` re-checks this server-side too.
+  const activeAdminCount = useMemo(
+    () => users.filter((u) => u.role === "Admin" && u.status === "Active").length,
+    [users],
+  )
+
+  const blockDisabledReason = (user: ManagedUser): string | null => {
+    // Only blocking an active account can lock anyone out; unblocking is safe.
+    if (user.status !== "Active") return null
+    if (currentUserId && user.id === currentUserId) return "You can't block your own admin account."
+    if (user.role === "Admin" && activeAdminCount <= 1) return "You can't block the last active admin."
+    return null
+  }
 
   const filteredUsers = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -98,12 +124,34 @@ export default function UserManagementPage() {
 
   async function toggleStatus(user: ManagedUser) {
     const next: UserStatus = user.status === "Active" ? "Blocked" : "Active"
-    await updateManagedUserStatus(user.id, next)
+    // UI already disables these, but re-check so a stale render can't slip past.
+    if (next === "Blocked") {
+      const reason = blockDisabledReason(user)
+      if (reason) {
+        showToast(reason)
+        return
+      }
+    }
+    try {
+      await updateManagedUserStatus(user.id, next)
+    } catch (err) {
+      // The store's trusted backstop refused it (self / last-admin block).
+      showToast(err instanceof AdminLockoutError ? err.message : "Couldn't update user status.")
+      return
+    }
     void loadUsers()
   }
 
   return (
     <div className="space-y-6">
+      {/* Toast — surfaces a blocked action (self / last-admin guard, #6) */}
+      {toastMsg && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-xl border border-gold/40 bg-surface-raised px-4 py-3 text-sm font-medium text-gold shadow-2xl">
+          <ShieldX size={15} />
+          {toastMsg}
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="font-display flex items-center gap-2 text-2xl font-bold text-ink md:text-3xl">
@@ -160,7 +208,9 @@ export default function UserManagementPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.06]">
-              {filteredUsers.map((user) => (
+              {filteredUsers.map((user) => {
+                const blockReason = blockDisabledReason(user)
+                return (
                 <tr key={user.id} className="transition-colors hover:bg-gold/[0.04]">
                   <td className="px-4 py-3.5 text-ink">
                     <span className="font-medium">{user.name}</span>
@@ -186,7 +236,10 @@ export default function UserManagementPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className={`h-8 w-8 rounded-lg border p-0 ${
+                        disabled={!!blockReason}
+                        title={blockReason ?? (user.status === "Active" ? "Block user" : "Unblock user")}
+                        aria-label={blockReason ?? (user.status === "Active" ? "Block user" : "Unblock user")}
+                        className={`h-8 w-8 rounded-lg border p-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${
                           user.status === "Active"
                             ? "border-destructive/25 text-destructive hover:border-destructive/45 hover:bg-destructive/15"
                             : "border-mint/25 text-mint hover:border-mint/45 hover:bg-mint/15"
@@ -198,7 +251,8 @@ export default function UserManagementPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
 

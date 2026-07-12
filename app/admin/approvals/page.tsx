@@ -22,9 +22,36 @@ import {
   type Question,
   type QuestionType,
 } from "@/lib/feedback-store"
+import {
+  getApprovedCompanies, subscribeToApprovedCompanies,
+  type ApprovedCompany,
+} from "@/lib/approved-company-store"
 import { logFlow } from "@/lib/debug-log"
 
 type ApprovalFilterKey = "all" | "pending" | "changes" | "approved" | "rejected"
+
+// Why a pending form can't be approved (bug #10). approveForm() returns null
+// when the form's company is missing or not active — mirror that check here so
+// the card can say *why* up-front instead of the admin re-clicking into a
+// transient "blocked" toast. Returns null when the form is approvable.
+// Ties into #7 (a company deactivated after its forms went pending).
+function approvalBlockedReason(
+  form: FeedbackForm,
+  companiesById: Map<string, ApprovedCompany>,
+): string | null {
+  const companyId = String(form.companyId || "").trim()
+  if (!companyId) {
+    return "This form isn't linked to an approved company, so it can't be published."
+  }
+  const company = companiesById.get(companyId)
+  if (!company) {
+    return "This form's company no longer exists, so it can't be published."
+  }
+  if (company.status !== "active") {
+    return `“${company.name}” is inactive, so this form can't be published. Reactivate the company first.`
+  }
+  return null
+}
 
 // A form the admin sent back for changes: it goes to "draft" status but keeps
 // its requestChangesNote. Without this, those forms only showed under "All"
@@ -205,16 +232,64 @@ function ActionDialog({
   )
 }
 
+// ── Approve confirmation ─────────────────────────────────────────────────────
+// Bug #8a: "Approve & Publish" is the higher-stakes action (makes the form
+// public AND turns on the TVX reward payout), yet it used to fire on a single
+// click while Reject/Request-Changes both had a dialog. This adds a lightweight
+// confirm — no note field, since approve carries no message to the client.
+function ApproveConfirmDialog({
+  form,
+  open,
+  onClose,
+  onConfirm,
+}: {
+  form: FeedbackForm | null
+  open: boolean
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent className="bg-surface-raised border-white/10 max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-ink flex items-center gap-2">
+            <CheckCircle2 size={18} className="text-mint" />
+            Approve &amp; Publish
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-ink-dim">
+          Publish <span className="text-ink font-medium">“{form?.title || "this form"}”</span> live to users?
+          It becomes public immediately and starts paying the TVX reward on every accepted response.
+        </p>
+        <DialogFooter className="gap-2">
+          <Button variant="ghost" onClick={onClose} className="text-ink-dim">
+            Cancel
+          </Button>
+          <Button
+            onClick={onConfirm}
+            className="bg-mint/20 hover:bg-mint/30 text-mint border border-mint/30"
+          >
+            <CheckCircle2 size={14} className="mr-1.5" />
+            Approve &amp; Publish
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── Review Card ───────────────────────────────────────────────────────────────
 function ReviewCard({
   form,
+  blockedReason,
   onApprove,
   onReject,
   onRequestChanges,
   onPreview,
 }: {
   form: FeedbackForm
-  onApprove: (id: string) => void
+  blockedReason: string | null
+  onApprove: (form: FeedbackForm) => void
   onReject: (form: FeedbackForm) => void
   onRequestChanges: (form: FeedbackForm) => void
   onPreview: (form: FeedbackForm) => void
@@ -306,14 +381,26 @@ function ReviewCard({
             <span className="font-medium">Changes requested: </span>{form.requestChangesNote}
           </div>
         )}
+
+        {/* Blocked-from-approval notice (bug #10): a pending form whose company
+            is missing/inactive can't be published — say so here instead of a
+            transient toast the admin only sees after clicking. */}
+        {isPending && blockedReason && (
+          <div className="mt-3 p-2.5 rounded-lg bg-destructive/5 border border-destructive/20 text-xs text-destructive">
+            <span className="font-medium">Can&apos;t publish: </span>{blockedReason}
+          </div>
+        )}
       </div>
 
       {/* Action bar — only for pending */}
       {isPending && (
         <div className="px-5 py-4 border-t border-white/[0.07] bg-white/[0.01] flex items-center gap-2 flex-wrap">
           <button
-            className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-3 py-2 text-xs font-semibold text-[#241a06] transition hover:brightness-105"
-            onClick={() => onApprove(form.id)}
+            disabled={!!blockedReason}
+            title={blockedReason ?? undefined}
+            aria-label={blockedReason ? `Approve disabled: ${blockedReason}` : undefined}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-3 py-2 text-xs font-semibold text-[#241a06] transition hover:brightness-105 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100"
+            onClick={() => onApprove(form)}
           >
             <CheckCircle2 size={14} />
             Approve & Publish
@@ -345,8 +432,10 @@ function ReviewCard({
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function AdminApprovalsPage() {
   const [forms, setForms] = useState<FeedbackForm[]>([])
+  const [companies, setCompanies] = useState<ApprovedCompany[]>([])
   const [filter, setFilter] = useState<ApprovalFilterKey>("pending")
   const [previewForm, setPreviewForm] = useState<FeedbackForm | null>(null)
+  const [approveTarget, setApproveTarget] = useState<FeedbackForm | null>(null)
   const [rejectTarget, setRejectTarget] = useState<FeedbackForm | null>(null)
   const [changesTarget, setChangesTarget] = useState<FeedbackForm | null>(null)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
@@ -361,11 +450,21 @@ export default function AdminApprovalsPage() {
     setForms(allForms)
   }
 
+  // Companies drive the per-card blocked-from-approval notice (bug #10). Loaded
+  // + subscribed alongside forms so deactivating a company reflects live.
+  const loadCompanies = async () => {
+    setCompanies(await getApprovedCompanies())
+  }
+
   useEffect(() => {
     void loadForms()
-    const unsubscribe = subscribeToFormsUpdates(() => void loadForms())
-    return () => unsubscribe()
+    void loadCompanies()
+    const unsubForms = subscribeToFormsUpdates(() => void loadForms())
+    const unsubCompanies = subscribeToApprovedCompanies(() => void loadCompanies())
+    return () => { unsubForms(); unsubCompanies() }
   }, [])
+
+  const companiesById = new Map(companies.map((c) => [c.id, c]))
 
   const showToast = (msg: string) => {
     setToastMsg(msg)
@@ -387,13 +486,27 @@ export default function AdminApprovalsPage() {
     rejected: forms.filter((f) => f.status === "rejected").length,
   }
 
-  async function handleApprove(id: string) {
+  // Open the confirm step (bug #8a). A blocked form never gets here — the card's
+  // Approve button is disabled — but guard anyway so a stale click can't slip a
+  // blocked form into the dialog.
+  function requestApprove(form: FeedbackForm) {
+    if (approvalBlockedReason(form, companiesById)) return
+    setApproveTarget(form)
+  }
+
+  async function handleApprove() {
+    if (!approveTarget) return
+    const id = approveTarget.id
+    setApproveTarget(null)
     const updated = await approveForm(id)
     logFlow("admin-approve-click", {
       formId: id,
       statusAfter: updated?.status,
     })
     if (!updated) {
+      // approveForm re-checks the company server-side; if it refuses, the
+      // company changed since the card rendered — reload so the notice appears.
+      await loadCompanies()
       showToast("Approval blocked: company is inactive or not approved.")
       return
     }
@@ -495,7 +608,8 @@ export default function AdminApprovalsPage() {
             <ReviewCard
               key={form.id}
               form={form}
-              onApprove={handleApprove}
+              blockedReason={form.status === "pending" ? approvalBlockedReason(form, companiesById) : null}
+              onApprove={requestApprove}
               onReject={(f: FeedbackForm) => setRejectTarget(f)}
               onRequestChanges={(f: FeedbackForm) => setChangesTarget(f)}
               onPreview={(f: FeedbackForm) => setPreviewForm(f)}
@@ -509,6 +623,14 @@ export default function AdminApprovalsPage() {
         form={previewForm}
         open={!!previewForm}
         onClose={() => setPreviewForm(null)}
+      />
+
+      {/* Approve confirmation (bug #8a) */}
+      <ApproveConfirmDialog
+        form={approveTarget}
+        open={!!approveTarget}
+        onClose={() => setApproveTarget(null)}
+        onConfirm={handleApprove}
       />
 
       {/* Reject dialog */}

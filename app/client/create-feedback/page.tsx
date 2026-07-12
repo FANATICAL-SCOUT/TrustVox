@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -934,28 +935,15 @@ function CreateFeedbackInner() {
                   </div>
                   <div>
                     <Label className="text-xs text-ink-dim mb-1.5 block">Category <span className="text-destructive">*</span></Label>
-                    <Select value={category} onValueChange={setCategory}>
-                      <SelectTrigger className="h-11 bg-white/[0.03] border-white/10 text-ink data-[placeholder]:text-ink-muted focus:border-gold/50 focus:ring-gold/20">
-                        <SelectValue>{category || "Select category"}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent
-                        position="popper"
-                        side="bottom"
-                        sideOffset={6}
-                        avoidCollisions={false}
-                        className="max-h-[280px] w-[--radix-select-trigger-width] overflow-y-auto bg-surface-raised border-white/10 text-ink shadow-2xl"
-                      >
-                        {CATEGORIES.map((c) => (
-                          <SelectItem
-                            key={c}
-                            value={c}
-                            className="text-ink focus:bg-gold/20 focus:text-ink data-[state=checked]:bg-gold/15"
-                          >
-                            {c}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      aria-label="Category"
+                      options={CATEGORIES.map((c) => ({ value: c, label: c }))}
+                      value={category}
+                      onChange={setCategory}
+                      placeholder="Select category"
+                      searchPlaceholder="Type to search…"
+                      emptyText="No matching category."
+                    />
                   </div>
                   <div>
                     <Label className="text-xs text-ink-dim mb-1.5 block">Reward Per Completed Feedback (TVX) <span className="text-destructive">*</span></Label>

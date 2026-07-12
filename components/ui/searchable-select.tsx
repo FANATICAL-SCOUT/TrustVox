@@ -101,12 +101,14 @@ export function SearchableSelect({
       >
         <Command
           className="bg-transparent"
-          // cmdk matches on each item's `value`, which we key by the option's
-          // unique value so same-named options never collapse. The visible
-          // label + any extra keywords carry the actual search text.
-          filter={(itemValue, search, keywords) => {
-            const haystack = (keywords ?? []).join(" ").toLowerCase()
-            return haystack.includes(search.toLowerCase()) ? 1 : 0
+          // Match on a haystack built from the label + any extra keywords, plus
+          // the option's unique id so same-named options never collapse (cmdk
+          // dedupes items by `value`). `search` is what the user typed. We use
+          // an explicit filter rather than cmdk's default so behavior is stable
+          // across cmdk versions and doesn't depend on the `keywords` arg being
+          // forwarded to the callback.
+          filter={(itemValue, search) => {
+            return itemValue.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
           }}
         >
           <CommandInput placeholder={searchPlaceholder} className="text-ink" />
@@ -116,8 +118,9 @@ export function SearchableSelect({
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.value}
-                  keywords={[option.label, ...(option.keywords ?? [])]}
+                  // The `value` is the searchable haystack (label + keywords +
+                  // unique id). onSelect still returns the real option.value.
+                  value={[option.label, ...(option.keywords ?? []), option.value].join(" ")}
                   disabled={option.disabled}
                   onSelect={() => {
                     onChange(option.value)

@@ -4,7 +4,7 @@
 // Companies map to the `companies` table; managed users are the `profiles`
 // table read through the admin lens. All functions are async and run through
 // the RLS-gated browser client.
-import { createClient, nextChannelId } from "@/lib/supabase/client";
+import { createClient, getCachedUser, nextChannelId } from "@/lib/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { logStore } from "@/lib/debug-log";
@@ -118,6 +118,32 @@ export async function toggleApprovedCompanyStatus(id: string): Promise<ApprovedC
 }
 
 // ── Managed users (← ManagedUser, admin view over profiles) ────────────────
+
+// The signed-in admin's own id, so the UI can recognise its own row (and the
+// self-block guard below). Returns null if there's no session (shouldn't
+// happen behind the /admin gate, but the callers treat null as "unknown").
+export async function getCurrentUserId(): Promise<string | null> {
+  const supabase = createClient();
+  const user = await getCachedUser(supabase);
+  return user?.id ?? null;
+}
+
+// Self-lockout guard (Phase 13.2, bug #6). RLS lets an admin flip any
+// profile's status — including their own or the last remaining admin — which
+// would sign everyone out of /admin with no in-UI way back. The block button
+// is disabled for those rows in the UI, but this is the trusted backstop: any
+// caller (now or later) that tries to *block* the current admin or the last
+// active admin is refused here, not just hidden. `code` lets the UI show the
+// right message; a generic throw would read as an unexpected failure.
+export class AdminLockoutError extends Error {
+  code: "self-block" | "last-admin";
+  constructor(code: "self-block" | "last-admin", message: string) {
+    super(message);
+    this.name = "AdminLockoutError";
+    this.code = code;
+  }
+}
+
 export async function getManagedUsers(): Promise<ManagedUser[]> {
   const supabase = createClient();
   const { data: profiles, error } = await supabase
@@ -150,6 +176,36 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
 export async function updateManagedUserStatus(id: string, status: UserStatus): Promise<ManagedUser | null> {
   const supabase = createClient();
   const dbStatus: ProfileRow["status"] = status === "Active" ? "active" : "blocked";
+
+  // Self-lockout backstop (see AdminLockoutError). Only a *block* can lock
+  // anyone out, so unblocks skip the guard entirely.
+  if (dbStatus === "blocked") {
+    const currentUserId = await getCurrentUserId();
+    if (currentUserId && id === currentUserId) {
+      throw new AdminLockoutError("self-block", "You can't block your own admin account.");
+    }
+    // Refuse the block if the target is the last active admin (would drop the
+    // active-admin count to 0 and strand /admin). Count admins directly rather
+    // than trust a passed-in list.
+    const { data: target, error: targetError } = await supabase
+      .from("profiles")
+      .select("role, status")
+      .eq("id", id)
+      .maybeSingle();
+    if (targetError) throw targetError;
+    if (target?.role === "admin" && target.status === "active") {
+      const { count, error: countError } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "admin")
+        .eq("status", "active");
+      if (countError) throw countError;
+      if ((count ?? 0) <= 1) {
+        throw new AdminLockoutError("last-admin", "You can't block the last active admin.");
+      }
+    }
+  }
+
   const { data, error } = await supabase
     .from("profiles")
     .update({ status: dbStatus })

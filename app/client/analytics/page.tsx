@@ -33,7 +33,6 @@ import {
 import { getClientForms, getResponsesByFormId, subscribeToFormsUpdates, type FeedbackForm, type FormResponse } from "@/lib/feedback-store"
 import AnalyticsPDFTemplate from "@/components/analytics-pdf-template"
 import AiSummaryPanel from "@/components/ai-summary-panel"
-import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select"
 import { useSearchParams } from "next/navigation"
 
 const REPORTS_STORAGE_KEY = "trustvox.client.analytics.reports.v1"
@@ -705,6 +704,10 @@ function ClientAnalyticsPageContent() {
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<CampaignSlots>([null, null, null])
   const [compareSearch, setCompareSearch] = useState("")
   const [compareRange, setCompareRange] = useState<DateRangeKey>("all")
+  // Single-mode picker filters — mirror the compare-mode search + date-range so
+  // finding one form to analyze is as easy as building a comparison set.
+  const [singleSearch, setSingleSearch] = useState("")
+  const [singleRange, setSingleRange] = useState<DateRangeKey>("all")
   const [warning, setWarning] = useState("")
   const [reports, setReports] = useState<AnalyticsReport[]>([])
   const [activeReportId, setActiveReportId] = useState<string | null>(null)
@@ -713,18 +716,6 @@ function ClientAnalyticsPageContent() {
   const [isHydrated, setIsHydrated] = useState(false)
 
   const campaignMap = useMemo(() => new Map(campaigns.map((campaign) => [campaign.id, campaign])), [campaigns])
-
-  // Options for the single-form searchable picker — each form is findable by
-  // typing its name, with the created-date shown as a secondary hint.
-  const singleFormOptions = useMemo<SearchableSelectOption[]>(
-    () =>
-      campaigns.map((campaign) => ({
-        value: campaign.id,
-        label: campaign.name,
-        hint: `Created ${formatDateLabel(campaign.date)}`,
-      })),
-    [campaigns],
-  )
 
   useEffect(() => {
     let active = true
@@ -994,6 +985,25 @@ function ClientAnalyticsPageContent() {
       return true
     })
   }, [campaigns, compareSearch, compareRange, selectedCampaignIds])
+
+  // Single-form list filtered by the same search + date-range controls. The
+  // currently-analyzed form is always kept visible so a filter can't hide the
+  // user's own selection.
+  const visibleSingleCampaigns = useMemo(() => {
+    const query = singleSearch.trim().toLowerCase()
+    const rangeDays = DATE_RANGE_OPTIONS.find((option) => option.key === singleRange)?.days ?? null
+    const cutoff = rangeDays === null ? null : Date.now() - rangeDays * 24 * 60 * 60 * 1000
+
+    return campaigns.filter((campaign) => {
+      if (campaign.id === singleCampaignId) return true
+      if (query && !campaign.name.toLowerCase().includes(query)) return false
+      if (cutoff !== null) {
+        const created = Date.parse(campaign.date)
+        if (!Number.isNaN(created) && created < cutoff) return false
+      }
+      return true
+    })
+  }, [campaigns, singleSearch, singleRange, singleCampaignId])
 
   const toggleCompareForm = (formId: string) => {
     setSelectedCampaignIds((current) => {
@@ -1331,38 +1341,119 @@ function ClientAnalyticsPageContent() {
         ) : (
           <>
             <section className="mb-8 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
-              <div className="mb-4 flex items-center gap-2 text-ink">
+              <div className="mb-1 flex items-center gap-2 text-ink">
                 <FileText className="h-4 w-4 text-gold" />
                 <h2 className="text-base font-semibold">Choose a form to analyze</h2>
               </div>
-              <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                <div className="w-full md:max-w-md">
-                  <SearchableSelect
-                    aria-label="Choose a form to analyze"
-                    options={singleFormOptions}
-                    value={singleCampaignId}
-                    onChange={(next) => {
-                      setSingleCampaignId(next)
-                      setWarning("")
-                    }}
-                    placeholder="Select a form…"
-                    searchPlaceholder="Type a form name…"
-                    emptyText="No matching forms."
-                    disabled={campaigns.length === 0}
-                  />
+              <p className="mb-4 text-sm text-ink-muted">
+                Search or filter by date, then pick a form and run its analysis.
+              </p>
+
+              {campaigns.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-white/[0.1] bg-white/[0.02] py-12 text-center text-sm text-ink-muted">
+                  No forms yet — create a form to unlock analytics.
                 </div>
+              ) : (
+                <>
+                  {/* Search + date-range filter — same controls as compare mode so
+                      finding a single form to analyze scales past a handful of
+                      forms. Type to find by name, or narrow by created date. */}
+                  <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="relative w-full lg:max-w-xs">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+                      <input
+                        type="text"
+                        value={singleSearch}
+                        onChange={(event) => setSingleSearch(event.target.value)}
+                        placeholder="Type a form name…"
+                        aria-label="Search forms to analyze"
+                        className="h-10 w-full rounded-lg border border-white/15 bg-white/[0.04] pl-9 pr-9 text-sm text-ink outline-none transition-colors focus:border-gold/60 focus:ring-2 focus:ring-gold/20"
+                      />
+                      {singleSearch ? (
+                        <button
+                          type="button"
+                          onClick={() => setSingleSearch("")}
+                          aria-label="Clear search"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-ink-muted transition-colors hover:text-ink"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {DATE_RANGE_OPTIONS.map((option) => (
+                        <button
+                          key={option.key}
+                          type="button"
+                          onClick={() => setSingleRange(option.key)}
+                          aria-pressed={singleRange === option.key}
+                          className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                            singleRange === option.key
+                              ? "border-gold/50 bg-gold/[0.1] text-gold"
+                              : "border-white/10 bg-white/[0.03] text-ink-muted hover:border-white/20 hover:text-ink-dim"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {visibleSingleCampaigns.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-white/[0.1] bg-white/[0.02] py-10 text-center text-sm text-ink-muted">
+                      No forms match your search or date range.
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      {visibleSingleCampaigns.map((campaign) => {
+                        const totalResponses = getCampaignTotalResponses(campaign)
+                        const isSelected = campaign.id === singleCampaignId
+
+                        return (
+                          <button
+                            key={campaign.id}
+                            type="button"
+                            onClick={() => {
+                              setSingleCampaignId(campaign.id)
+                              setWarning("")
+                            }}
+                            aria-pressed={isSelected}
+                            className={`group relative rounded-xl border p-4 text-left transition-all ${
+                              isSelected
+                                ? "border-gold/50 bg-gold/[0.07]"
+                                : "border-white/[0.07] bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                            }`}
+                          >
+                            <span
+                              className={`absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+                                isSelected ? "border-gold bg-gold text-[#241a06]" : "border-white/20 text-transparent"
+                              }`}
+                            >
+                              <Check className="h-3 w-3" />
+                            </span>
+                            <p className="pr-6 font-semibold text-ink">{campaign.name}</p>
+                            <p className="mt-0.5 text-xs text-ink-muted">Created {formatDateLabel(campaign.date)}</p>
+                            <p className="mt-3 tvx-num text-2xl font-semibold text-ink">{totalResponses}</p>
+                            <p className="text-[11px] uppercase tracking-wide text-ink-muted">Responses</p>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/[0.06] pt-4">
                 <button
                   onClick={analyzeSingleCampaign}
-                  className="inline-flex h-11 items-center justify-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 text-sm font-semibold text-[#241a06] transition hover:brightness-105"
+                  disabled={!singleCampaignId}
+                  className="inline-flex items-center rounded-lg bg-gradient-to-b from-[#f2c877] to-gold-deep px-4 py-2 text-sm font-semibold text-[#241a06] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <TrendingUp className="mr-2 h-4 w-4" />
                   Analyze Form
                 </button>
+                {warning ? <p className="text-sm text-destructive">{warning}</p> : null}
               </div>
-              {campaigns.length === 0 ? (
-                <p className="mt-3 text-sm text-ink-muted">No forms yet — create a form to unlock analytics.</p>
-              ) : null}
-              {warning ? <p className="mt-3 text-sm text-destructive">{warning}</p> : null}
             </section>
 
             {singleCampaign && singleMetric ? (
