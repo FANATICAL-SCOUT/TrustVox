@@ -56,15 +56,17 @@ graph TB
     style Database fill:#e6f3ff
 ```
 
-### Phase Progress
+### Build Progress
 
 ```mermaid
 timeline
-    title TrustVox Build Phases
-    Phase 1-7 : ✅ Frontend Complete : Ledger Design System
-    Phase 8 : 🔄 Backend (In Progress) : Supabase Auth + RLS + DB
-    Phase 9 : ⏳ QA & Polish : Bug fixes + refinement
+    title TrustVox Build Milestones
+    Frontend : ✅ Complete : Ledger Design System
+    Backend : ✅ Complete : Supabase Auth + RLS + DB + Realtime
+    QA & Redesign : 🔄 In Progress : Bug fixes + AI features
 ```
+
+> Deploy (Vercel/Supabase production) was considered and **scrapped** — TrustVox stays a local, non-deployed portfolio piece.
 
 ---
 
@@ -77,7 +79,7 @@ trustvoxplatformver5/
 │  ├─ user/                       # User portal (dashboard, wallet, store, feedback)
 │  ├─ client/                     # Client portal (forms, analytics, approvals)
 │  ├─ admin/                      # Admin portal (approvals, user management)
-│  └─ (auth pages)                # /login, /signup, /admin-login
+│  └─ (auth pages)                # /signin, /login, /signup, /client-login, /client-signup, /admin-login
 │
 ├─ components/                    # React components
 │  ├─ user/                       # User-specific UI (navbar, dashboard sections)
@@ -99,8 +101,8 @@ trustvoxplatformver5/
 │  └─ seed.sql                   # Seed data (honest-by-construction)
 │
 ├─ docs/                         # 📌 INTERNAL DOCS (not git-tracked)
-│  ├─ frontend/                  # UI rebuild status (Phases 1-7)
-│  ├─ backend/                   # DB rebuild status + architecture (Phase 8)
+│  ├─ frontend/                  # UI rebuild status + architecture
+│  ├─ backend/                   # DB rebuild status + architecture
 │  └─ README.md                  # Docs hub
 │
 ├─ public/                       # Static assets (images, fonts)
@@ -150,33 +152,37 @@ graph LR
 ## 📋 Routes & Pages
 
 ### Authentication (All Roles)
-- `/login` — Sign in for User and Client accounts (role resolved from the JWT after auth, routes automatically)
-- `/signup` — Register a User or Client account (role picker inside the form)
+- `/signin` — Role picker landing page (choose User or Client, links to their own login/signup doors)
+- `/login` — User sign-in door
+- `/signup` — User self-serve registration
+- `/client-login` — Client sign-in door
+- `/client-signup` — Client self-serve registration
 - `/admin-login` — Admin auth (sign-in only; admins provisioned by hand, no self-serve signup)
 
 ### User Portal
 - `/user/dashboard` — Main hub (home · browse feedback · history · profile)
+- `/user/feedback/[id]` — Single feedback detail + submission
 - `/user/wallet` — TVX balance & transaction history
 - `/user/store` — Redeem TVX for coupons
-- `/user/feedback/[id]` — Single feedback detail
 
 ### Client Portal
 - `/client/dashboard` — Home hub
 - `/client/forms` — Manage feedback forms
-- `/client/create-feedback` — Launch new feedback request
-- `/client/analytics` — Response stats & insights
+- `/client/create-feedback` — Launch new feedback request (AI question-quality critique inline)
+- `/client/analytics` — Response stats & insights (AI-generated response summaries)
 - `/client/history` — Submitted responses
 - `/client/profile` — Account settings
 
 ### Admin Portal
-- `/admin` — Home hub
+- `/admin` — Home hub (Command Center, realtime)
 - `/admin/approvals` — Review & approve feedback
 - `/admin/approved-companies` — Company directory
-- `/admin/user-management` — User controls & lockout
+- `/admin/user-management` — User controls, block/unblock, lockout
 
 ### Public
 - `/` — Landing page
 - `/contact` — Contact form
+- `/legal` — Legal / policy pages
 
 ---
 
@@ -187,10 +193,11 @@ graph LR
 | **Frontend** | Next.js 15 (App Router), React 19, TypeScript (strict) |
 | **Styling** | Tailwind CSS, shadcn/ui, Radix UI, lucide-react |
 | **Forms** | react-hook-form, zod validation |
-| **State** | Domain stores (`lib/*.ts`) + Supabase realtime (Phase 8) |
+| **State** | Domain stores (`lib/*.ts`) + Supabase Realtime |
+| **AI** | Groq SDK — question-quality critique, question generation, response summaries |
 | **UI Charts** | Recharts (analytics), html2canvas (PDF export) |
 | **Notifications** | sonner toasts |
-| **Backend** | Supabase (Postgres + Auth + RLS) |
+| **Backend** | Supabase (Postgres + Auth + RLS + Realtime) |
 | **Package Manager** | pnpm |
 
 ---
@@ -217,6 +224,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
 
 # Server-only (never sent to browser)
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
+GROQ_API_KEY=gsk_...
 ```
 
 Use `.env.example` as a template. **Never commit `.env.local`** — it contains secrets.
@@ -249,9 +257,10 @@ pnpm dev
 
 ## ✨ Current Status
 
-- **Frontend (Phases 1–7):** ✅ Complete — Ledger design system rebuilt
-- **Backend (Phase 8):** 🔄 In Progress — Supabase auth + RLS + database
-- **QA & Polish (Phase 9):** ⏳ Upcoming — Bug fixes + refinement
+- **Frontend:** ✅ Complete — Ledger design system rebuilt
+- **Backend:** ✅ Complete — Supabase auth + RLS + database + Realtime, security-hardened
+- **QA & Redesign:** 🔄 In Progress — per-page bug fixes + real AI features (Groq)
+- **Deploy:** ❌ Scrapped — stays a local, non-deployed portfolio piece
 
 ---
 
